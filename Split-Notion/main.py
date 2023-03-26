@@ -1,0 +1,164 @@
+import argparse
+import os
+from tqdm import tqdm
+
+import requests
+
+import dotenv
+from requests import HTTPError
+from dateutil import parser, tz
+from datetime import datetime, timedelta
+import json
+
+SPLIT_FIRSTNAME = "Ritik"
+SPLIT_LIMIT = 50
+
+
+def uploadNotionPagesToDb(db_id: str, pages: list):
+    """
+    Upload items as Notion pages to DB in Staging property row: https://developers.notion.com/reference/post-page
+    :param db_id: Notion DB id (get from DB url)
+    :param pages: List of Splitwise items in <created, name, amount> order
+    :return:
+    """
+    url = "https://api.notion.com/v1/pages"
+    headers = {
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
+        'Authorization': f'Bearer {os.getenv("NOTION_TOKEN")}',
+    }
+
+    for page in tqdm(pages):
+        payload = json.dumps({
+            "parent": {
+                "type": "database_id",
+                "database_id": db_id
+            },
+            "properties": {
+                "Amount": {
+                    "type": "number",
+                    "number": page[2]
+                },
+                "Name": {
+                    "type": "title",
+                    "title": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": page[1]
+                            }
+                        }
+                    ]
+                },
+                "Status": {
+                    "select": {
+                        "name": "Staging"
+                    }
+                },
+                "Date": {
+                    "date": {
+                        "start": page[0]
+                    }
+                }
+            }
+        })
+        response = requests.request("POST", url, headers=headers, data=payload)
+
+        if response.status_code != 200:
+            print(response.text)
+            raise HTTPError(f'Error uploading item {page[1]} to Notion', response=response)
+
+
+def getNotionDatabase(db_id):
+    """
+    Get Notion target DB schema: https://developers.notion.com/reference/retrieve-a-database
+    :param db_id: Notion DB id (get from DB url)
+    :return: Result json
+    """
+    url = f"https://api.notion.com/v1/databases/{db_id}"
+
+    headers = {
+        'Notion-Version': '2022-06-28',
+        'Authorization': f'Bearer {os.getenv("NOTION_TOKEN")}',
+    }
+
+    response = requests.request("GET", url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise HTTPError('Invalid Splitwise response', response=response)
+
+
+def getSplitwiseLastNDays(days):
+    """
+    Get Splitwise items added in the last n days: https://dev.splitwise.com/#tag/expenses/paths/~1get_expenses/get
+    :param days: Last n days
+    :return: Response json
+    """
+    dated_after = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    url = f"https://secure.splitwise.com/api/v3.0/get_expenses?dated_after={dated_after}&limit={SPLIT_LIMIT}"
+
+    headers = {
+        'Authorization': f'Bearer {os.getenv("SPLITWISE_TOKEN")}'
+    }
+
+    response = requests.request("GET", url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()["expenses"]
+    else:
+        raise HTTPError('Invalid Splitwise response', response=response)
+
+
+def main(days, notiondb):
+    if not days:
+        raise ValueError('Days not found')
+    if not notiondb:
+        raise ValueError('notiondb not found')
+
+    split_items = getSplitwiseLastNDays(days)
+    items = []
+    for item in split_items:
+        created = parser.parse(item['created_at'])
+        created = created.astimezone(tz.tzlocal())
+        result = [created.strftime("%Y-%m-%d"), item['description'].strip()]
+        for user in item['users']:
+            if user['user']['first_name'] == SPLIT_FIRSTNAME:
+                result.append(float(user['owed_share'].strip()))
+                items.append(result)
+
+    print('Following records were found from Splitwise')
+    for res in items:
+        print(res)
+
+    notionDb = getNotionDatabase(notiondb)
+    print(f'Adding these to Notion table `{notionDb["title"][0]["text"]["content"]}` at {notionDb["url"]}')
+
+    staging_column_id = None
+    # properties = list(notionDb['properties'].keys())
+
+    for option in notionDb['properties']['Status']['select']['options']:
+        if option['name'] == 'Staging':
+            staging_column_id = option['id']
+
+    if not staging_column_id:
+        raise ValueError("Target table doesn't has a Staging status column. Create Staging column to start adding")
+
+    uploadNotionPagesToDb(notiondb, items)
+    print("Expense upload to Staging successful")
+
+
+dotenv.load_dotenv()
+
+arg_parser = argparse.ArgumentParser(description="Run the Splitwise to Notion data connection. This will add all the "
+                                                 "splitwise records to the Notion database in a column")
+arg_parser.add_argument(
+    "--days", help="Number of days in the past to get records from", default=11, type=int
+)
+arg_parser.add_argument(
+    "--notiondb", help="Notion DB id", type=str, required=True
+)
+_days = arg_parser.parse_args().days
+_notiondb = arg_parser.parse_args().notiondb
+main(_days, _notiondb)
