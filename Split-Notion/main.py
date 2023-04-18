@@ -87,17 +87,18 @@ def getNotionDatabase(db_id):
     if response.status_code == 200:
         return response.json()
     else:
-        raise HTTPError('Invalid Splitwise response', response=response)
+        raise HTTPError(f'Invalid Notion response {response.status_code} {response.text}', response=response)
 
 
-def getSplitwiseLastNDays(days):
+def getSplitwiseLastNDays(days: int, split_items_limit: int = SPLIT_LIMIT):
     """
     Get Splitwise items added in the last n days: https://dev.splitwise.com/#tag/expenses/paths/~1get_expenses/get
     :param days: Last n days
+    :param split_items_limit: Number of items in splitwise to fetch
     :return: Response json
     """
     dated_after = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    url = f"https://secure.splitwise.com/api/v3.0/get_expenses?dated_after={dated_after}&limit={SPLIT_LIMIT}"
+    url = f"https://secure.splitwise.com/api/v3.0/get_expenses?dated_after={dated_after}&limit={split_items_limit}"
 
     headers = {
         'Authorization': f'Bearer {os.getenv("SPLITWISE_TOKEN")}'
@@ -111,23 +112,27 @@ def getSplitwiseLastNDays(days):
         raise HTTPError('Invalid Splitwise response', response=response)
 
 
-def main(days, notiondb):
+def main(days, notiondb, split_items_limit):
     if not days:
         raise ValueError('Days not found')
     if not notiondb:
         raise ValueError('notiondb not found')
 
-    split_items = getSplitwiseLastNDays(days)
+    split_items = getSplitwiseLastNDays(days, split_items_limit)
     items = []
     for item in split_items:
         created = parser.parse(item['created_at'])
+        deleted = item['deleted_at']
+        name = item['description'].strip()
+        if deleted:
+            name += "(Deleted)"
+
         created = created.astimezone(tz.tzlocal())
-        result = [created.strftime("%Y-%m-%d"), item['description'].strip()]
+        result = [created.strftime("%Y-%m-%d"), name]
         for user in item['users']:
             if user['user']['first_name'] == SPLIT_FIRSTNAME:
                 result.append(float(user['owed_share'].strip()))
                 items.append(result)
-
     print('Following records were found from Splitwise')
     for res in items:
         print(res)
@@ -157,8 +162,13 @@ arg_parser.add_argument(
     "--days", help="Number of days in the past to get records from", default=11, type=int
 )
 arg_parser.add_argument(
-    "--notiondb", help="Notion DB id", type=str, required=True
+        "--notiondb", help="Notion DB id", type=str, required=True
 )
+arg_parser.add_argument(
+    "--splitItems", help="Number of items in splitwise to fetch", type=int, required=False, default=SPLIT_LIMIT
+)
+
 _days = arg_parser.parse_args().days
 _notiondb = arg_parser.parse_args().notiondb
-main(_days, _notiondb)
+_split_items_limit = arg_parser.parse_args().splitItems
+main(_days, _notiondb, _split_items_limit)
