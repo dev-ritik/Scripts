@@ -1,17 +1,46 @@
 import argparse
+import json
 import os
-from tqdm import tqdm
-
-import requests
+import time
+from datetime import datetime, timedelta
+from typing import Optional
 
 import dotenv
-from requests import HTTPError
+import requests
 from dateutil import parser, tz
-from datetime import datetime, timedelta
-import json
+from requests import HTTPError
+from tqdm import tqdm
 
-SPLIT_FIRSTNAME = "Ritik"
-SPLIT_LIMIT = 50
+SPLIT_LIMIT = 75
+MAX_RETRIES = 3
+BACK_OFF_FACTOR = 2
+USER_ID: Optional[str] = None
+
+
+def get_user_id() -> str:
+    """
+    Get the splitwise user id
+    :return:
+    """
+    global USER_ID
+
+    if USER_ID:
+        return USER_ID
+
+    url = "https://secure.splitwise.com/api/v3.0/get_current_user"
+
+    headers = {
+        'Authorization': f'Bearer {os.getenv("SPLITWISE_TOKEN")}'
+    }
+
+    response = requests.request("GET", url, headers=headers, data={})
+
+    if response.status_code == 200:
+        USER_ID = response.json()["user"]["id"]
+    else:
+        raise HTTPError(f'Invalid Notion response {response.status_code} {response.text}', response=response)
+
+    return USER_ID
 
 
 def uploadNotionPagesToDb(db_id: str, pages: list):
@@ -29,44 +58,53 @@ def uploadNotionPagesToDb(db_id: str, pages: list):
     }
 
     for page in tqdm(pages):
-        payload = json.dumps({
-            "parent": {
-                "type": "database_id",
-                "database_id": db_id
-            },
-            "properties": {
-                "Amount": {
-                    "type": "number",
-                    "number": page[2]
+        for i in range(MAX_RETRIES):
+            payload = json.dumps({
+                "parent": {
+                    "type": "database_id",
+                    "database_id": db_id
                 },
-                "Name": {
-                    "type": "title",
-                    "title": [
-                        {
-                            "type": "text",
-                            "text": {
-                                "content": page[1]
+                "properties": {
+                    "Amount": {
+                        "type": "number",
+                        "number": page[2]
+                    },
+                    "Name": {
+                        "type": "title",
+                        "title": [
+                            {
+                                "type": "text",
+                                "text": {
+                                    "content": page[1]
+                                }
                             }
+                        ]
+                    },
+                    "Status": {
+                        "select": {
+                            "name": "Staging"
                         }
-                    ]
-                },
-                "Status": {
-                    "select": {
-                        "name": "Staging"
-                    }
-                },
-                "Date": {
-                    "date": {
-                        "start": page[0]
+                    },
+                    "Date": {
+                        "date": {
+                            "start": page[0]
+                        }
                     }
                 }
-            }
-        })
-        response = requests.request("POST", url, headers=headers, data=payload)
+            })
+            response = requests.request("POST", url, headers=headers, data=payload)
 
-        if response.status_code != 200:
-            print(response.text)
-            raise HTTPError(f'Error uploading item {page[1]} to Notion', response=response)
+            if response.status_code != 200:
+                if i == MAX_RETRIES - 1:
+                    print(response.text)
+                    raise HTTPError(f'Error uploading item {page[1]} to Notion', response=response)
+                else:
+                    print(f"Error response {response.text}\nRetrying")
+                    time.sleep(BACK_OFF_FACTOR ** i)
+            else:
+                if i != 0:
+                    print('Worked after retrying')
+                break
 
 
 def getNotionDatabase(db_id):
@@ -121,7 +159,7 @@ def main(days, notiondb, split_items_limit):
     split_items = getSplitwiseLastNDays(days, split_items_limit)
     items = []
     for item in split_items:
-        created = parser.parse(item['created_at'])
+        created = parser.parse(item['date'])
         deleted = item['deleted_at']
         name = item['description'].strip()
         if deleted:
@@ -130,7 +168,7 @@ def main(days, notiondb, split_items_limit):
         created = created.astimezone(tz.tzlocal())
         result = [created.strftime("%Y-%m-%d"), name]
         for user in item['users']:
-            if user['user']['first_name'] == SPLIT_FIRSTNAME:
+            if user['user_id'] == get_user_id():
                 result.append(float(user['owed_share'].strip()))
                 items.append(result)
     print('Following records were found from Splitwise')
@@ -162,7 +200,7 @@ arg_parser.add_argument(
     "--days", help="Number of days in the past to get records from", default=11, type=int
 )
 arg_parser.add_argument(
-        "--notiondb", help="Notion DB id", type=str, required=True
+    "--notiondb", help="Notion DB id", type=str, required=True
 )
 arg_parser.add_argument(
     "--splitItems", help="Number of items in splitwise to fetch", type=int, required=False, default=SPLIT_LIMIT
