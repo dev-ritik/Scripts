@@ -1,0 +1,115 @@
+import os
+import re
+from datetime import datetime
+from typing import List, Dict, Optional
+
+from provider.base_provider import MemoryProvider
+
+
+class WhatsAppProvider(MemoryProvider):
+    NAME = "Whatsapp"
+    USER = 'Ritik kumar'
+    SYSTEM = 'system'
+
+    WHATSAPP_PATH = 'data/whatsapp'
+
+    @staticmethod
+    def clean_message(message):
+        # Deal with some weird tokens
+        # cleaned_message = cleaned_message.replace("\xc2\xa0", "")
+        return message.strip()
+
+    # Try multiple date formats
+    DATE_FORMATS = [
+        "%d/%m/%Y, %H:%M",  # 31/07/2020, 16:10
+        "%m/%d/%y, %I:%M %p",  # 10/24/16, 12:18 AM
+    ]
+
+    # WhatsApp line start regex: date, time, dash, then message content
+    MSG_START_RE = re.compile(r"^(\d{1,2}/\d{1,2}/\d{2,4}, \d{1,2}:\d{2}(?: [APMapm]{2})?) - (.+)$")
+    SENDER_RE = re.compile(r"^(.*?): (.*)$")
+
+    @staticmethod
+    def try_parse_date(date_str: str) -> Optional[datetime]:
+        for fmt in WhatsAppProvider.DATE_FORMATS:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+        return None
+
+    @staticmethod
+    def parse_whatsapp_chat(file_path: str) -> List[dict]:
+        chat_entries = []
+
+        current_datetime = None
+        current_sender = None
+        message_buffer = []
+
+        chat_name = file_path.split('WhatsApp Chat with ')[1].split('.txt')[0]
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                msg_match = WhatsAppProvider.MSG_START_RE.match(line)
+
+                if msg_match:
+                    # Save previous message
+                    if current_datetime and message_buffer:
+                        chat_entries.append(
+                            MemoryProvider.get_data_template(current_datetime,
+                                                             None,
+                                                             "\n".join(message_buffer).strip(),
+                                                             sender=current_sender or "System",
+                                                             provider=WhatsAppProvider.NAME,
+                                                             context={
+                                                                 'chat_name': chat_name
+                                                             })
+                        )
+
+                    date_str, content = msg_match.groups()
+                    current_datetime = WhatsAppProvider.try_parse_date(date_str)
+                    if not current_datetime:
+                        # Invalid date → skip line
+                        current_sender = None
+                        message_buffer = []
+                        continue
+
+                    sender_match = WhatsAppProvider.SENDER_RE.match(content)
+                    if sender_match:
+                        current_sender, first_line = sender_match.groups()
+                    else:
+                        current_sender = None
+                        first_line = content
+
+                    message_buffer = [first_line]
+                else:
+                    # Continuation of a previous message
+                    if message_buffer is not None:
+                        message_buffer.append(line)
+
+            # Save the final message
+            if current_datetime and message_buffer:
+                chat_entries.append(
+                    MemoryProvider.get_data_template(current_datetime,
+                                                     None,
+                                                     "\n".join(message_buffer).strip(),
+                                                     sender=current_sender or "System",
+                                                     provider=WhatsAppProvider.NAME)
+
+                )
+
+        return chat_entries
+
+    def fetch(self, on_date: datetime) -> List[Dict]:
+        memories = []
+        for found in os.listdir(WhatsAppProvider.WHATSAPP_PATH):
+            if not found.endswith('.txt') or not found.startswith('WhatsApp Chat with '):
+                continue
+
+            chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found))
+
+            memories.extend([chat for chat in chats if chat['datetime'].date() == on_date.date()])
+
+        memories.sort(key=lambda memory: memory['datetime'])
+        return memories
