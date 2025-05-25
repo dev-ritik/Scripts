@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Memory Aggregator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .form-container {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .chat-header {
+            padding: 10px 20px;
+            background-color: #008069;
+            color: white;
+            border-radius: 10px 10px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .provider-header {
+            text-align: center;
+            color: #667781;
+            font-size: 12px;
+            margin: 15px 0;
+        }
+        .event {
+            display: flex;
+            align-items: flex-start;
+            margin: 15px 0;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #008069;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .message-content {
+            background-color: #ffffff;
+            padding: 8px 12px;
+            border-radius: 7.5px;
+            max-width: 70%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            position: relative;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #667781;
+            margin-top: 4px;
+        }
+        .sender-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #008069;
+            margin-bottom: 2px;
+        }
+        input, button {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #008069;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #006d5b;
+        }
+
+        select[multiple] {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 5px;
+            min-height: 100px;
+        }
+
+        select[multiple] option {
+            padding: 8px;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+
+        select[multiple] option:checked {
+            background-color: #008069;
+            color: white;
+        }
+
+        .form-container form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .form-container label {
+            margin-right: 5px;
+        }
+
+        .select-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .select-buttons button {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Make the form elements stack better on mobile */
+        @media (max-width: 600px) {
+            .form-container form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            select[multiple] {
+                max-width: none;
+            }
+        }
+
+    </style>
+</head>
+
+<script>
+function filterMessages() {
+    const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
+        .map(option => option.value);
+
+    // Get all event elements
+    const eventElements = document.querySelectorAll('.event');
+
+    eventElements.forEach(event => {
+        const senderName = event.querySelector('.sender-name').textContent;
+        // If no senders are selected, show all messages
+        // Otherwise, only show messages from selected senders
+        if (selectedSenders.length === 0 || selectedSenders.includes(senderName)) {
+            event.style.display = 'flex';
+        } else {
+            event.style.display = 'none';
+        }
+    });
+}
+
+function seekMemories() {
+    const date = document.getElementById('date').value;
+    const seekDays = document.getElementById('seek_days').value;
+
+    // Redirect to the same page with query parameters
+    window.location.href = `?date=${date}&seek_days=${seekDays}`;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Add "Select All" and "Clear All" functionality
+    const form = document.getElementById('memoryForm');
+    const selectElement = document.getElementById('senders');
+
+    // Create buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'select-buttons';
+
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.type = 'button';
+    selectAllBtn.textContent = 'Select All';
+    selectAllBtn.onclick = function() {
+        Array.from(selectElement.options).forEach(option => option.selected = true);
+        filterMessages();
+    };
+
+    const clearAllBtn = document.createElement('button');
+    clearAllBtn.type = 'button';
+    clearAllBtn.textContent = 'Clear All';
+    clearAllBtn.onclick = function() {
+        Array.from(selectElement.options).forEach(option => option.selected = false);
+        filterMessages();
+    };
+
+    buttonContainer.appendChild(selectAllBtn);
+    buttonContainer.appendChild(clearAllBtn);
+
+    // Insert buttons after the select element
+    selectElement.parentNode.insertBefore(buttonContainer, selectElement.nextSibling);
+
+   // Get the date parameter from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateParam = urlParams.get('date');
+
+    // If date parameter exists, set it as the input value
+    if (dateParam) {
+        document.getElementById('date').value = dateParam;
+    }
+
+});
+</script>
+
+
+<body>
+    <div class="form-container">
+        <form id="memoryForm" onsubmit="return false;">
+            <label for="date">Select Date:</label>
+            <input type="date" id="date" name="date" required>
+            <label for="seek_days">Seek Days:</label>
+            <input type="number" id="seek_days" name="seek_days" value="0" min="0">
+            <label for="senders">Select Senders:</label>
+            <select id="senders" name="senders" multiple>
+                {% set unique_senders = [] %}
+                {% for event in events %}
+                    {% if event.sender not in unique_senders %}
+                        {% set _ = unique_senders.append(event.sender) %}
+                        <option value="{{ event.sender }}">{{ event.sender }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+                <button type="button" onclick="seekMemories()">Seek Memories</button>
+                <button type="button" onclick="filterMessages()">Filter Messages</button>
+        </form>
+    </div>
+
+
+    {% if events %}
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2 style="margin: 0;">Memory</h2>
+            </div>
+            {% set current_provider = None %}
+            {% for event in events %}
+                {% if event.provider != current_provider %}
+                    {% set current_provider = event.provider %}
+                    <div class="provider-header">{{ event.provider }}</div>
+                {% endif %}
+                <div class="event">
+                    <div class="avatar">{{ event.sender[0] | upper }}</div>
+                    <div class="message-content">
+                        <div class="sender-name">{{ event.sender }}</div>
+                        <div class="message-text">
+                            {% set words = event.message.split(' ') %}
+                            {% for word in words %}
+                                {% if word.startswith(('http://', 'https://')) %}
+                                    <a href="{{ word }}" target="_blank" rel="noopener noreferrer">{{ word }}</a>
+                                {% else %}
+                                    {{ word }}
+                                {% endif %}
+                            {% if not loop.last %} {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="message-time">{{ event.datetime.strftime('%H:%M') }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No memories found. Please select a date and search.</p>
+    {% endif %}
+</body>
+</html>
