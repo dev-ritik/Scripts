@@ -39,12 +39,14 @@ class WhatsAppProvider(MemoryProvider):
         return None
 
     @staticmethod
-    def parse_whatsapp_chat(file_path: str) -> List[dict]:
+    def parse_whatsapp_chat(file_path: str, ignore_groups: bool = False) -> List[dict]:
         chat_entries = []
 
         current_datetime = None
         current_sender = None
         message_buffer = []
+
+        group_name = None
 
         chat_name = file_path.split('WhatsApp Chat with ')[1].split('.txt')[0]
 
@@ -56,14 +58,26 @@ class WhatsAppProvider(MemoryProvider):
                 if msg_match:
                     # Save previous message
                     if current_datetime and message_buffer:
+                        text = "\n".join(message_buffer).strip()
+                        if '<Media omitted>' in text:
+                            # Stickers
+                            current_sender = None
+                            message_buffer = []
+                            continue
+                        edited = '<This message was edited>' in text
+                        if len(chat_entries) < 5 and group_name is None and 'created group' in text.lower():
+                            group_name = chat_name
+                            if ignore_groups:
+                                return []
                         chat_entries.append(
                             MemoryProvider.get_data_template(current_datetime,
                                                              None,
-                                                             "\n".join(message_buffer).strip(),
+                                                             text,
                                                              sender=current_sender or "System",
                                                              provider=WhatsAppProvider.NAME,
+                                                             group_name=group_name,
                                                              context={
-                                                                 'chat_name': chat_name
+                                                                 'edited': edited
                                                              })
                         )
 
@@ -95,19 +109,22 @@ class WhatsAppProvider(MemoryProvider):
                                                      None,
                                                      "\n".join(message_buffer).strip(),
                                                      sender=current_sender or "System",
-                                                     provider=WhatsAppProvider.NAME)
-
+                                                     provider=WhatsAppProvider.NAME,
+                                                     context={
+                                                         'chat_name': chat_name,
+                                                         'edited': edited
+                                                     })
                 )
 
         return chat_entries
 
-    def fetch(self, on_date: datetime) -> List[Dict]:
+    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
         memories = []
         for found in os.listdir(WhatsAppProvider.WHATSAPP_PATH):
             if not found.endswith('.txt') or not found.startswith('WhatsApp Chat with '):
                 continue
 
-            chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found))
+            chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), ignore_groups)
 
             memories.extend([chat for chat in chats if chat['datetime'].date() == on_date.date()])
 

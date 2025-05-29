@@ -146,6 +146,11 @@
 </head>
 
 <script>
+function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
 function filterMessages() {
     const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
         .map(option => option.value);
@@ -168,9 +173,10 @@ function filterMessages() {
 function seekMemories() {
     const date = document.getElementById('date').value;
     const seekDays = document.getElementById('seek_days').value;
+    const group = document.getElementById('group').checked;
 
     // Redirect to the same page with query parameters
-    window.location.href = `?date=${date}&seek_days=${seekDays}`;
+    window.location.href = `?date=${date}&seek_days=${seekDays}&group=${group}`;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -204,14 +210,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Insert buttons after the select element
     selectElement.parentNode.insertBefore(buttonContainer, selectElement.nextSibling);
 
-   // Get the date parameter from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const dateParam = urlParams.get('date');
-
-    // If date parameter exists, set it as the input value
+    const dateParam = getUrlParameter('date');
+    // If the date parameter exists, set it as the input value
     if (dateParam) {
         document.getElementById('date').value = dateParam;
     }
+
+    const groupParam = getUrlParameter('group');
+    const groupCheckbox = document.getElementById('group');
+    groupCheckbox.checked = groupParam === null || groupParam === 'true';
 
 });
 </script>
@@ -224,6 +231,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="date" id="date" name="date" required>
             <label for="seek_days">Seek Days:</label>
             <input type="number" id="seek_days" name="seek_days" value="0" min="0">
+            <div class="checkbox-container">
+                <input type="checkbox" id="group" name="group" checked>
+                <label for="group">Show Group Messages</label>
+            </div>
             <label for="senders">Select Senders:</label>
             <select id="senders" name="senders" multiple>
                 {% set unique_senders = [] %}
@@ -245,14 +256,22 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="chat-header">
                 <h2 style="margin: 0;">Memory</h2>
             </div>
-            {% set current_provider = None %}
+            {% set ns = namespace(current_provider=None) %}
             {% for event in events %}
-                {% if event.provider != current_provider %}
-                    {% set current_provider = event.provider %}
+                {% if event.provider != ns.current_provider %}
+                    {% set ns.current_provider = event.provider %}
                     <div class="provider-header">{{ event.provider }}</div>
                 {% endif %}
                 <div class="event">
-                    <div class="avatar">{{ event.sender[0] | upper }}</div>
+                    <div class="avatar">
+                        {% if event.sender %}
+                            {% set dp_url = url_for('user_dp', display_name=event.sender) %}
+                            <img src="{{ dp_url }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                            <div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center;">
+                                {{ event.sender[0] | upper }}
+                            </div>
+                        {% endif %}
+                    </div>
                     <div class="message-content">
                         <div class="sender-name">{{ event.sender }}</div>
                         <div class="message-text">

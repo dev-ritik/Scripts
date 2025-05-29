@@ -18,11 +18,16 @@ class DiaryProvider(MemoryProvider):
         """
 
         date_str = text.split(',')[0]
-        if date_str == '~':
+        if date_str in ['~', '-']:
             return None, None
-        return datetime.strptime(date_str, "%d/%m/%Y"), ','.join(text.split(',')[1:])
+        try:
+            date_str = datetime.strptime(date_str, "%d/%m/%Y")
+        except Exception as e:
+            print(f"Error parsing date in {text}: {e}")
+            return None, None
+        return date_str, ','.join(text.split(',')[1:])
 
-    def fetch(self, on_date: datetime) -> List[Dict]:
+    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
         year = on_date.year
         if not (diary_folder := os.getenv("DIARY_PATH")):
             print("Diary folder not found")

@@ -25,7 +25,11 @@ The files should be a CSV file with one of the column as date field
 Add `DIARY_PATH` to the `.env` file and set it to the folder path
 
 #### Instagram
-  - Go to this [link](https://www.instagram.com/download/request/)
+  - Go to this [link](https://accountscenter.instagram.com/info_and_permissions/dyi/?entry_point=deeplink_screen)
+  - Select the 
+    - profile >> Select messages
+    - Date Range: All time
+    - Format : Json
   - Make a new `data/instagram` subdirectory in the data directory. Extract the `messages/inbox` from the downloaded zip here.
 
 #### Whatsapp
@@ -34,4 +38,21 @@ Whatsapp doesn't allow downloading all the chat data at once. We can get individ
   - Select an individual chat.
   - Export the individual txt file `WITHOUT MEDIA`.
   - Make a new `whatsapp` subdirectory in the data directory.
-  - Paste those `WhatsApp Chat with <friend_name>.txt` here.s
+  - Paste those `WhatsApp Chat with <friend_name>.txt` there.
+
+### Web app setup
+- Run `pip install -r requirements.txt`
+- `python app.py`
+- Go to `http://127.0.0.1:5000`
+
+## Customizations
+### User DP
+Wanna make the UI for web app more elegant? Add `profile.json` to data folder with the structure:
+```json
+[
+  {
+    "display_name": "Ritik",
+    "name_regex": "(?i)ritik",  // Used to club senders across platform
+    "dp": "ritik.jpg" // Used to add a dp to the chats
+  }
+]
