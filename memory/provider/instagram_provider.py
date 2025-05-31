@@ -58,7 +58,7 @@ class InstagramProvider(MemoryProvider):
             share_link = f"{message.get('share', {}).get('link', '')}"
             share_caption = f"{message.get('share', {}).get('share_text', '')}"
             share_text = f"{share_caption}{" " if share_link else ""}{share_link}"
-            text = f"{text}{" " if text and share_text else ""}{"Shared: " if share_text else ""}{share_text}"
+            text = f"{text if text else ""}{" " if text and share_text else ""}{"Shared: " if share_text else ""}{share_text}"
             if not text:
                 continue
 
