@@ -186,15 +186,17 @@ function getUrlParameter(name) {
 function filterMessages() {
     const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
         .map(option => option.value);
-
     // Get all event elements
     const eventElements = document.querySelectorAll('.event');
 
     eventElements.forEach(event => {
-        const senderName = event.querySelector('.sender-name').textContent;
+        const senderNameElement = event.querySelector('.sender-name');
+        // Extract just the sender name (before the • character if it exists)
+        const senderNameText = senderNameElement.textContent.split('•')[0].trim();
+
         // If no senders are selected, show all messages
         // Otherwise, only show messages from selected senders
-        if (selectedSenders.length === 0 || selectedSenders.includes(senderName)) {
+        if (selectedSenders.length === 0 || selectedSenders.includes(senderNameText)) {
             event.style.display = 'flex';
         } else {
             event.style.display = 'none';
@@ -254,7 +256,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 </script>
-
 
 <body>
     <div class="form-container">
