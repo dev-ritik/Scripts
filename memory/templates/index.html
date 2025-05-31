@@ -39,7 +39,10 @@
         .event {
             display: flex;
             align-items: flex-start;
-            margin: 15px 0;
+            margin: 2px 0;
+        }
+        .event:not(.consecutive) {
+            margin-top: 15px;
         }
         .avatar {
             width: 40px;
@@ -54,7 +57,7 @@
             flex-shrink: 0;
         }
         .message-content {
-            background-color: #ffffff;
+            background-color: #e7ffdb;  /* WhatsApp green color */
             padding: 8px 12px;
             border-radius: 7.5px;
             max-width: 70%;
@@ -142,6 +145,21 @@
             }
         }
 
+        .event.consecutive {
+            margin-top: 2px !important;  /* Very tight spacing for consecutive messages */
+        }
+
+        .avatar.hidden {
+            display: none;
+        }
+
+        .sender-name.hidden {
+            display: none;
+        }
+
+        .message-content.consecutive {
+            margin-left: 50px;
+        }
     </style>
 </head>
 
@@ -251,19 +269,22 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
 
+
     {% if events %}
         <div class="chat-container">
             <div class="chat-header">
                 <h2 style="margin: 0;">Memory</h2>
             </div>
-            {% set ns = namespace(current_provider=None) %}
+            {% set ns = namespace(current_provider=None, previous_sender=None) %}
             {% for event in events %}
                 {% if event.provider != ns.current_provider %}
                     {% set ns.current_provider = event.provider %}
                     <div class="provider-header">{{ event.provider }}</div>
                 {% endif %}
-                <div class="event">
-                    <div class="avatar">
+
+                {% set is_consecutive = event.sender == ns.previous_sender %}
+                <div class="event {% if is_consecutive %}consecutive{% endif %}">
+                    <div class="avatar {% if is_consecutive %}hidden{% endif %}">
                         {% if event.sender %}
                             {% set dp_url = url_for('user_dp', display_name=event.sender) %}
                             <img src="{{ dp_url }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
@@ -272,8 +293,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         {% endif %}
                     </div>
-                    <div class="message-content">
-                        <div class="sender-name">{{ event.sender }}</div>
+                    <div class="message-content {% if is_consecutive %}consecutive{% endif %}">
+                        <div class="sender-name {% if is_consecutive %}hidden{% endif %}">{{ event.sender }}</div>
                         <div class="message-text">
                             {% set words = event.message.split(' ') %}
                             {% for word in words %}
@@ -288,6 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="message-time">{{ event.datetime.strftime('%H:%M') }}</div>
                     </div>
                 </div>
+                {% set ns.previous_sender = event.sender %}
             {% endfor %}
         </div>
     {% else %}
