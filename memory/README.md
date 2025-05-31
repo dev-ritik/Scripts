@@ -1,6 +1,8 @@
 # Memory
-This is a small python program to aggregate and output what happened on a particular date chronologically across various
+This is a small Python program to aggregate and output what happened on a particular date chronologically across various
 memory providers.
+
+![image](https://github.com/user-attachments/assets/50912aff-e470-498b-a66e-331e6d005d74)
 
 ## Usage
 `python main.py --on 27-04-2025 --seek-days 1`
@@ -19,8 +21,8 @@ memory providers.
 - The data goes in the data/ folder
 ### Memory provider setup
 #### Diary
-The current implementation expects a folder with files having year in it.
-The files should be a CSV file with one of the column as date field
+The current implementation expects a folder with files containing the year.
+The files should be a CSV file with one of the columns as a date field
 
 Add `DIARY_PATH` to the `.env` file and set it to the folder path
 
@@ -29,11 +31,11 @@ Add `DIARY_PATH` to the `.env` file and set it to the folder path
   - Select the 
     - profile >> Select messages
     - Date Range: All time
-    - Format : Json
+    - Format: JSON
   - Make a new `data/instagram` subdirectory in the data directory. Extract the `messages/inbox` from the downloaded zip here.
 
 #### Whatsapp
-Whatsapp doesn't allow downloading all the chat data at once. We can get individual chats at once. To get that:
+WhatsApp doesn't allow downloading all the chat data at once. We can get individual chats at once. To get that:
   - Go to `settings > Chats > Chat history > Export chat` in the app.
   - Select an individual chat.
   - Export the individual txt file `WITHOUT MEDIA`.
@@ -47,7 +49,7 @@ Whatsapp doesn't allow downloading all the chat data at once. We can get individ
 
 ## Customizations
 ### User DP
-Wanna make the UI for web app more elegant? Add `profile.json` to data folder with the structure:
+Wanna make the UI for the web app more elegant? Add `profile.json` to the data folder with the structure:
 ```json
 [
   {
