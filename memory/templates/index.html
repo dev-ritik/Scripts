@@ -127,11 +127,10 @@
 
         .form-container form {
             display: flex;
-            flex-wrap: wrap;
-            align-items: flex-start;
-            gap: 10px;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
         }
-
         .form-container label {
             margin-right: 5px;
         }
@@ -173,8 +172,114 @@
         .message-content.consecutive {
             margin-left: 50px;
         }
+
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 200px;
+        }
+
+        .input-wrapper i {
+            color: #008069;
+            width: 16px;
+        }
+
+        .input-wrapper input {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            transition: border-color 0.2s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: #008069;
+            outline: none;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-wrapper label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .select-wrapper {
+            flex: 1;
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .select-wrapper i {
+            color: #008069;
+        }
+
+        .select-wrapper select {
+            width: 100%;
+            min-height: 120px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .button-group button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #008069;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .button-group button:hover {
+            background-color: #006d5b;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .form-group {
+                flex-direction: column;
+            }
+            .input-wrapper {
+                width: 100%;
+            }
+            .select-wrapper {
+                width: 100%;
+            }
+            .button-group {
+                flex-direction: column;
+            }
+        }
     </style>
     <script async src="//www.instagram.com/embed.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
 <script>
@@ -254,32 +359,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const groupCheckbox = document.getElementById('group');
     groupCheckbox.checked = groupParam === null || groupParam === 'true';
 
+    const seekDaysParam = getUrlParameter('seek_days');
+    document.getElementById('seek_days').value = seekDaysParam !== null ? seekDaysParam : '0';
+
 });
 </script>
 
 <body>
     <div class="form-container">
         <form id="memoryForm" onsubmit="return false;">
-            <label for="date">Select Date:</label>
-            <input type="date" id="date" name="date" required>
-            <label for="seek_days">Seek Days:</label>
-            <input type="number" id="seek_days" name="seek_days" value="0" min="0">
-            <div class="checkbox-container">
-                <input type="checkbox" id="group" name="group" checked>
-                <label for="group">Show Group Messages</label>
+            <div class="form-group">
+                <div class="input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <label for="date">Select Date:</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+                <div class="input-wrapper">
+                    <i class="fas fa-clock"></i>
+                    <label for="seek_days">Seek Days:</label>
+                    <input type="number" id="seek_days" name="seek_days" value="0" min="0">
+                </div>
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="group" name="group" checked>
+                    <label for="group">
+                        <i class="fas fa-users"></i>
+                        Show Group Messages
+                    </label>
+                </div>
             </div>
-            <label for="senders">Select Senders:</label>
-            <select id="senders" name="senders" multiple>
-                {% set unique_senders = [] %}
-                {% for event in events %}
-                    {% if event.sender not in unique_senders %}
-                        {% set _ = unique_senders.append(event.sender) %}
-                        <option value="{{ event.sender }}">{{ event.sender }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-                <button type="button" onclick="seekMemories()">Seek Memories</button>
-                <button type="button" onclick="filterMessages()">Filter Messages</button>
+            <div class="form-group">
+                <div class="select-wrapper">
+                    <i class="fas fa-user"></i>
+                    <label for="senders">Select Senders:</label>
+                    <select id="senders" name="senders" multiple>
+                        {% set unique_senders = [] %}
+                        {% for event in events %}
+                            {% if event.sender not in unique_senders %}
+                                {% set _ = unique_senders.append(event.sender) %}
+                                <option value="{{ event.sender }}">{{ event.sender }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="button-group">
+                <button type="button" onclick="seekMemories()">
+                    <i class="fas fa-search"></i> Seek Memories
+                </button>
+                <button type="button" onclick="filterMessages()">
+                    <i class="fas fa-filter"></i> Filter Messages
+                </button>
+            </div>
         </form>
     </div>
 

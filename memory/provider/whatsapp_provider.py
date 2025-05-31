@@ -57,7 +57,7 @@ class WhatsAppProvider(MemoryProvider):
                     if current_datetime and message_buffer:
                         text = "\n".join(message_buffer).strip()
                         if '<Media omitted>' in text:
-                            text = '<Added sticker>'
+                            text = '<Added media file>'
                         elif text == 'null':
                             text = '<View once message>'
                         edited = '<This message was edited>' in text
