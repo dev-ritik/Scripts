@@ -46,9 +46,8 @@ class WhatsAppProvider(MemoryProvider):
         current_sender = None
         message_buffer = []
 
-        group_name = None
-
         chat_name = file_path.split('WhatsApp Chat with ')[1].split('.txt')[0]
+        is_group = False
 
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -65,8 +64,8 @@ class WhatsAppProvider(MemoryProvider):
                             message_buffer = []
                             continue
                         edited = '<This message was edited>' in text
-                        if len(chat_entries) < 5 and group_name is None and 'created group' in text.lower():
-                            group_name = chat_name
+                        if len(chat_entries) < 5 and not is_group and 'created group' in text.lower():
+                            is_group = True
                             if ignore_groups:
                                 return []
                         chat_entries.append(
@@ -75,7 +74,8 @@ class WhatsAppProvider(MemoryProvider):
                                                              text,
                                                              sender=current_sender or "System",
                                                              provider=WhatsAppProvider.NAME,
-                                                             group_name=group_name,
+                                                             chat_name=chat_name,
+                                                             is_group=is_group,
                                                              context={
                                                                  'edited': edited
                                                              })

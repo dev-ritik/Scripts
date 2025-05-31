@@ -45,8 +45,8 @@ class InstagramProvider(MemoryProvider):
             friend
         )
 
-        group_name = friend if len(data['participants']) > 2 else None
-        if ignore_groups and group_name:
+        is_group = len(data['participants']) > 2
+        if ignore_groups and is_group:
             return []
 
         for message in data['messages']:
@@ -74,7 +74,8 @@ class InstagramProvider(MemoryProvider):
                 output = MemoryProvider.get_data_template(_dt, message_type, text,
                                                           sender=message.get('sender_name'),
                                                           provider=InstagramProvider.NAME,
-                                                          group_name=group_name)
+                                                          chat_name=friend,
+                                                          is_group=is_group)
                 messages.append(output)
 
         messages.reverse()

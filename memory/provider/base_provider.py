@@ -8,7 +8,7 @@ class MemoryProvider(ABC):
     NAME = None
 
     @staticmethod
-    def get_data_template(_datetime, message_type=None, message='', sender='', provider=None, context: dict = None, group_name=False):
+    def get_data_template(_datetime, message_type=None, message='', sender='', provider=None, context: dict = None, chat_name = None, is_group =False):
         return {
             'datetime': _datetime,
             'type': message_type,
@@ -16,7 +16,8 @@ class MemoryProvider(ABC):
             'provider': provider,
             'sender': sender,
             'context': context,
-            'group_name': group_name
+            'chat_name': chat_name,
+            'is_group': is_group,
         }
 
     @abstractmethod

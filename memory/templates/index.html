@@ -293,7 +293,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         {% endif %}
                     </div>
                     <div class="message-content {% if is_consecutive %}consecutive{% endif %}">
-                        <div class="sender-name {% if is_consecutive %}hidden{% endif %}">{{ event.sender }}</div>
+                            <div class="sender-name {% if is_consecutive %}hidden{% endif %}">
+                                {{ event.sender }}
+                                {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
+                            </div>
                         <div class="message-text">
                             {% set words = event.message.split(' ') %}
                             {% for word in words %}
