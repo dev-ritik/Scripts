@@ -34,10 +34,15 @@ def get_events_for_date(date: datetime, ignored_providers: List[str] = [], ignor
     aggregator = MemoryAggregator([allowed_provider for allowed_provider in AVAILABLE_PROVIDERS if allowed_provider.NAME not in ignored_providers])
     events = aggregator.aggregate(date, ignore_groups)
     # TODO: Remove traditional name with display name if it is in profile.json
+    for event in events:
+        if display_name := get_display_name_from_name(event['sender']):
+            event['sender'] = display_name
     return events
 
 
-PROFILE_DATA = []
+PROFILE_DATA = {}
+NAME_TO_DISPLAY_NAME = {}
+NON_IDENTIFIED_NAMES = set()
 
 
 def get_profile_json():
@@ -47,7 +52,9 @@ def get_profile_json():
 
     try:
         with open('data/profile.json', 'r') as f:
-            PROFILE_DATA = json.load(f)
+            profile_data_list = json.load(f)
+            for profile_data in profile_data_list:
+                PROFILE_DATA[profile_data['display_name']] = profile_data
     except FileNotFoundError:
         pass
     return PROFILE_DATA
@@ -66,11 +73,35 @@ def is_sender_profile(profile_data, name):
     return bool(pattern.match(name))
 
 
-def get_user_profile(display_name):
+def get_user_profile_from_name(name):
     return next(
-        (profile_data for profile_data in get_profile_json() if is_sender_profile(profile_data, display_name)), None)
+        (profile_data for profile_data in get_profile_json().values() if is_sender_profile(profile_data, name)), None)
 
 
-def get_user_dp(display_name):
-    user_profile = get_user_profile(display_name)
+def get_user_dp(name):
+    global NAME_TO_DISPLAY_NAME
+    global NON_IDENTIFIED_NAMES
+
+    display_name = get_display_name_from_name(name)
+    if not display_name:
+        return None
+
+    user_profile = get_profile_json().get(display_name)
     return f'data/dp/{user_profile["dp"]}' if user_profile else None
+
+
+def get_display_name_from_name(name):
+    global NAME_TO_DISPLAY_NAME
+    global NON_IDENTIFIED_NAMES
+
+    if name in NON_IDENTIFIED_NAMES:
+        return None
+
+    if name in NAME_TO_DISPLAY_NAME:
+        return NAME_TO_DISPLAY_NAME[name]
+
+    user_profile = get_user_profile_from_name(name)
+    if user_profile:
+        NAME_TO_DISPLAY_NAME[name] = user_profile['display_name']
+
+    return NAME_TO_DISPLAY_NAME.get(name)

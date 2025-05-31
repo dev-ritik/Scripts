@@ -3,20 +3,18 @@ import re
 from datetime import datetime
 from typing import List, Dict, Optional
 
-from provider.base_provider import MemoryProvider
+from provider.base_provider import MemoryProvider, MessageType
 
 
 class WhatsAppProvider(MemoryProvider):
     NAME = "Whatsapp"
-    USER = 'Ritik kumar'
+    USER = 'Ritik'
     SYSTEM = 'system'
 
     WHATSAPP_PATH = 'data/whatsapp'
 
     @staticmethod
     def clean_message(message):
-        # Deal with some weird tokens
-        # cleaned_message = cleaned_message.replace("\xc2\xa0", "")
         return message.strip()
 
     # Try multiple date formats
@@ -59,10 +57,9 @@ class WhatsAppProvider(MemoryProvider):
                     if current_datetime and message_buffer:
                         text = "\n".join(message_buffer).strip()
                         if '<Media omitted>' in text:
-                            # Stickers
-                            current_sender = None
-                            message_buffer = []
-                            continue
+                            text = '<Added sticker>'
+                        elif text == 'null':
+                            text = '<View once message>'
                         edited = '<This message was edited>' in text
                         if len(chat_entries) < 5 and not is_group and 'created group' in text.lower():
                             is_group = True
@@ -70,8 +67,8 @@ class WhatsAppProvider(MemoryProvider):
                                 return []
                         chat_entries.append(
                             MemoryProvider.get_data_template(current_datetime,
-                                                             None,
-                                                             text,
+                                                             message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                                                             message=text,
                                                              sender=current_sender or "System",
                                                              provider=WhatsAppProvider.NAME,
                                                              chat_name=chat_name,
@@ -106,12 +103,13 @@ class WhatsAppProvider(MemoryProvider):
             if current_datetime and message_buffer:
                 chat_entries.append(
                     MemoryProvider.get_data_template(current_datetime,
-                                                     None,
-                                                     "\n".join(message_buffer).strip(),
+                                                     message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                                                     message="\n".join(message_buffer).strip(),
                                                      sender=current_sender or "System",
                                                      provider=WhatsAppProvider.NAME,
+                                                     chat_name=chat_name,
+                                                     is_group=is_group,
                                                      context={
-                                                         'chat_name': chat_name,
                                                          'edited': edited
                                                      })
                 )

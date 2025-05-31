@@ -23,29 +23,21 @@ class InstagramProvider(MemoryProvider):
 
     @staticmethod
     def clean_message(message):
-        # message = message.replace('\n', ' ').lower()
-        # Deal with some weird tokens
-        message = InstagramProvider.fix_mojibake(message)
-        # cleaned_message = message.encode('ascii', 'ignore').decode('ascii')
-
-        # Remove multiple spaces in message
-        # message = re.sub(' +', ' ', message)
-        return message.strip()
-
-    DATA = []
-    from datetime import datetime
+        return InstagramProvider.fix_mojibake(message).strip()
 
     @staticmethod
-    def parse_json(data, friend, on_date, ignore_groups: bool = False):
+    def parse_json(data, name_from_file, on_date, ignore_groups: bool = False):
         messages = []
-        _friend = ''
-
-        _friend = next(
-            (key.get('name') for key in data['participants'] if key.get('name') != InstagramProvider.USER),
-            friend
-        )
+        chat_name = name_from_file
 
         is_group = len(data['participants']) > 2
+        if not is_group:
+            chat_name = next(
+                (key.get('name') for key in data['participants'] if key.get('name') != InstagramProvider.USER),
+                name_from_file
+            )
+            chat_name = InstagramProvider.clean_message(chat_name)
+
         if ignore_groups and is_group:
             return []
 
@@ -65,16 +57,14 @@ class InstagramProvider(MemoryProvider):
             text = InstagramProvider.clean_message(text)
             _dt = datetime.fromtimestamp(message.get('timestamp_ms') / 1000.0)
 
-            if message.get('sender_name') == InstagramProvider.USER:
-                message_type = MessageType.SENT
-            else:
-                message_type = MessageType.RECEIVED
+            sender_name = InstagramProvider.clean_message(message.get('sender_name'))
+            message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED
 
             if _dt.date() == on_date.date():
                 output = MemoryProvider.get_data_template(_dt, message_type, text,
-                                                          sender=message.get('sender_name'),
+                                                          sender=sender_name,
                                                           provider=InstagramProvider.NAME,
-                                                          chat_name=friend,
+                                                          chat_name=chat_name,
                                                           is_group=is_group)
                 messages.append(output)
 

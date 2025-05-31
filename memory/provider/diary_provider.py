@@ -1,9 +1,9 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict
 
-from provider.base_provider import MemoryProvider
+from provider.base_provider import MemoryProvider, MessageType
 
 
 class DiaryProvider(MemoryProvider):
@@ -22,10 +22,10 @@ class DiaryProvider(MemoryProvider):
             return None, None
         try:
             date_str = datetime.strptime(date_str, "%d/%m/%Y")
+            return date_str + timedelta(hours=23, minutes=59), ','.join(text.split(',')[1:])
         except Exception as e:
             print(f"Error parsing date in {text}: {e}")
             return None, None
-        return date_str, ','.join(text.split(',')[1:])
 
     def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
         year = on_date.year
@@ -53,7 +53,11 @@ class DiaryProvider(MemoryProvider):
                 if not _dt:
                     continue
 
-                if _dt == on_date:
-                    memories.append(self.get_data_template(_datetime=_dt, message=text, provider=self.NAME))
+                if _dt.date() == on_date.date():
+                    memories.append(self.get_data_template(_datetime=_dt,
+                                                           message=text,
+                                                           message_type=MessageType.SENT,
+                                                           provider=self.NAME,
+                                                           sender="Ritik"))
 
         return memories

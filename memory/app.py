@@ -36,9 +36,9 @@ def index():
     return render_template('index.html', events=events)
 
 
-@app.route('/user/dp/<display_name>')
-def user_dp(display_name):
-    dp_path = get_user_dp(display_name)
+@app.route('/user/dp/<name>')
+def user_dp(name):
+    dp_path = get_user_dp(name)
     if not dp_path:
         return "Display picture not found", 404
 

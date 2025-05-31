@@ -56,13 +56,26 @@
             margin-right: 10px;
             flex-shrink: 0;
         }
+        .sent-message {
+            flex-direction: row-reverse;
+        }
+
+        .sent-message .message-content.sent {
+            background-color: #dcf8c6;  /* WhatsApp sent message color */
+            margin-right: 0;
+            margin-left: auto;
+        }
         .message-content {
-            background-color: #e7ffdb;  /* WhatsApp green color */
+            background-color: white;  /* Changed default color for received messages */
             padding: 8px 12px;
             border-radius: 7.5px;
             max-width: 70%;
             box-shadow: 0 1px 2px rgba(0,0,0,0.08);
             position: relative;
+        }
+        .message-content.consecutive.sent {
+            margin-left: auto;
+            margin-right: 0;
         }
         .message-time {
             font-size: 11px;
@@ -274,29 +287,29 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="chat-header">
                 <h2 style="margin: 0;">Memory</h2>
             </div>
-            {% set ns = namespace(current_provider=None, previous_sender=None) %}
+            {% set ns = namespace(current_provider=None, previous_sender=None, previous_chat=None) %}
             {% for event in events %}
                 {% if event.provider != ns.current_provider %}
                     {% set ns.current_provider = event.provider %}
                     <div class="provider-header">{{ event.provider }}</div>
                 {% endif %}
 
-                {% set is_consecutive = event.sender == ns.previous_sender %}
-                <div class="event {% if is_consecutive %}consecutive{% endif %}">
-                    <div class="avatar {% if is_consecutive %}hidden{% endif %}">
-                        {% if event.sender %}
-                            {% set dp_url = url_for('user_dp', display_name=event.sender) %}
+                {% set is_consecutive = event.sender == ns.previous_sender and event.chat_name == ns.previous_chat %}
+                <div class="event {% if is_consecutive %}consecutive{% endif %} {% if event.type == 'sent' %}sent-message{% endif %}">
+                    <div class="avatar {% if is_consecutive or event.type == 'sent' %}hidden{% endif %}">
+                        {% if event.sender and not event.type == 'sent' %}
+                            {% set dp_url = url_for('user_dp', name=event.sender) %}
                             <img src="{{ dp_url }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
                             <div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center;">
                                 {{ event.sender[0] | upper }}
                             </div>
                         {% endif %}
                     </div>
-                    <div class="message-content {% if is_consecutive %}consecutive{% endif %}">
-                            <div class="sender-name {% if is_consecutive %}hidden{% endif %}">
-                                {{ event.sender }}
-                                {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
-                            </div>
+                    <div class="message-content {% if is_consecutive %}consecutive{% endif %} {% if event.type == 'sent' %}sent{% endif %}">
+                        <div class="sender-name {% if is_consecutive %}hidden{% endif %}">
+                            {{ event.sender }}
+                            {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
+                        </div>
                         <div class="message-text">
                             {% set words = event.message.split(' ') %}
                             {% for word in words %}
@@ -349,6 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 {% set ns.previous_sender = event.sender %}
+                {% set ns.previous_chat = event.chat_name %}
             {% endfor %}
         </div>
     {% else %}
