@@ -99,7 +99,6 @@ class ImmichProvider(MemoryProvider):
                     _datetime=_date,
                     message_type=MessageType.IMAGE if asset["originalMimeType"].startswith(
                         "image/") else MessageType.VIDEO,
-                    sender=asset["originalFileName"],
                     provider=self.NAME,
                     context={
                         "asset_name": asset["originalFileName"],
