@@ -1,18 +1,42 @@
 import json
 import re
 from datetime import datetime
-from typing import List, Dict
+from threading import Lock
+from typing import List, Dict, Optional
 
+from provider.base_provider import MemoryProvider
 from provider.diary_provider import DiaryProvider
+from provider.immich_provider import ImmichProvider
 from provider.instagram_provider import InstagramProvider
 from provider.whatsapp_provider import WhatsAppProvider
 
+AVAILABLE_PROVIDERS = [
+    WhatsAppProvider,
+    InstagramProvider,
+    DiaryProvider,
+    ImmichProvider,
+]
+
 
 class MemoryAggregator:
-    def __init__(self, providers: list):
-        self.providers = {}
-        for provider in providers:
+    _instance = None
+    _lock = Lock()
+
+    def __init__(self):
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+        self.providers: Dict[str, MemoryProvider] = {}
+
+        for provider in AVAILABLE_PROVIDERS:
             self.providers[provider.NAME] = provider()
+        self._initialized = True
+
+    @classmethod
+    def get_instance(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
+        return cls._instance
 
     def aggregate(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
         events = []
@@ -22,23 +46,41 @@ class MemoryAggregator:
         events.sort(key=lambda x: x['datetime'])
         return events
 
+    def aggregate_dates(self, start_date: datetime, end_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+        events = []
+        for provider in self.providers.values():
+            for _date, _events in provider.fetch_dates(start_date, end_date, ignore_groups=ignore_groups).items():
+                events.extend(_events)
 
-AVAILABLE_PROVIDERS = [
-    WhatsAppProvider,
-    InstagramProvider,
-    DiaryProvider,
-]
+        events.sort(key=lambda x: x['datetime'])
+        return events
 
-def get_events_for_date(date: datetime, ignored_providers: List[str] = [], ignore_groups: bool = False) -> List[Dict]:
-    # Initialize all providers
-    aggregator = MemoryAggregator([allowed_provider for allowed_provider in AVAILABLE_PROVIDERS if allowed_provider.NAME not in ignored_providers])
-    events = aggregator.aggregate(date, ignore_groups)
-    # TODO: Remove traditional name with display name if it is in profile.json
-    for event in events:
-        if display_name := get_display_name_from_name(event['sender']):
-            event['sender'] = display_name
-    return events
+    @staticmethod
+    def get_events_for_date(date: datetime, ignore_groups: bool = False) -> List[
+        Dict]:
+        # Initialize all providers
+        aggregator = MemoryAggregator.get_instance()
+        events = aggregator.aggregate(date, ignore_groups)
+        # TODO: Remove traditional name with display name if it is in profile.json
+        for event in events:
+            if display_name := get_display_name_from_name(event['sender']):
+                event['sender'] = display_name
+        return events
 
+    @staticmethod
+    def get_events_for_dates(start_date: datetime, end_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+        aggregator = MemoryAggregator.get_instance()
+        events = aggregator.aggregate_dates(start_date, end_date, ignore_groups)
+        # TODO: Remove traditional name with display name if it is in profile.json
+        for event in events:
+            if display_name := get_display_name_from_name(event['sender']):
+                event['sender'] = display_name
+        return events
+
+    def get_asset(self, provider: str, asset_id: str) -> Optional[str]:
+        if provider not in self.providers:
+            return None
+        return self.providers[provider].get_asset(asset_id)
 
 PROFILE_DATA = {}
 NAME_TO_DISPLAY_NAME = {}

@@ -442,6 +442,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
                         </div>
                         <div class="message-text">
+                        {% if event.type == 'image' or event.type == 'video' %}
+                            <div style="max-width: 300px; margin: 5px 0">
+                                <img src="/asset/{{ event.provider }}/{{ event.context.asset_id }}"
+                                     style="width: 100%; border-radius: 8px; cursor: pointer;"
+                                     onclick="window.open('/asset/{{ event.provider }}/{{ event.context.asset_id }}', '_blank')">
+                            </div>
+                        {% else %}
                             {% set words = event.message.split(' ') %}
                             {% for word in words %}
                                 {% if word.startswith(('http://', 'https://')) %}
@@ -486,8 +493,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 {% else %}
                                     {{ word }}
                                 {% endif %}
-                            {% if not loop.last %} {% endif %}
+                                {% if not loop.last %} {% endif %}
                             {% endfor %}
+                        {% endif %}
                         </div>
                         <div class="message-time">{{ event.datetime.strftime('%H:%M') }}</div>
                     </div>

@@ -1,12 +1,13 @@
 import argparse
+
+import init
+
+# This should be the first line in the file. It initializes the app.
+init.init()
+
 from datetime import datetime, timedelta
+from common import MemoryAggregator
 
-import dotenv
-
-from common import get_events_for_date
-
-
-# --- Main Program ---
 
 def main(on_str: str, seek_days: int):
     try:
@@ -15,24 +16,17 @@ def main(on_str: str, seek_days: int):
         print("Date format invalid. Use dd-mm-yyyy.")
         return
 
-    date_list = [on_date + timedelta(days=delta) for delta in range(-seek_days, seek_days + 1)]
-
-    for date in date_list:
-        print(f"\n=== Memories for {date.strftime('%d-%m-%Y')} ===")
-        events = get_events_for_date(date)
-        if not events:
-            print("No memories found.")
-        else:
-            print(f"=== {events[0]['provider']} ===")
-            for event in events:
-                print(f"[{event['datetime']}]: {event['sender']}: {event['message']}")
-
-    # TODO: Open a web page on local host to show the results
+    events = MemoryAggregator.get_events_for_dates(on_date - timedelta(seek_days),
+                                                   on_date + timedelta(seek_days))
+    if not events:
+        print("No memories found.")
+    else:
+        events.sort(key=lambda x: x['datetime'])
+        for event in events:
+            print(f"[{event['datetime']}]: {event['sender']}: {event['message']}")
 
 
 if __name__ == "__main__":
-    dotenv.load_dotenv()
-
     arg_parser = argparse.ArgumentParser(description="Memory Aggregator")
     arg_parser.add_argument("--on", required=True, help="The date in dd-mm-yyyy format")
     arg_parser.add_argument("--seek-days", type=int, default=0, help="Number of days before/after to look")

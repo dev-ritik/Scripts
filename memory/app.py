@@ -1,8 +1,13 @@
+import init
+
+# This should be the first line in the file. It initializes the app.
+init.init()
+
 from datetime import datetime, timedelta
 
-import dotenv
 from flask import Flask, render_template, request, send_file, make_response
-from common import get_events_for_date, get_user_dp
+
+from common import get_user_dp, MemoryAggregator
 
 app = Flask(__name__)
 
@@ -23,15 +28,10 @@ def index():
         except ValueError:
             return "Invalid date format", 400
 
-        date_list = [on_date + timedelta(days=delta) for delta in range(-seek_days, seek_days + 1)]
+        events = MemoryAggregator.get_events_for_dates(on_date - timedelta(seek_days),
+                                                       on_date + timedelta(seek_days), ignore_groups=not group)
 
-        all_events = []
-        for date in date_list:
-            daily_events = get_events_for_date(date, ignore_groups=not group)
-            if daily_events:
-                all_events.extend(daily_events)
-
-        events = sorted(all_events, key=lambda x: x['datetime'])
+        events.sort(key=lambda x: x['datetime'])
 
     return render_template('index.html', events=events)
 
@@ -48,6 +48,19 @@ def user_dp(name):
     return response
 
 
+@app.route('/asset/<provider>/<file_id>')
+def asset(provider, file_id):
+    asset = MemoryAggregator.get_instance().get_asset(provider, file_id)
+    if not asset:
+        return "Asset not found", 404
+    # Cache for 24 hours
+    response = make_response(asset)
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    response.headers['Content-Type'] = 'image/webp'
+    # with open('test_image.webp', 'wb') as f:
+    #     f.write(asset)
+    return response
+
+
 if __name__ == '__main__':
-    dotenv.load_dotenv()
     app.run(debug=True)

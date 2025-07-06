@@ -10,9 +10,8 @@ memory providers.
 ## Supported Memory Providers
 
 ## Planned Supported Memory Providers
-- Diary
-- WhatsApp
-- Instagram
+- Google photos (probably no API support)
+- Call logs (not exportable in Samsung)
 - Splitwise
 
 ## Setup
@@ -41,6 +40,10 @@ WhatsApp doesn't allow downloading all the chat data at once. We can get individ
   - Export the individual txt file `WITHOUT MEDIA`.
   - Make a new `whatsapp` subdirectory in the data directory.
   - Paste those `WhatsApp Chat with <friend_name>.txt` there.
+
+#### Immich
+If you are using immich image photo and video management solution:
+  - Add user `IMMICH_BASE_URL`, `IMMICH_EMAIL`, `IMMICH_PASSWORD` to the .env
 
 ### Web app setup
 - Run `pip install -r requirements.txt`
