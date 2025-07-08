@@ -102,7 +102,8 @@ class ImmichProvider(MemoryProvider):
                     context={
                         "asset_name": asset["originalFileName"],
                         "asset_id": asset["id"],
-                        "mime_type": 'image/webp'
+                        "mime_type": 'image/webp',
+                        "new_tab_url": f'{self.IMMICH_BASE_URL}/photos/{asset["id"]}'
                     }
                 ))
             if data.get("assets", {}).get("nextPage") is None:

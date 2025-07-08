@@ -1,5 +1,5 @@
-import os
 import mimetypes
+import os
 import re
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
@@ -70,6 +70,7 @@ class WhatsAppProvider(MemoryProvider):
                     context["asset_name"] = media_file_name
                     context["asset_id"] = WhatsAppProvider.generate_asset_id(chat_name, media_file_name)
                     context["mime_type"] = mimetypes.guess_type(media_file_path)[0]
+                    context["new_tab_url"] = f'/asset/{WhatsAppProvider.NAME}/{WhatsAppProvider.generate_asset_id(chat_name, media_file_name)}'
                 text = text.split('(file attached)')[1].strip()
                 # TODO: If text has (file attached) in it, the part before that is the file name and the part after is the actual message. Check Darakshan example
                 media_type = MediaType.NON_TEXT if not text else MediaType.MIXED

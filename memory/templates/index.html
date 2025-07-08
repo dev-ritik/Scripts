@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 {% if event.context.mime_type.startswith('image/') %}
                                     <img src="/asset/{{ event.provider }}/{{ event.context.asset_id }}"
                                          style="width: 100%; border-radius: 8px; cursor: pointer;"
-                                         onclick="window.open('/asset/{{ event.provider }}/{{ event.context.asset_id }}', '_blank')">
+                                         onclick="window.open('{{ event.context.new_tab_url }}', '_blank')">
                                 {% elif event.context.mime_type.startswith('video/') %}
                                     <video controls style="width: 100%; border-radius: 8px;">
                                         <source src="/asset/{{ event.provider }}/{{ event.context.asset_id }}" type="{{ event.context.mime_type }}">
