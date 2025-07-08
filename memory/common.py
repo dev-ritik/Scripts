@@ -77,7 +77,7 @@ class MemoryAggregator:
                 event['sender'] = display_name
         return events
 
-    def get_asset(self, provider: str, asset_id: str) -> Optional[str]:
+    def get_asset(self, provider: str, asset_id: str) -> Optional[List[str]]:
         if provider not in self.providers:
             return None
         return self.providers[provider].get_asset(asset_id)

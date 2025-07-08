@@ -1,9 +1,10 @@
 import os
+import mimetypes
 import re
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
-from provider.base_provider import MemoryProvider, MessageType
+from provider.base_provider import MemoryProvider, MessageType, MediaType
 
 
 class WhatsAppProvider(MemoryProvider):
@@ -12,6 +13,7 @@ class WhatsAppProvider(MemoryProvider):
     SYSTEM = 'system'
 
     WHATSAPP_PATH = 'data/whatsapp'
+    WHATSAPP_FILE_NAME_PREFIX = 'WhatsApp Chat with '
 
     @staticmethod
     def clean_message(message):
@@ -38,14 +40,60 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     def parse_whatsapp_chat(file_path: str, ignore_groups: bool = False) -> List[dict]:
+        # print(file_path)
         chat_entries = []
 
         current_datetime = None
         current_sender = None
         message_buffer = []
 
-        chat_name = file_path.split('WhatsApp Chat with ')[1].split('.txt')[0]
+        media_included = not file_path.endswith('.txt')
+        file_name_suffix = file_path.split(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX)[1]
+
+        chat_name = file_name_suffix.split('.txt')[0] if not media_included else file_name_suffix
         is_group = False
+
+        folder_path = ''
+        if media_included:
+            folder_path = file_path
+            file_path = os.path.join(folder_path, f'WhatsApp Chat with {chat_name}.txt')
+
+        def _process_buffer(_message_buffer: List[str], sender: str) -> bool:
+            nonlocal is_group
+            context = {}
+            media_type = MediaType.TEXT
+            text = "\n".join(_message_buffer).strip()
+            if media_included and '(file attached)' in text:
+                media_file_name = text.split('(file attached)')[0].strip()
+                media_file_path = os.path.join(folder_path, media_file_name)
+                if os.path.exists(media_file_path):
+                    context["asset_name"] = media_file_name
+                    context["asset_id"] = WhatsAppProvider.generate_asset_id(chat_name, media_file_name)
+                    context["mime_type"] = mimetypes.guess_type(media_file_path)[0]
+                text = text.split('(file attached)')[1].strip()
+                # TODO: If text has (file attached) in it, the part before that is the file name and the part after is the actual message. Check Darakshan example
+                media_type = MediaType.NON_TEXT if not text else MediaType.MIXED
+            elif '<Media omitted>' in text:
+                text = '<Added media file>'
+            elif text == 'null':
+                text = '<View once message>'
+            context['edited'] = '<This message was edited>' in text
+            if len(chat_entries) < 5 and not is_group and 'created group' in text.lower():
+                is_group = True
+                if ignore_groups:
+                    return False
+            chat_entries.append(
+                MemoryProvider.get_data_template(current_datetime,
+                                                 message_type=MessageType.SENT if sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                                                 media_type=media_type,
+                                                 message=text,
+                                                 sender=sender or "System",
+                                                 provider=WhatsAppProvider.NAME,
+                                                 chat_name=chat_name,
+                                                 is_group=is_group,
+                                                 context=context)
+            )
+            return True
 
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -55,28 +103,8 @@ class WhatsAppProvider(MemoryProvider):
                 if msg_match:
                     # Save previous message
                     if current_datetime and message_buffer:
-                        text = "\n".join(message_buffer).strip()
-                        if '<Media omitted>' in text:
-                            text = '<Added media file>'
-                        elif text == 'null':
-                            text = '<View once message>'
-                        edited = '<This message was edited>' in text
-                        if len(chat_entries) < 5 and not is_group and 'created group' in text.lower():
-                            is_group = True
-                            if ignore_groups:
-                                return []
-                        chat_entries.append(
-                            MemoryProvider.get_data_template(current_datetime,
-                                                             message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
-                                                             message=text,
-                                                             sender=current_sender or "System",
-                                                             provider=WhatsAppProvider.NAME,
-                                                             chat_name=chat_name,
-                                                             is_group=is_group,
-                                                             context={
-                                                                 'edited': edited
-                                                             })
-                        )
+                        if not _process_buffer(message_buffer, current_sender):
+                            return chat_entries
 
                     date_str, content = msg_match.groups()
                     current_datetime = WhatsAppProvider.try_parse_date(date_str)
@@ -101,25 +129,14 @@ class WhatsAppProvider(MemoryProvider):
 
             # Save the final message
             if current_datetime and message_buffer:
-                chat_entries.append(
-                    MemoryProvider.get_data_template(current_datetime,
-                                                     message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
-                                                     message="\n".join(message_buffer).strip(),
-                                                     sender=current_sender or "System",
-                                                     provider=WhatsAppProvider.NAME,
-                                                     chat_name=chat_name,
-                                                     is_group=is_group,
-                                                     context={
-                                                         'edited': edited
-                                                     })
-                )
+                _process_buffer(message_buffer, current_sender)
 
         return chat_entries
 
     def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
         memories = []
         for found in os.listdir(WhatsAppProvider.WHATSAPP_PATH):
-            if not found.endswith('.txt') or not found.startswith('WhatsApp Chat with '):
+            if not found.startswith(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX):
                 continue
 
             chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), ignore_groups)
@@ -128,3 +145,25 @@ class WhatsAppProvider(MemoryProvider):
 
         memories.sort(key=lambda memory: memory['datetime'])
         return memories
+
+    @staticmethod
+    def generate_asset_id(chat_name, file_name) -> str:
+        return f"{chat_name}___{file_name}"
+
+    @staticmethod
+    def get_user_name_file_name(asset_id: str) -> List[str]:
+        return asset_id.split('___')
+
+    def get_asset(self, asset_id: str) -> Tuple[bytes, str]:
+        user_name, file_name = WhatsAppProvider.get_user_name_file_name(asset_id)
+        media_file_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, f'{WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX}{user_name}', file_name)
+        if not os.path.exists(media_file_path):
+            raise FileNotFoundError(f"{media_file_path} does not exist")
+
+        mime_type, _ = mimetypes.guess_type(media_file_path)
+        if mime_type is None:
+            raise ValueError("Could not determine MIME type")
+
+        with open(media_file_path, "rb") as media_file:
+            media_data = media_file.read()
+            return media_data, mime_type

@@ -50,13 +50,13 @@ def user_dp(name):
 
 @app.route('/asset/<provider>/<file_id>')
 def asset(provider, file_id):
-    asset = MemoryAggregator.get_instance().get_asset(provider, file_id)
+    asset, mime_type = MemoryAggregator.get_instance().get_asset(provider, file_id)
     if not asset:
         return "Asset not found", 404
     # Cache for 24 hours
     response = make_response(asset)
     response.headers['Cache-Control'] = 'public, max-age=86400'
-    response.headers['Content-Type'] = 'image/webp'
+    response.headers['Content-Type'] = mime_type
     # with open('test_image.webp', 'wb') as f:
     #     f.write(asset)
     return response

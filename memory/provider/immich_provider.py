@@ -6,7 +6,7 @@ from typing import Dict, List
 import requests
 from black.trans import defaultdict
 
-from provider.base_provider import MemoryProvider, MessageType
+from provider.base_provider import MemoryProvider, MediaType
 
 
 class ImmichProvider(MemoryProvider):
@@ -97,12 +97,12 @@ class ImmichProvider(MemoryProvider):
                 _date = datetime.fromisoformat(asset["localDateTime"]).replace(tzinfo=None)
                 results[_date.date()].append(MemoryProvider.get_data_template(
                     _datetime=_date,
-                    message_type=MessageType.IMAGE if asset["originalMimeType"].startswith(
-                        "image/") else MessageType.VIDEO,
+                    media_type=MediaType.NON_TEXT,
                     provider=self.NAME,
                     context={
                         "asset_name": asset["originalFileName"],
-                        "asset_id": asset["id"]
+                        "asset_id": asset["id"],
+                        "mime_type": 'image/webp'
                     }
                 ))
             if data.get("assets", {}).get("nextPage") is None:
@@ -112,7 +112,7 @@ class ImmichProvider(MemoryProvider):
 
         return results
 
-    def get_asset(self, asset_id: str) -> str:
+    def get_asset(self, asset_id: str) -> List[str] or None:
         url = f"{self.IMMICH_BASE_URL}/api/assets/{asset_id}/thumbnail"
 
         payload = {}
@@ -125,5 +125,5 @@ class ImmichProvider(MemoryProvider):
             raise Exception(response.text)
         with open("test_image.webp", "wb") as f:
             f.write(response.content)
-        print(response.headers['Content-Type'])  # Should be 'image/webp' or similar
-        return response.content
+        # print(response.headers['Content-Type'])  # Should be 'image/webp' or similar
+        return response.content, 'image/webp'

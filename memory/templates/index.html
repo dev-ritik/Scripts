@@ -442,11 +442,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
                         </div>
                         <div class="message-text">
-                        {% if event.type == 'image' or event.type == 'video' %}
+                        {% if event.media_type == 'non_text' %}
                             <div style="max-width: 300px; margin: 5px 0">
-                                <img src="/asset/{{ event.provider }}/{{ event.context.asset_id }}"
-                                     style="width: 100%; border-radius: 8px; cursor: pointer;"
-                                     onclick="window.open('/asset/{{ event.provider }}/{{ event.context.asset_id }}', '_blank')">
+                                {% if event.context.mime_type.startswith('image/') %}
+                                    <img src="/asset/{{ event.provider }}/{{ event.context.asset_id }}"
+                                         style="width: 100%; border-radius: 8px; cursor: pointer;"
+                                         onclick="window.open('/asset/{{ event.provider }}/{{ event.context.asset_id }}', '_blank')">
+                                {% elif event.context.mime_type.startswith('video/') %}
+                                    <video controls style="width: 100%; border-radius: 8px;">
+                                        <source src="/asset/{{ event.provider }}/{{ event.context.asset_id }}" type="{{ event.context.mime_type }}">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                {% else %}
+                                    <p>Unsupported media type: {{ event.context.mime_type }}</p>
+                                {% endif %}
                             </div>
                         {% else %}
                             {% set words = event.message.split(' ') %}

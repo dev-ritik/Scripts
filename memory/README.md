@@ -37,9 +37,9 @@ Add `DIARY_PATH` to the `.env` file and set it to the folder path
 WhatsApp doesn't allow downloading all the chat data at once. We can get individual chats at once. To get that:
   - Go to `settings > Chats > Chat history > Export chat` in the app.
   - Select an individual chat.
-  - Export the individual txt file `WITHOUT MEDIA`.
+  - Export the individual txt file with or without media.
   - Make a new `whatsapp` subdirectory in the data directory.
-  - Paste those `WhatsApp Chat with <friend_name>.txt` there.
+  - Paste / extract those `WhatsApp Chat with <friend_name>.txt` / Folder with assets there.
 
 #### Immich
 If you are using immich image photo and video management solution:
