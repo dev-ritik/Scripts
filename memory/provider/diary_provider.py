@@ -12,17 +12,25 @@ class DiaryProvider(MemoryProvider):
     @staticmethod
     def _get_date_and_memory_from_text(text: str):
         """
-        Overwrite this method to get a date and memory from text based on how the diary is written.
+        Overwrite this method to get a date and memory from a text based on how the diary is written.
+        Currently, it removes any line starting with ~ and returns the rest of the text as the memory.
         :param text: Raw line from diary
         :return: date, diary message for the day
         """
 
-        date_str = text.split(',')[0]
+        split = text.split(',')
+        if len(split) <= 1:
+            return None, None
+        date_str = split[0]
         if date_str in ['~', '-']:
+            return None, None
+        memory = ','.join(split[1:])
+        memory = memory.strip('"')
+        if memory.startswith("~"):
             return None, None
         try:
             date_str = datetime.strptime(date_str, "%d/%m/%Y")
-            return date_str + timedelta(hours=23, minutes=59), ','.join(text.split(',')[1:])
+            return date_str + timedelta(hours=23, minutes=59), memory
         except Exception as e:
             print(f"Error parsing date in {text}: {e}")
             return None, None
