@@ -1,7 +1,7 @@
 import mimetypes
 import os
 import re
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Dict, Optional, Tuple
 
 from provider.base_provider import MemoryProvider, MessageType, MediaType
@@ -39,13 +39,9 @@ class WhatsAppProvider(MemoryProvider):
         return None
 
     @staticmethod
-    def parse_whatsapp_chat(file_path: str, ignore_groups: bool = False) -> List[dict]:
+    def parse_whatsapp_chat(file_path: str, target_date: date, ignore_groups: bool = False) -> List[dict]:
         # print(file_path)
         chat_entries = []
-
-        current_datetime = None
-        current_sender = None
-        message_buffer = []
 
         media_included = not file_path.endswith('.txt')
         file_name_suffix = file_path.split(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX)[1]
@@ -58,11 +54,50 @@ class WhatsAppProvider(MemoryProvider):
             folder_path = file_path
             file_path = os.path.join(folder_path, f'WhatsApp Chat with {chat_name}.txt')
 
-        def _process_buffer(_message_buffer: List[str], sender: str) -> bool:
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        index_datetime_pairs = []
+        for i, line in enumerate(lines):
+            match = WhatsAppProvider.MSG_START_RE.match(line)
+            if match:
+                dt = WhatsAppProvider.try_parse_date(match.group(1))
+                if dt:
+                    index_datetime_pairs.append((i, dt.date()))
+
+        if not index_datetime_pairs:
+            return []  # No valid messages at all
+
+        # Early exit if date is out of range
+        if target_date < index_datetime_pairs[0][1] or target_date > index_datetime_pairs[-1][1]:
+            return []
+
+        def binary_search_date(target):
+            low, high = 0, len(index_datetime_pairs) - 1
+            result_index = None
+            while low <= high:
+                mid = (low + high) // 2
+                mid_date = index_datetime_pairs[mid][1]
+                if mid_date < target:
+                    low = mid + 1
+                elif mid_date > target:
+                    high = mid - 1
+                else:
+                    result_index = mid
+                    high = mid - 1  # Move to earliest match
+            return result_index
+
+        first_index = binary_search_date(target_date)
+        if first_index is None:
+            return []  # No messages on that date
+
+        def _process_buffer():
+            if not message_buffer:
+                return
             nonlocal is_group
             context = {}
             media_type = MediaType.TEXT
-            text = "\n".join(_message_buffer).strip()
+            text = "\n".join(message_buffer).strip()
             if media_included and '(file attached)' in text:
                 media_file_name = text.split('(file attached)')[0].strip()
                 media_file_path = os.path.join(folder_path, media_file_name)
@@ -82,55 +117,46 @@ class WhatsAppProvider(MemoryProvider):
             if len(chat_entries) < 5 and not is_group and 'created group' in text.lower():
                 is_group = True
                 if ignore_groups:
-                    return False
+                    return
             chat_entries.append(
                 MemoryProvider.get_data_template(current_datetime,
-                                                 message_type=MessageType.SENT if sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                                                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
                                                  media_type=media_type,
                                                  message=text,
-                                                 sender=sender or "System",
+                                                 sender=current_sender or "System",
                                                  provider=WhatsAppProvider.NAME,
                                                  chat_name=chat_name,
                                                  is_group=is_group,
                                                  context=context)
             )
-            return True
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                msg_match = WhatsAppProvider.MSG_START_RE.match(line)
+        start_line = index_datetime_pairs[first_index][0]
+        chat_lines = lines[start_line:]
+        current_datetime = None
+        current_sender = None
+        message_buffer = []
 
-                if msg_match:
-                    # Save previous message
-                    if current_datetime and message_buffer:
-                        if not _process_buffer(message_buffer, current_sender):
-                            return chat_entries
-
-                    date_str, content = msg_match.groups()
-                    current_datetime = WhatsAppProvider.try_parse_date(date_str)
-                    if not current_datetime:
-                        # Invalid date → skip line
-                        current_sender = None
-                        message_buffer = []
-                        continue
-
-                    sender_match = WhatsAppProvider.SENDER_RE.match(content)
-                    if sender_match:
-                        current_sender, first_line = sender_match.groups()
-                    else:
-                        current_sender = None
-                        first_line = content
-
-                    message_buffer = [first_line]
+        for line in chat_lines:
+            line = line.strip()
+            match = WhatsAppProvider.MSG_START_RE.match(line)
+            if match:
+                dt = WhatsAppProvider.try_parse_date(match.group(1))
+                if dt.date() != target_date:
+                    break
+                _process_buffer()
+                current_datetime = dt
+                content = match.group(2)
+                sender_match = WhatsAppProvider.SENDER_RE.match(content)
+                if sender_match:
+                    current_sender, first_line = sender_match.groups()
                 else:
-                    # Continuation of a previous message
-                    if message_buffer is not None:
-                        message_buffer.append(line)
+                    current_sender = None
+                    first_line = content
+                message_buffer = [first_line]
+            else:
+                message_buffer.append(line)
 
-            # Save the final message
-            if current_datetime and message_buffer:
-                _process_buffer(message_buffer, current_sender)
+        _process_buffer()
 
         return chat_entries
 
@@ -140,9 +166,10 @@ class WhatsAppProvider(MemoryProvider):
             if not found.startswith(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX):
                 continue
 
-            chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), ignore_groups)
+            chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date,
+                                             ignore_groups)
 
-            memories.extend([chat for chat in chats if chat['datetime'].date() == on_date.date()])
+            memories.extend(chats)
 
         memories.sort(key=lambda memory: memory['datetime'])
         return memories

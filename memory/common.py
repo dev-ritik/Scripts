@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import date
 from threading import Lock
 from typing import List, Dict, Optional
 
@@ -38,7 +38,7 @@ class MemoryAggregator:
                 cls._instance = cls()
         return cls._instance
 
-    def aggregate(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def aggregate(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         events = []
         for provider in self.providers.values():
             events.extend(provider.fetch(on_date, ignore_groups=ignore_groups))
@@ -46,7 +46,7 @@ class MemoryAggregator:
         events.sort(key=lambda x: x['datetime'])
         return events
 
-    def aggregate_dates(self, start_date: datetime, end_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def aggregate_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> List[Dict]:
         events = []
         for provider in self.providers.values():
             for _date, _events in provider.fetch_dates(start_date, end_date, ignore_groups=ignore_groups).items():
@@ -56,7 +56,7 @@ class MemoryAggregator:
         return events
 
     @staticmethod
-    def get_events_for_date(date: datetime, ignore_groups: bool = False) -> List[
+    def get_events_for_date(date: date, ignore_groups: bool = False) -> List[
         Dict]:
         # Initialize all providers
         aggregator = MemoryAggregator.get_instance()
@@ -68,7 +68,7 @@ class MemoryAggregator:
         return events
 
     @staticmethod
-    def get_events_for_dates(start_date: datetime, end_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def get_events_for_dates(start_date: date, end_date: date, ignore_groups: bool = False) -> List[Dict]:
         aggregator = MemoryAggregator.get_instance()
         events = aggregator.aggregate_dates(start_date, end_date, ignore_groups)
         # TODO: Remove traditional name with display name if it is in profile.json

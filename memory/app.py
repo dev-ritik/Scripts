@@ -24,12 +24,12 @@ def index():
             return "Missing date parameter", 400
         seek_days = 0 if seek_days < 0 else seek_days
         try:
-            on_date = datetime.strptime(on_date_str, "%Y-%m-%d")
+            on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
         except ValueError:
             return "Invalid date format", 400
 
-        events = MemoryAggregator.get_events_for_dates(on_date - timedelta(seek_days),
-                                                       on_date + timedelta(seek_days), ignore_groups=not group)
+        events = MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
+                                                       on_date + timedelta(days=seek_days), ignore_groups=not group)
 
         events.sort(key=lambda x: x['datetime'])
 

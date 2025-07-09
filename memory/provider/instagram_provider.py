@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Dict
 
 from provider.base_provider import MemoryProvider, MessageType
@@ -60,7 +60,7 @@ class InstagramProvider(MemoryProvider):
             sender_name = InstagramProvider.clean_message(message.get('sender_name'))
             message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED
 
-            if _dt.date() == on_date.date():
+            if _dt.date() == on_date:
                 output = MemoryProvider.get_data_template(_dt, message_type, text,
                                                           sender=sender_name,
                                                           provider=InstagramProvider.NAME,
@@ -71,7 +71,7 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         chat_path = 'data/instagram'
 
         memories = []

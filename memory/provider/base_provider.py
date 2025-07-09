@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from enum import Enum
 from typing import List, Dict
 
@@ -38,10 +38,10 @@ class MemoryProvider(ABC):
         }
 
     @abstractmethod
-    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         pass
 
-    def fetch_dates(self, start_date: datetime, end_date: datetime, ignore_groups: bool = False) -> Dict[
+    def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
         datetime, List[Dict]]:
         memory = {}
         current = start_date

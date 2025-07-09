@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import List, Dict
 
@@ -35,7 +35,7 @@ class DiaryProvider(MemoryProvider):
             print(f"Error parsing date in {text}: {e}")
             return None, None
 
-    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         year = on_date.year
         if not (diary_folder := os.getenv("DIARY_PATH")):
             print("Diary folder not found")
@@ -61,7 +61,7 @@ class DiaryProvider(MemoryProvider):
                 if not _dt:
                     continue
 
-                if _dt.date() == on_date.date():
+                if _dt.date() == on_date:
                     memories.append(self.get_data_template(_datetime=_dt,
                                                            message=text,
                                                            message_type=MessageType.SENT,

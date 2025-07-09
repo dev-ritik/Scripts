@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Dict, List
 
 import requests
@@ -45,10 +45,10 @@ class ImmichProvider(MemoryProvider):
 
         self.bearer_token = response.json()["accessToken"]
 
-    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         pass
 
-    def fetch_dates(self, start_date: datetime, end_date: datetime, ignore_groups: bool = False) -> Dict[
+    def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
         datetime, List[Dict]]:
         print(start_date, end_date, ignore_groups, self.WORKING)
         results = defaultdict(list)
