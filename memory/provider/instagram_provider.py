@@ -1,7 +1,11 @@
 import json
 import os
 from datetime import datetime, date
+from pathlib import Path
 from typing import List, Dict
+
+import aiofiles
+import asyncio
 
 from provider.base_provider import MemoryProvider, MessageType
 
@@ -71,21 +75,35 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+        print("Starting to fetch from Instagram")
+
         chat_path = 'data/instagram'
 
-        memories = []
+        tasks = []
         for found in os.listdir(chat_path):
             friend = '_'.join(found.split('_')[:-1])
-            friend_path = os.path.join(chat_path, found)
+            friend_path = Path(os.path.join(os.path.join(chat_path, found), 'message_1.json'))
+
+            if not friend_path.exists():
+                continue
+
             if friend == found:
                 friend = self.DELETED_USER
-            try:
-                with open(os.path.join(friend_path, 'message_1.json'), 'r') as f:
-                    data = json.load(f)
 
-                memories.extend(self.parse_json(data, friend, on_date, ignore_groups))
-            except FileNotFoundError as e:
-                pass
-        memories.sort(key=lambda memory: memory['datetime'])
+            tasks.append(self._read_and_parse(friend_path, friend, on_date, ignore_groups))
+
+        memories_nested = await asyncio.gather(*tasks)
+        memories = [item for sublist in memories_nested for item in sublist]
+        memories.sort(key=lambda m: m['datetime'])
+        print("Done fetching from Instagram")
         return memories
+
+    async def _read_and_parse(self, filepath: Path, friend: str, on_date: date, ignore_groups: bool):
+        try:
+            async with aiofiles.open(filepath, mode='r', encoding='utf-8') as f:
+                raw = await f.read()
+                data = json.loads(raw)
+                return self.parse_json(data, friend, on_date, ignore_groups)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []

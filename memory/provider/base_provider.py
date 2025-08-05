@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, date
 from enum import Enum
 from typing import List, Dict
 
+import asyncio
+
 
 class MessageType(Enum):
     SENT = 'sent'
@@ -38,17 +40,22 @@ class MemoryProvider(ABC):
         }
 
     @abstractmethod
-    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         pass
 
-    def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
         datetime, List[Dict]]:
-        memory = {}
+        tasks = []
+        dates = []
+
         current = start_date
         while current <= end_date:
-            memory[current] = self.fetch(current, ignore_groups=ignore_groups)
+            tasks.append(self.fetch(current, ignore_groups=ignore_groups))
+            dates.append(current)
             current += timedelta(days=1)
-        return memory
 
-    def get_asset(self, image_id: str) -> List[str] or None:
+        results = await asyncio.gather(*tasks)
+        return dict(zip(dates, results))
+
+    async def get_asset(self, image_id: str) -> List[str] or None:
         pass

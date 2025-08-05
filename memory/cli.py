@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 
 import init
 
@@ -9,14 +10,14 @@ from datetime import datetime, timedelta
 from common import MemoryAggregator
 
 
-def main(on_str: str, seek_days: int):
+async def main(on_str: str, seek_days: int):
     try:
         on_date = datetime.strptime(on_str, "%d-%m-%Y")
     except ValueError:
         print("Date format invalid. Use dd-mm-yyyy.")
         return
 
-    events = MemoryAggregator.get_events_for_dates(on_date - timedelta(seek_days),
+    events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(seek_days),
                                                    on_date + timedelta(seek_days))
     if not events:
         print("No memories found.")
@@ -32,4 +33,4 @@ if __name__ == "__main__":
     arg_parser.add_argument("--seek-days", type=int, default=0, help="Number of days before/after to look")
 
     args = arg_parser.parse_args()
-    main(args.on, args.seek_days)
+    asyncio.run(main(args.on, args.seek_days))

@@ -1,3 +1,5 @@
-flask
-dotenv
+flask~=3.0.2
 requests
+python-dotenv
+aiofiles
+httpx

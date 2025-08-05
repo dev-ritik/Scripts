@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import List, Dict
 
+import aiofiles
+
 from provider.base_provider import MemoryProvider, MessageType
 
 
@@ -35,7 +37,9 @@ class DiaryProvider(MemoryProvider):
             print(f"Error parsing date in {text}: {e}")
             return None, None
 
-    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+        print("Starting to fetch from Diary")
+
         year = on_date.year
         if not (diary_folder := os.getenv("DIARY_PATH")):
             print("Diary folder not found")
@@ -55,8 +59,8 @@ class DiaryProvider(MemoryProvider):
             return []
 
         memories = []
-        with open(diary_filepath, "r", encoding="utf-8") as f:
-            for line in f:
+        async with aiofiles.open(diary_filepath, "r", encoding="utf-8") as f:
+            async for line in f:
                 _dt, text = DiaryProvider._get_date_and_memory_from_text(line.strip())
                 if not _dt:
                     continue
@@ -68,4 +72,5 @@ class DiaryProvider(MemoryProvider):
                                                            provider=self.NAME,
                                                            sender="Ritik"))
 
+        print("Done fetching from Diary")
         return memories

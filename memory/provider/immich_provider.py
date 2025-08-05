@@ -1,12 +1,12 @@
-import json
 import os
+from collections import defaultdict
 from datetime import datetime, timedelta, date
 from typing import Dict, List
 
-import requests
-from black.trans import defaultdict
+import httpx
 
 from provider.base_provider import MemoryProvider, MediaType
+from utils import post_with_retries
 
 
 class ImmichProvider(MemoryProvider):
@@ -21,39 +21,37 @@ class ImmichProvider(MemoryProvider):
         if not self.WORKING:
             return
 
+        self.bearer_token = None
+
+    async def get_bearer_token(self):
         url = f"{self.IMMICH_BASE_URL}/api/auth/login"
 
-        payload = json.dumps({
+        payload = {
             "email": os.environ.get('IMMICH_EMAIL'),
             "password": os.environ.get('IMMICH_PASSWORD')
-        })
-        headers = {
-            'Content-Type': 'application/json',
         }
 
-        try:
-            response = requests.request("POST", url, headers=headers, data=payload)
-        except Exception as e:
-            print(f"Immich login failed: {e}")
-            self.WORKING = False
-            return
+        response = await post_with_retries(url, payload, headers={})
 
-        if response.status_code != 201:
+        if not response or response.status_code != 201:
             print('Immich login failed: ', response.text)
             self.WORKING = False
-            return
+            return None
 
-        self.bearer_token = response.json()["accessToken"]
+        return response.json()["accessToken"]
 
-    def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
-        pass
+    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+        raise NotImplementedError
 
-    def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
         datetime, List[Dict]]:
-        print(start_date, end_date, ignore_groups, self.WORKING)
         results = defaultdict(list)
         if not self.WORKING:
             return results
+
+        print("Starting to fetch from Immich")
+        if not self.bearer_token:
+            self.bearer_token = await self.get_bearer_token()
 
         url = f"{self.IMMICH_BASE_URL}/api/search/metadata"
         page = 1
@@ -64,67 +62,70 @@ class ImmichProvider(MemoryProvider):
             'Authorization': f'Bearer {self.bearer_token}',
         }
 
-        while True:
-            payload = json.dumps({
-                "takenAfter": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "takenBefore": (end_date + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "order": "asc",
-                "page": page,
-                "size": self.SEARCH_PAGE_SIZE,
-            })
+        async with httpx.AsyncClient() as client:
+            while True:
+                payload = {
+                    "takenAfter": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "takenBefore": (end_date + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "order": "asc",
+                    "page": page,
+                    "size": self.SEARCH_PAGE_SIZE,
+                }
 
-            response = requests.post(url, headers=headers, data=payload)
+                response = await post_with_retries(url, payload, headers)
 
-            if response.status_code != 200:
-                print('Fetching failed', response.text)
-                self.WORKING = False
-                return results
+                if response.status_code != 200:
+                    print('Fetching failed', response.text)
+                    self.WORKING = False
+                    return results
 
-            data = response.json()
+                data = response.json()
 
-            for asset in data.get("assets", {}).get("items", []):
-                # results.append({
-                #     "id": asset["id"],
-                #     "name": asset["originalFileName"],
-                #     "originalPath": asset["originalPath"],
-                #     "originalMimeType": asset["originalMimeType"],
-                #     "fileCreatedAt": asset["fileCreatedAt"],
-                #     "fileModifiedAt": asset["fileModifiedAt"],
-                #     "localDateTime": asset["localDateTime"],
-                #     "updatedAt": asset["updatedAt"],
-                #     "duration": asset["duration"],
-                # })
-                _date = datetime.fromisoformat(asset["localDateTime"]).replace(tzinfo=None)
-                results[_date.date()].append(MemoryProvider.get_data_template(
-                    _datetime=_date,
-                    media_type=MediaType.NON_TEXT,
-                    provider=self.NAME,
-                    context={
-                        "asset_name": asset["originalFileName"],
-                        "asset_id": asset["id"],
-                        "mime_type": 'image/webp',
-                        "new_tab_url": f'{self.IMMICH_BASE_URL}/photos/{asset["id"]}'
-                    }
-                ))
-            if data.get("assets", {}).get("nextPage") is None:
-                break
+                for asset in data.get("assets", {}).get("items", []):
+                    # results.append({
+                    #     "id": asset["id"],
+                    #     "name": asset["originalFileName"],
+                    #     "originalPath": asset["originalPath"],
+                    #     "originalMimeType": asset["originalMimeType"],
+                    #     "fileCreatedAt": asset["fileCreatedAt"],
+                    #     "fileModifiedAt": asset["fileModifiedAt"],
+                    #     "localDateTime": asset["localDateTime"],
+                    #     "updatedAt": asset["updatedAt"],
+                    #     "duration": asset["duration"],
+                    # })
+                    _date = datetime.fromisoformat(asset["localDateTime"]).replace(tzinfo=None)
+                    results[_date.date()].append(MemoryProvider.get_data_template(
+                        _datetime=_date,
+                        media_type=MediaType.NON_TEXT,
+                        provider=self.NAME,
+                        context={
+                            "asset_name": asset["originalFileName"],
+                            "asset_id": asset["id"],
+                            "mime_type": 'image/webp',
+                            "new_tab_url": f'{self.IMMICH_BASE_URL}/photos/{asset["id"]}'
+                        }
+                    ))
+                if data.get("assets", {}).get("nextPage") is None:
+                    break
 
-            page = data["assets"]['nextPage']
+                page = data["assets"]['nextPage']
 
+        print("Done fetching from Immich")
         return results
 
-    def get_asset(self, asset_id: str) -> List[str] or None:
+    async def get_asset(self, asset_id: str) -> List[str] or None:
         url = f"{self.IMMICH_BASE_URL}/api/assets/{asset_id}/thumbnail"
 
-        payload = {}
         headers = {
             'Authorization': f'Bearer {self.bearer_token}',
         }
 
-        response = requests.request("GET", url, headers=headers, data=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+
         if response.status_code != 200:
             raise Exception(response.text)
-        with open("test_image.webp", "wb") as f:
-            f.write(response.content)
-        # print(response.headers['Content-Type'])  # Should be 'image/webp' or similar
+        # with open("test_image.webp", "wb") as f:
+        #     f.write(response.content)
+        # print(response.headers['Content-Type']) # Should be 'image/webp' or similar
         return response.content, 'image/webp'

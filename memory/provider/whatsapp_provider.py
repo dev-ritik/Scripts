@@ -4,6 +4,9 @@ import re
 from datetime import datetime, date
 from typing import List, Dict, Optional, Tuple
 
+import aiofiles
+import asyncio
+
 from provider.base_provider import MemoryProvider, MessageType, MediaType
 
 
@@ -39,7 +42,7 @@ class WhatsAppProvider(MemoryProvider):
         return None
 
     @staticmethod
-    def parse_whatsapp_chat(file_path: str, target_date: date, ignore_groups: bool = False) -> List[dict]:
+    async def parse_whatsapp_chat(file_path: str, target_date: date, ignore_groups: bool = False) -> List[dict]:
         # print(file_path)
         chat_entries = []
 
@@ -54,8 +57,11 @@ class WhatsAppProvider(MemoryProvider):
             folder_path = file_path
             file_path = os.path.join(folder_path, f'WhatsApp Chat with {chat_name}.txt')
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        try:
+            async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+                lines = await f.readlines()
+        except FileNotFoundError:
+            return []
 
         index_datetime_pairs = []
         for i, line in enumerate(lines):
@@ -160,18 +166,26 @@ class WhatsAppProvider(MemoryProvider):
 
         return chat_entries
 
-    def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+        print("Starting to fetch from WhatsApp")
+
         memories = []
+        tasks = []
         for found in os.listdir(WhatsAppProvider.WHATSAPP_PATH):
             if not found.startswith(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX):
                 continue
 
-            chats = self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date,
-                                             ignore_groups)
+            tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date, ignore_groups))
 
-            memories.extend(chats)
+        # Run parsing concurrently
+        results = await asyncio.gather(*tasks)
+
+        for chat_list in results:
+            memories.extend(chat_list)
 
         memories.sort(key=lambda memory: memory['datetime'])
+
+        print("Done fetching from Whatsapp")
         return memories
 
     @staticmethod
@@ -182,7 +196,7 @@ class WhatsAppProvider(MemoryProvider):
     def get_user_name_file_name(asset_id: str) -> List[str]:
         return asset_id.split('___')
 
-    def get_asset(self, asset_id: str) -> Tuple[bytes, str]:
+    async def get_asset(self, asset_id: str) -> Tuple[bytes, str]:
         user_name, file_name = WhatsAppProvider.get_user_name_file_name(asset_id)
         media_file_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, f'{WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX}{user_name}', file_name)
         if not os.path.exists(media_file_path):
@@ -192,6 +206,6 @@ class WhatsAppProvider(MemoryProvider):
         if mime_type is None:
             raise ValueError("Could not determine MIME type")
 
-        with open(media_file_path, "rb") as media_file:
-            media_data = media_file.read()
-            return media_data, mime_type
+        async with aiofiles.open(media_file_path, "rb") as media_file:
+            media_data = await media_file.read()
+        return media_data, mime_type

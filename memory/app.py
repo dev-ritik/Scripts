@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 
 @app.route('/', methods=['GET', 'POST'])
-def index():
+async def index():
     events = []
     if request.method == 'GET':
         on_date_str = request.args.get('date')
@@ -28,7 +28,7 @@ def index():
         except ValueError:
             return "Invalid date format", 400
 
-        events = MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
+        events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
                                                        on_date + timedelta(days=seek_days), ignore_groups=not group)
 
         events.sort(key=lambda x: x['datetime'])
@@ -37,8 +37,8 @@ def index():
 
 
 @app.route('/user/dp/<name>')
-def user_dp(name):
-    dp_path = get_user_dp(name)
+async def user_dp(name):
+    dp_path = await get_user_dp(name)
     if not dp_path:
         return "Display picture not found", 404
 
@@ -49,8 +49,8 @@ def user_dp(name):
 
 
 @app.route('/asset/<provider>/<file_id>')
-def asset(provider, file_id):
-    asset, mime_type = MemoryAggregator.get_instance().get_asset(provider, file_id)
+async def asset(provider, file_id):
+    asset, mime_type = await MemoryAggregator.get_instance().get_asset(provider, file_id)
     if not asset:
         return "Asset not found", 404
     # Cache for 24 hours
