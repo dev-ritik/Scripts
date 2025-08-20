@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import List, Dict
@@ -12,10 +13,22 @@ class DiaryProvider(MemoryProvider):
     NAME = "Diary"
 
     @staticmethod
+    def capitalize_after_newline(text: str) -> str:
+        # Capitalize the first character of the string and after each newline
+        return re.sub(r'(^|\n)(\s*)(\w)',
+                      lambda m: m.group(1) + m.group(2) + m.group(3).upper(),
+                      text)
+
+    @staticmethod
     def _get_date_and_memory_from_text(text: str):
         """
-        Overwrite this method to get a date and memory from a text based on how the diary is written.
-        Currently, it removes any line starting with ~ and returns the rest of the text as the memory.
+        OVERWRITE THIS METHOD: To get a date and memory from a text based on how the diary is written.
+        Currently
+        - it removes any line starting with ~
+        - Assumes the first value of CSV is the date or ~
+        - Replace >> with a newline character
+        - Capitalizes the first letter of each new line
+        - returns the rest of the text as the memory.
         :param text: Raw line from diary
         :return: date, diary message for the day
         """
@@ -30,6 +43,9 @@ class DiaryProvider(MemoryProvider):
         memory = memory.strip('"')
         if memory.startswith("~"):
             return None, None
+        memory = memory.replace('>>', '\n')
+        memory = DiaryProvider.capitalize_after_newline(memory)
+
         try:
             date_str = datetime.strptime(date_str, "%d/%m/%Y")
             return date_str + timedelta(hours=23, minutes=59), memory

@@ -34,7 +34,7 @@ class ImmichProvider(MemoryProvider):
         response = await post_with_retries(url, payload, headers={})
 
         if not response or response.status_code != 201:
-            print('Immich login failed: ', response.text)
+            print('Immich login failed: ', response.text if response else 'No response')
             self.WORKING = False
             return None
 
@@ -52,6 +52,8 @@ class ImmichProvider(MemoryProvider):
         print("Starting to fetch from Immich")
         if not self.bearer_token:
             self.bearer_token = await self.get_bearer_token()
+            if not self.WORKING:
+                return results
 
         url = f"{self.IMMICH_BASE_URL}/api/search/metadata"
         page = 1
@@ -74,8 +76,8 @@ class ImmichProvider(MemoryProvider):
 
                 response = await post_with_retries(url, payload, headers)
 
-                if response.status_code != 200:
-                    print('Fetching failed', response.text)
+                if not response or response.status_code != 200:
+                    print('Fetching failed', response.text if response else 'No response')
                     self.WORKING = False
                     return results
 

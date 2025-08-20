@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
                         </div>
                         <div class="message-text">
-                        {% if event.media_type == 'non_text' %}
+                        {% if event.media_type in ['non_text', 'mixed'] %}
                             <div style="max-width: 300px; margin: 5px 0">
                                 {% if event.context.mime_type.startswith('image/') %}
                                     <img src="/asset/{{ event.provider }}/{{ event.context.asset_id }}"
@@ -457,10 +457,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <p>Unsupported media type: {{ event.context.mime_type }}</p>
                                 {% endif %}
                             </div>
-                        {% else %}
-                            {% set words = event.message.split(' ') %}
+                        {% endif %}
+                        {% if event.media_type in ['text', 'mixed'] %}
+                            {% set words = event.message.replace('\n', ' NEWLINE ') %}
+                            {% set words = words.split(' ') %}
                             {% for word in words %}
-                                {% if word.startswith(('http://', 'https://')) %}
+                                {% if word == 'NEWLINE' %}
+                                    <br>
+                                {% elif word.startswith(('http://', 'https://')) %}
+<!--                            TODO: Add Youtube embeds-->
                                     {% if 'instagram.com' in word %}
                                         <blockquote class="instagram-media"
                                             data-instgrm-captioned

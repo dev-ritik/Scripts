@@ -12,8 +12,8 @@ class MessageType(Enum):
 
 
 class MediaType(Enum):
-    IMAGE = 'image'
-    VIDEO = 'video'
+    # IMAGE = 'image'
+    # VIDEO = 'video'
     TEXT = 'text'
     MIXED = 'mixed'
     NON_TEXT = 'non_text'
