@@ -31,7 +31,7 @@ class ImmichProvider(MemoryProvider):
             "password": os.environ.get('IMMICH_PASSWORD')
         }
 
-        response = await post_with_retries(url, payload, headers={})
+        response = await post_with_retries(url, payload, headers={}, retries=2)
 
         if not response or response.status_code != 201:
             print('Immich login failed: ', response.text if response else 'No response')

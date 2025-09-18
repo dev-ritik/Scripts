@@ -11,6 +11,7 @@ from provider.base_provider import MemoryProvider, MessageType
 
 class DiaryProvider(MemoryProvider):
     NAME = "Diary"
+    WORKING = True
 
     @staticmethod
     def capitalize_after_newline(text: str) -> str:
@@ -54,16 +55,22 @@ class DiaryProvider(MemoryProvider):
             return None, None
 
     async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+        results = []
+        if not self.WORKING:
+            return results
+
         print("Starting to fetch from Diary")
 
         year = on_date.year
         if not (diary_folder := os.getenv("DIARY_PATH")):
+            self.WORKING = False
             print("Diary folder not found")
-            return []
+            return results
         diary_folder = Path(diary_folder)
         if not diary_folder.exists():
+            self.WORKING = False
             print("Diary folder not found")
-            return []
+            return results
 
         diary_filepath = None
         for filename in os.listdir(diary_folder):
@@ -71,10 +78,10 @@ class DiaryProvider(MemoryProvider):
                 diary_filepath = os.path.join(diary_folder, filename)
 
         if diary_filepath is None:
+            self.WORKING = False
             print("Diary folder not found")
-            return []
+            return results
 
-        memories = []
         async with aiofiles.open(diary_filepath, "r", encoding="utf-8") as f:
             async for line in f:
                 _dt, text = DiaryProvider._get_date_and_memory_from_text(line.strip())
@@ -82,11 +89,11 @@ class DiaryProvider(MemoryProvider):
                     continue
 
                 if _dt.date() == on_date:
-                    memories.append(self.get_data_template(_datetime=_dt,
+                    results.append(self.get_data_template(_datetime=_dt,
                                                            message=text,
                                                            message_type=MessageType.SENT,
                                                            provider=self.NAME,
                                                            sender="Ritik"))
 
         print("Done fetching from Diary")
-        return memories
+        return results

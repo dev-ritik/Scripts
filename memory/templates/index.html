@@ -313,9 +313,22 @@ function seekMemories() {
     const date = document.getElementById('date').value;
     const seekDays = document.getElementById('seek_days').value;
     const group = document.getElementById('group').checked;
+    const providerSelect = document.getElementById("providers");
+    const allProviders = Array.from(providerSelect.options).map(opt => opt.value);
+    const selectedProviders = Array.from(providerSelect.selectedOptions).map(opt => opt.value);
+
+    let queryParams = new URLSearchParams();
+    queryParams.set("date", date);
+    queryParams.set("seek_days", seekDays);
+    queryParams.set("group", group);
+
+    // Only add providers if subset is chosen
+    if (selectedProviders.length > 0 && selectedProviders.length < allProviders.length) {
+        queryParams.set("providers", selectedProviders.join(","));
+    }
 
     // Redirect to the same page with query parameters
-    window.location.href = `?date=${date}&seek_days=${seekDays}&group=${group}`;
+    window.location.href = `?${queryParams.toString()}`;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -362,6 +375,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const seekDaysParam = getUrlParameter('seek_days');
     document.getElementById('seek_days').value = seekDaysParam !== null ? seekDaysParam : '0';
 
+    fetch("/available_providers")
+        .then(response => response.json())
+        .then(providers => {
+            const providerSelect = document.getElementById("providers");
+            const urlProvidersParam = getUrlParameter('providers');
+            const selectedProviders = urlProvidersParam ? urlProvidersParam.split(",") : [];
+
+            providers.forEach(provider => {
+                const option = document.createElement("option");
+                option.value = provider;
+                option.textContent = provider;
+                // Pre-select if in query param
+                if (selectedProviders.includes(provider)) {
+                    option.selected = true;
+                }
+                providerSelect.appendChild(option);
+            });
+        })
+        .catch(err => console.error("Error fetching providers:", err));
 });
 </script>
 
@@ -401,6 +433,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         {% endfor %}
                     </select>
                 </div>
+
+                <!-- New Provider Select -->
+                <div class="select-wrapper">
+                    <i class="fas fa-database"></i>
+                    <label for="providers">Select Providers:</label>
+                    <select id="providers" name="providers" multiple>
+                        <!-- Options will be filled dynamically -->
+                    </select>
+                </div>
+
             </div>
             <div class="button-group">
                 <button type="button" onclick="seekMemories()">
@@ -485,7 +527,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </div>
                                                     <div style="padding: 19% 0;"></div>
                                                     <div style="display:block; height:50px; margin:0 auto 12px; width:50px;">
-                                                        <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="https://www.w3.org/2000/svg" xmlns:xlink="https://www.w3.org/1999/xlink">
+                                                        <svg width="50px" height="50px" viewBox="0 0 60 60"
+                                                             version="1.1" xmlns="https://www.w3.org/2000/svg">
                                                             <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
                                                                 <g transform="translate(-511.000000, -20.000000)" fill="#000000">
                                                                     <g>

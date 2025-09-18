@@ -19,6 +19,7 @@ async def index():
         on_date_str = request.args.get('date')
         seek_days = int(request.args.get('seek_days', 0))
         group = request.args.get('group', 'true') == 'true'
+        providers_param = request.args.get('providers')  # comma-separated list
 
         if not on_date_str:
             return "Missing date parameter", 400
@@ -28,8 +29,12 @@ async def index():
         except ValueError:
             return "Invalid date format", 400
 
+        providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
+
         events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
-                                                       on_date + timedelta(days=seek_days), ignore_groups=not group)
+                                                             on_date + timedelta(days=seek_days),
+                                                             ignore_groups=not group,
+                                                             providers=providers)
 
         events.sort(key=lambda x: x['datetime'])
 
@@ -61,6 +66,11 @@ async def asset(provider, file_id):
     #     f.write(asset)
     return response
 
+
+@app.route('/available_providers')
+async def get_available_providers():
+    # print(list(MemoryAggregator.get_instance().providers.keys()))
+    return list(MemoryAggregator.get_instance().providers.keys())
 
 if __name__ == '__main__':
     app.run(debug=True)
