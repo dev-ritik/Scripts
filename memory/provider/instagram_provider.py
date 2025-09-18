@@ -17,6 +17,9 @@ class InstagramProvider(MemoryProvider):
     SYSTEM = 'system'
     DELETED_USER = 'deleted_user'
 
+    def is_working(self):
+        return True
+
     @staticmethod
     def fix_mojibake(text: str) -> str:
         # Get the emojis

@@ -59,3 +59,7 @@ class MemoryProvider(ABC):
 
     async def get_asset(self, image_id: str) -> List[str] or None:
         pass
+
+    @abstractmethod
+    def is_working(self):
+        return True

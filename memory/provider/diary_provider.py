@@ -13,6 +13,9 @@ class DiaryProvider(MemoryProvider):
     NAME = "Diary"
     WORKING = True
 
+    def is_working(self):
+        return self.WORKING
+
     @staticmethod
     def capitalize_after_newline(text: str) -> str:
         # Capitalize the first character of the string and after each newline

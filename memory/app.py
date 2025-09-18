@@ -69,8 +69,8 @@ async def asset(provider, file_id):
 
 @app.route('/available_providers')
 async def get_available_providers():
-    # print(list(MemoryAggregator.get_instance().providers.keys()))
-    return list(MemoryAggregator.get_instance().providers.keys())
+    return [provider_name for provider_name, instance in MemoryAggregator.get_instance().providers.items() if
+            instance.is_working()]
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -18,6 +18,9 @@ class WhatsAppProvider(MemoryProvider):
     WHATSAPP_PATH = 'data/whatsapp'
     WHATSAPP_FILE_NAME_PREFIX = 'WhatsApp Chat with '
 
+    def is_working(self):
+        return True
+
     @staticmethod
     def clean_message(message):
         return message.strip()

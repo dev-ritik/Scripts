@@ -23,6 +23,9 @@ class ImmichProvider(MemoryProvider):
 
         self.bearer_token = None
 
+    def is_working(self):
+        return self.WORKING
+
     async def get_bearer_token(self):
         url = f"{self.IMMICH_BASE_URL}/api/auth/login"
 
