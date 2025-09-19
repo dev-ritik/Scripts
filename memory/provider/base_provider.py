@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, date
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import asyncio
 
@@ -57,7 +57,7 @@ class MemoryProvider(ABC):
         results = await asyncio.gather(*tasks)
         return dict(zip(dates, results))
 
-    async def get_asset(self, image_id: str) -> List[str] or None:
+    async def get_asset(self, image_id: str) -> Tuple[bytes, str]:
         pass
 
     @abstractmethod
