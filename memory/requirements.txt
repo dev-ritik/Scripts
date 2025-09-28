@@ -3,3 +3,5 @@ requests
 python-dotenv
 aiofiles
 httpx
+google-auth-oauthlib
+google

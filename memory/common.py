@@ -9,6 +9,7 @@ import aiofiles
 
 from provider.base_provider import MemoryProvider
 from provider.diary_provider import DiaryProvider
+from provider.google_photos_provider import GooglePhotosProvider
 from provider.immich_provider import ImmichProvider
 from provider.instagram_provider import InstagramProvider
 from provider.whatsapp_provider import WhatsAppProvider
@@ -18,6 +19,7 @@ AVAILABLE_PROVIDERS = [
     InstagramProvider,
     DiaryProvider,
     ImmichProvider,
+    GooglePhotosProvider
 ]
 
 

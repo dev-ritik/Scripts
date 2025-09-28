@@ -2,7 +2,7 @@ import asyncio
 import httpx
 
 
-async def post_with_retries(url, payload, headers, retries=3):
+async def post_with_retries(url, payload, headers, retries=3) -> httpx.Response or None:
     timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)  # in seconds
     limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
     for attempt in range(1, retries + 1):

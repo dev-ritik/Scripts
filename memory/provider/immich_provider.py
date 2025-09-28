@@ -47,7 +47,7 @@ class ImmichProvider(MemoryProvider):
         raise NotImplementedError
 
     async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime, List[Dict]]:
+        datetime.date, List[Dict]]:
         results = defaultdict(list)
         if not self.WORKING:
             return results

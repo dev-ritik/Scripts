@@ -39,12 +39,19 @@ class MemoryProvider(ABC):
             'media_type': media_type.value,
         }
 
+    async def setup(self):
+        """
+        Method to set up any provider-specific tasks.
+        :return:
+        """
+        return NotImplementedError
+
     @abstractmethod
     async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         pass
 
     async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime, List[Dict]]:
+        datetime.date, List[Dict]]:
         tasks = []
         dates = []
 

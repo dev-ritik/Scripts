@@ -10,7 +10,6 @@ memory providers.
 ## Supported Memory Providers
 
 ## Planned Supported Memory Providers
-- Google photos (probably no API support)
 - Call logs (not exportable in Samsung)
 - Splitwise
 
@@ -44,6 +43,40 @@ WhatsApp doesn't allow downloading all the chat data at once. We can get individ
 #### Immich
 If you are using immich image photo and video management solution:
   - Add user `IMMICH_BASE_URL`, `IMMICH_EMAIL`, `IMMICH_PASSWORD` to the .env
+
+#### Google Photos
+Google Photos allows 3rd party apps to get access to (only explicitly user chosen) photos via the Photos Picker API.
+However there are limitations:
+- We have to create session and poll for the status
+- Each session can only have at max 2000 images
+- Sessions and media urls expire
+- Authentication token expires
+
+Steps to setup:
+- Go to Google Cloud Console
+- Create/select a project. 
+- Enable Google Photos Library API. 
+- Create OAuth 2.0 credentials:
+  - Choose Web application (for Flask integration).
+  - Download the credentials.json file. Save it in `data/google_photos/credentials.json`
+  - Use `http://localhost:55433/` as Authorized redirect URIs
+- Run the following with `create_new_session` as True (to enable fresh selection of pictures) or False (to just fetch from existing sessions)
+    - You can also paste session ids in `data/google_photos/index.json` in
+
+```json
+{"sessions": {"<session_id>": ""}}
+```
+
+```python
+import init
+import asyncio
+from provider.google_photos_provider import GooglePhotosProvider
+
+provider = GooglePhotosProvider()
+loop = asyncio.get_event_loop()
+print(loop.run_until_complete(provider.setup(create_new_session=False)))
+```
+- Large files can readily bloat the local assets folder
 
 ### Web app setup
 - Run `pip install -r requirements.txt`
