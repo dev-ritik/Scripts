@@ -14,8 +14,8 @@ from anyio import sleep
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from provider.base_provider import MemoryProvider, MediaType
-from utils import post_with_retries
+from provider.base_provider import MemoryProvider, MediaType, Compressions
+from utils import post_with_retries, AsyncDownloadManager
 
 
 class GooglePhotosProvider(MemoryProvider):
@@ -54,10 +54,11 @@ class GooglePhotosProvider(MemoryProvider):
     def is_working(self):
         return self.WORKING
 
-    async def setup(self, create_new_session: bool = False):
+    async def setup(self, create_new_session: bool = False, compressions: List[Compressions] = None):
         """
         Process the index file and cache the session medias.
         :param create_new_session: If True, a new session will be created. If False, the existing sessions will be processed. Defaults to False.
+        :param compressions: A list of supported compressions. Defaults to None.
         :return:
         """
         self.token = self.get_gphotos_token()
@@ -68,7 +69,7 @@ class GooglePhotosProvider(MemoryProvider):
 
         for session_id, status in self.session_ids.items():
             if status != "PROCESSED":
-                status = await self.cache_session(session_id)
+                status = await self.cache_session(session_id, compressions)
                 if status:
                     self.session_ids[session_id] = "PROCESSED"
                     self._save_index_file()
@@ -144,7 +145,7 @@ class GooglePhotosProvider(MemoryProvider):
         while True:
             await sleep(5)
 
-            expiry_time, media_items_set = GooglePhotosProvider.get_session_status(token, session_id)
+            expiry_time, media_items_set = await GooglePhotosProvider.get_session_status(token, session_id)
             if media_items_set:
                 return session_id
             else:
@@ -158,21 +159,48 @@ class GooglePhotosProvider(MemoryProvider):
             'Authorization': f'Bearer {token}'
         }
 
+        media_items = []
+        page_token = None
+
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
+            while True:
+                params = {
+                    "sessionId": session_id,
+                    "pageSize": 100
+                }
 
-        if response.status_code != 200:
-            print("Media items failed: ", response.text)
-            return None
+                if page_token:
+                    params["pageToken"] = page_token
 
-        return response.json()['mediaItems']
+                response = await client.get(url, headers=headers, params=params)
 
-    async def cache_session(self, session_id: str) -> bool:
+                if response.status_code != 200:
+                    print("Media items failed: ", response.text)
+                    return None
+
+                data = response.json()
+                media_items.extend(data.get("mediaItems", []))
+
+                page_token = data.get("nextPageToken")
+                if not page_token:
+                    break
+
+        return media_items
+
+    async def cache_session(self, session_id: str, compressions: List[Compressions] = None) -> bool:
+        """
+        Get the media items for a completed session and cache them.
+        :param session_id:
+        :param compressions: List of supported compressions. Defaults to None.
+        :return:
+        """
         expiry_time, media_available = await GooglePhotosProvider.get_session_status(self.token, session_id)
         if not media_available:
             print(f"No media available for session {session_id}")
             return False
         media = await self.get_media_items_for_session(self.token, session_id)
+        manager = AsyncDownloadManager(max_concurrent=10)
+
         for media_item in media:
             _id = media_item.get('id')
             mime_type = media_item.get('mediaFile').get('mimeType')
@@ -184,7 +212,17 @@ class GooglePhotosProvider(MemoryProvider):
             ist_dt = utc_dt.astimezone(ist_timezone)
             _type = media_item.get('type')
 
-            await self.fetch_asset(self.token, base_url, os.path.join(self.GOOGLE_PHOTOS_PATH, file_name), _type)
+            # schedule fetch with concurrency manager
+            manager.add(
+                self.fetch_asset(
+                    self.token,
+                    base_url,
+                    os.path.join(self.GOOGLE_PHOTOS_PATH, file_name),
+                    _type,
+                    compressions
+                )
+            )
+
             self.metadata_context_by_id[_id] = {
                 "base_url": base_url,
                 "file_name": file_name,
@@ -192,6 +230,14 @@ class GooglePhotosProvider(MemoryProvider):
                 "createTime": ist_dt
             }
             self.metadata_context_by_dates[ist_dt.date()].add(_id)
+
+        # Run downloads in parallel (max 10 at a time)
+        results = await manager.run()
+
+        # Handle any errors
+        for result in results:
+            if isinstance(result, Exception):
+                print("Download failed:", result)
 
         return True
 
@@ -222,7 +268,7 @@ class GooglePhotosProvider(MemoryProvider):
                     continue
                 _date = item.get('createTime')
                 results[current_date].append(MemoryProvider.get_data_template(
-                    _datetime=_date,
+                    _datetime=_date.replace(tzinfo=None),
                     media_type=MediaType.NON_TEXT,
                     provider=self.NAME,
                     context={
@@ -242,8 +288,16 @@ class GooglePhotosProvider(MemoryProvider):
         return date_assets.get(on_date, []) if date_assets else []
 
     @staticmethod
-    async def fetch_asset(token: str, url: str, file_name: str, _type) -> List[str] or None:
+    async def fetch_asset(token: str,
+                          url: str,
+                          file_name: str,
+                          _type,
+                          compressions: List[Compressions] = None) -> bool:
         # Base URLs remain active for 60 minutes: https://developers.google.com/photos/library/guides/access-media-items#base-urls
+
+        if compressions and Compressions.NO_VIDEO.value in compressions and _type == 'VIDEO':
+            return False
+
         headers = {
             'Authorization': f'Bearer {token}',
         }
@@ -255,7 +309,7 @@ class GooglePhotosProvider(MemoryProvider):
 
         if os.path.exists(file_name):
             # The file is already downloaded
-            return
+            return False
 
         print(f"Downloading {url} to {file_name}")
         async with httpx.AsyncClient(timeout=30) as client:
@@ -274,6 +328,7 @@ class GooglePhotosProvider(MemoryProvider):
 
         with open(file_name, "wb") as f:
             f.write(response.content)
+            return True
 
     async def get_asset(self, asset_id: str) -> List[str] or None:
         if not self.WORKING:
@@ -285,7 +340,8 @@ class GooglePhotosProvider(MemoryProvider):
 
         file_path = os.path.join(self.GOOGLE_PHOTOS_PATH, self.metadata_context_by_id[asset_id].get('file_name'))
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"{file_path} does not exist")
+            print(f"{file_path} does not exist")
+            return None, None
 
         mime_type, _ = mimetypes.guess_type(file_path)
         if mime_type is None:

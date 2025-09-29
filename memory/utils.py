@@ -1,4 +1,6 @@
 import asyncio
+from typing import List, Coroutine, Any
+
 import httpx
 
 
@@ -18,3 +20,25 @@ async def post_with_retries(url, payload, headers, retries=3) -> httpx.Response 
         await asyncio.sleep(2 ** attempt)  # Backoff: 2s, 4s, 8s
 
     return None
+
+
+class AsyncDownloadManager:
+    def __init__(self, max_concurrent: int = 10):
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.tasks: List[asyncio.Task] = []
+
+    async def _wrap(self, coro: Coroutine) -> Any:
+        """Wrap coroutine with semaphore for concurrency control"""
+        async with self.semaphore:
+            return await coro
+
+    def add(self, coro: Coroutine) -> None:
+        """Add coroutine task to the manager"""
+        task = asyncio.create_task(self._wrap(coro))
+        self.tasks.append(task)
+
+    async def run(self) -> List[Any]:
+        """Run all scheduled tasks and wait for completion"""
+        results = await asyncio.gather(*self.tasks, return_exceptions=True)
+        self.tasks.clear()  # reset after run
+        return results

@@ -19,6 +19,9 @@ class MediaType(Enum):
     NON_TEXT = 'non_text'
 
 
+class Compressions(Enum):
+    NO_VIDEO = "NO_VIDEO"
+
 class MemoryProvider(ABC):
     NAME = None
 
@@ -39,7 +42,7 @@ class MemoryProvider(ABC):
             'media_type': media_type.value,
         }
 
-    async def setup(self):
+    async def setup(self, compressions: List[Compressions] = None):
         """
         Method to set up any provider-specific tasks.
         :return:
