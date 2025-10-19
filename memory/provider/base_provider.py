@@ -73,3 +73,9 @@ class MemoryProvider(ABC):
     @abstractmethod
     def is_working(self):
         return True
+
+    def get_start_end_date(self):
+        return None, None
+
+    def get_logo(self):
+        return f'/asset/{self.NAME}/logo.png'

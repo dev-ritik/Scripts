@@ -10,7 +10,7 @@ from utils import post_with_retries
 
 
 class ImmichProvider(MemoryProvider):
-    NAME = "immich"
+    NAME = "Immich"
 
     IMMICH_PATH = 'data/immich'
     IMMICH_BASE_URL = os.environ.get('IMMICH_BASE_URL')

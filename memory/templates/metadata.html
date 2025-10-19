@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Metadata | Memory Aggregator{% endblock %}
+
+{% block extra_style %}
+<style>
+    .metadata-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .provider-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        padding: 20px;
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .provider-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .provider-logo {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        margin-bottom: 10px;
+    }
+
+    .provider-name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #008069;
+        margin-bottom: 6px;
+    }
+
+    .date-range {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .available {
+        background-color: #e6f4ea;
+        color: #1e7d34;
+    }
+
+    .unavailable {
+        background-color: #fdecea;
+        color: #c62828;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>📊 Provider Metadata</h2>
+<p>Here’s an overview of all connected data providers and their availability.</p>
+
+<div class="metadata-grid">
+    {% for name, info in providers.items() %}
+    <div class="provider-card">
+        <img src="{{ info.logo }}" alt="{{ name }} logo" class="provider-logo">
+        <div class="provider-name">{{ name | replace('_', ' ') | title }}</div>
+
+        {% if info.start_date and info.end_date %}
+            <div class="date-range">
+                {{ info.start_date }} → {{ info.end_date }}
+            </div>
+        {% else %}
+            <div class="date-range">No date range available</div>
+        {% endif %}
+
+        <div class="status {{ 'available' if info.available else 'unavailable' }}">
+            {{ "Available" if info.available else "Unavailable" }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

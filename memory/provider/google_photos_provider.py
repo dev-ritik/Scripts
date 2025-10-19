@@ -296,6 +296,7 @@ class GooglePhotosProvider(MemoryProvider):
         # Base URLs remain active for 60 minutes: https://developers.google.com/photos/library/guides/access-media-items#base-urls
 
         if compressions and Compressions.NO_VIDEO.value in compressions and _type == 'VIDEO':
+            # TODO: Instead download the thumbnail of the video
             return False
 
         headers = {
