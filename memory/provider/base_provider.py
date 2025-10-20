@@ -1,9 +1,8 @@
+import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, date
 from enum import Enum
-from typing import List, Dict, Tuple
-
-import asyncio
+from typing import List, Dict, Tuple, Optional
 
 
 class MessageType(Enum):
@@ -50,7 +49,7 @@ class MemoryProvider(ABC):
         return NotImplementedError
 
     @abstractmethod
-    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
         pass
 
     async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
@@ -74,8 +73,12 @@ class MemoryProvider(ABC):
     def is_working(self):
         return True
 
-    def get_start_end_date(self):
-        return None, None
+    async def get_start_end_date(self) -> Tuple[date | None, date | None]:
+        # This is not the most efficient way to do this, but it's the easiest for now.
+        all_memories = await self.fetch(on_date=None, ignore_groups=False)
+        start_date = min(all_memories, key=lambda m: m['datetime']).get('datetime').date()
+        end_date = max(all_memories, key=lambda m: m['datetime']).get('datetime').date()
+        return start_date, end_date
 
     def get_logo(self):
         return f'/asset/{self.NAME}/logo.png'

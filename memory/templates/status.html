@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Metadata | Memory Aggregator{% endblock %}
+{% block title %}Status | Memory Aggregator{% endblock %}
 
 {% block extra_style %}
 <style>
-    .metadata-grid {
+    .status {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 20px;
@@ -65,10 +65,10 @@
 {% endblock %}
 
 {% block content %}
-<h2>📊 Provider Metadata</h2>
+<h2>📊 Provider Status</h2>
 <p>Here’s an overview of all connected data providers and their availability.</p>
 
-<div class="metadata-grid">
+<div class="status-grid">
     {% for name, info in providers.items() %}
     <div class="provider-card">
         <img src="{{ info.logo }}" alt="{{ name }} logo" class="provider-logo">

@@ -1,3 +1,5 @@
+import asyncio
+
 import init
 
 # This should be the first line in the file. It initializes the app.
@@ -45,19 +47,39 @@ async def index():
     return render_template('index.html', events=events)
 
 
-@app.route("/metadata")
-async def metadata():
-    providers = {}
-    for provider, instance in MemoryAggregator.get_instance().providers.items():
-        start_date, end_date = instance.get_start_end_date()
-        providers[provider] = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "available": instance.is_working(),
-            "logo": instance.get_logo()
-        }
 
-    return render_template("metadata.html", providers=providers)
+@app.route("/status")
+async def status():
+    aggregator = MemoryAggregator.get_instance()
+
+    async def gather_provider_info(provider, instance):
+        try:
+            start_date, end_date = await instance.get_start_end_date()
+            return provider, {
+                "start_date": start_date,
+                "end_date": end_date,
+                "available": instance.is_working(),
+                "logo": instance.get_logo()
+            }
+        except Exception as e:
+            # graceful failure
+            return provider, {
+                "start_date": None,
+                "end_date": None,
+                "available": False,
+                "logo": instance.get_logo(),
+                "error": str(e)
+            }
+
+    tasks = [
+        gather_provider_info(provider, instance)
+        for provider, instance in aggregator.providers.items()
+    ]
+
+    results = await asyncio.gather(*tasks)
+    providers = dict(results)
+
+    return render_template("status.html", providers=providers)
 
 @app.route('/user/dp/<name>')
 async def user_dp(name):

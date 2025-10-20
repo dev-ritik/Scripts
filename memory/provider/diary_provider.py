@@ -2,9 +2,10 @@ import os
 import re
 from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import aiofiles
+import asyncio
 
 from provider.base_provider import MemoryProvider, MessageType
 
@@ -27,6 +28,7 @@ class DiaryProvider(MemoryProvider):
     def _get_date_and_memory_from_text(text: str):
         """
         OVERWRITE THIS METHOD: To get a date and memory from a text based on how the diary is written.
+        TODO: Parse formats like 22/1/2022-24/1/2022
         Currently
         - it removes any line starting with ~
         - Assumes the first value of CSV is the date or ~
@@ -57,10 +59,13 @@ class DiaryProvider(MemoryProvider):
             print(f"Error parsing date in {text}: {e}")
             return None, None
 
-    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
         results = []
         if not self.WORKING:
             return results
+
+        if not on_date:
+            raise ValueError("Diary provider requires a date")
 
         print("Starting to fetch from Diary")
 
@@ -100,3 +105,52 @@ class DiaryProvider(MemoryProvider):
 
         print("Done fetching from Diary")
         return results
+
+    @staticmethod
+    async def _get_start_end_dates_for_file(filepath) -> tuple[date, date]:
+        """Read one diary file asynchronously and return (start_date, end_date)."""
+        start_date, end_date = None, None
+        async with aiofiles.open(filepath, "r", encoding="utf-8") as f:
+            async for line in f:
+                _dt, _ = DiaryProvider._get_date_and_memory_from_text(line.strip())
+                if not _dt:
+                    continue
+                start_date = min(start_date, _dt) if start_date else _dt
+                end_date = max(end_date, _dt) if end_date else _dt
+        return start_date, end_date
+
+    async def get_start_end_date(self):
+        start_date = None
+        end_date = None
+
+        if not self.WORKING:
+            return start_date, end_date
+
+        print("Starting to fetch from Diary")
+
+        if not (diary_folder := os.getenv("DIARY_PATH")):
+            self.WORKING = False
+            print("Diary folder not found")
+            return start_date, end_date
+
+        diary_folder = Path(diary_folder)
+        if not diary_folder.exists():
+            self.WORKING = False
+            print("Diary folder not found")
+            return start_date, end_date
+
+        tasks = []
+        for filename in os.listdir(diary_folder):
+            diary_filepath = os.path.join(diary_folder, filename)
+            if os.path.isfile(diary_filepath):
+                tasks.append(DiaryProvider._get_start_end_dates_for_file(diary_filepath))
+
+        results = await asyncio.gather(*tasks)
+
+        # combine all start/end dates
+        all_starts = [s for s, _ in results if s]
+        all_ends = [e for _, e in results if e]
+        start_date = min(all_starts) if all_starts else None
+        end_date = max(all_ends) if all_ends else None
+
+        return start_date.date(), end_date.date()

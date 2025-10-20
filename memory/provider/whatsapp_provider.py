@@ -78,7 +78,7 @@ class WhatsAppProvider(MemoryProvider):
             return []  # No valid messages at all
 
         # Early exit if date is out of range
-        if target_date < index_datetime_pairs[0][1] or target_date > index_datetime_pairs[-1][1]:
+        if target_date and (target_date < index_datetime_pairs[0][1] or target_date > index_datetime_pairs[-1][1]):
             return []
 
         def binary_search_date(target):
@@ -93,10 +93,13 @@ class WhatsAppProvider(MemoryProvider):
                     high = mid - 1
                 else:
                     result_index = mid
-                    high = mid - 1  # Move to earliest match
+                    high = mid - 1  # Move to the earliest match
             return result_index
 
-        first_index = binary_search_date(target_date)
+        if target_date:
+            first_index = binary_search_date(target_date)
+        else:
+            first_index = 0
         if first_index is None:
             return []  # No messages on that date
 
@@ -150,7 +153,7 @@ class WhatsAppProvider(MemoryProvider):
             match = WhatsAppProvider.MSG_START_RE.match(line)
             if match:
                 dt = WhatsAppProvider.try_parse_date(match.group(1))
-                if dt.date() != target_date:
+                if target_date and dt.date() != target_date:
                     break
                 _process_buffer()
                 current_datetime = dt

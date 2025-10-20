@@ -5,7 +5,7 @@ import pickle
 import webbrowser
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import aiofiles
 import httpx
@@ -283,7 +283,10 @@ class GooglePhotosProvider(MemoryProvider):
         print("Done fetching from Google Photos")
         return results
 
-    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
+        if not on_date:
+            raise ValueError("Google Photos provider requires a date")
+
         date_assets = await self.fetch_dates(start_date=on_date, end_date=on_date, ignore_groups=ignore_groups)
         return date_assets.get(on_date, []) if date_assets else []
 
@@ -330,6 +333,10 @@ class GooglePhotosProvider(MemoryProvider):
         with open(file_name, "wb") as f:
             f.write(response.content)
             return True
+
+    async def get_start_end_date(self):
+        all_available_dates = list(self.metadata_context_by_dates.keys())
+        return min(all_available_dates), max(all_available_dates)
 
     async def get_asset(self, asset_id: str) -> List[str] or None:
         if not self.WORKING:

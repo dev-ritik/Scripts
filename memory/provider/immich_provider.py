@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta, date
-from typing import Dict, List
+from typing import Dict, List, Tuple, Any
 
 import httpx
 
@@ -26,7 +26,10 @@ class ImmichProvider(MemoryProvider):
     def is_working(self):
         return self.WORKING
 
-    async def get_bearer_token(self):
+    async def get_bearer_token(self) -> Any | None:
+        if self.bearer_token:
+            return self.bearer_token
+
         url = f"{self.IMMICH_BASE_URL}/api/auth/login"
 
         payload = {
@@ -41,7 +44,8 @@ class ImmichProvider(MemoryProvider):
             self.WORKING = False
             return None
 
-        return response.json()["accessToken"]
+        self.bearer_token = response.json()["accessToken"]
+        return self.bearer_token
 
     async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
         raise NotImplementedError
@@ -53,10 +57,6 @@ class ImmichProvider(MemoryProvider):
             return results
 
         print("Starting to fetch from Immich")
-        if not self.bearer_token:
-            self.bearer_token = await self.get_bearer_token()
-            if not self.WORKING:
-                return results
 
         url = f"{self.IMMICH_BASE_URL}/api/search/metadata"
         page = 1
@@ -64,8 +64,11 @@ class ImmichProvider(MemoryProvider):
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': f'Bearer {self.bearer_token}',
+            'Authorization': f'Bearer {await self.get_bearer_token()}',
         }
+
+        if not self.WORKING:
+            return results
 
         async with httpx.AsyncClient() as client:
             while True:
@@ -118,12 +121,42 @@ class ImmichProvider(MemoryProvider):
         print("Done fetching from Immich")
         return results
 
+    async def get_timeline_bucket(self, size: str = 'DAY') -> Dict:
+        url = f"{self.IMMICH_BASE_URL}/api/timeline/buckets?isArchived=false&size={size}&withPartners=true&withStacked=true"
+
+        headers = {
+            'Authorization': f'Bearer {await self.get_bearer_token()}',
+        }
+
+        if not self.WORKING:
+            return {}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+
+        if response.status_code != 200:
+            raise Exception(response.text)
+
+        return response.json()
+
+    async def get_start_end_date(self) -> Tuple[date | None, date | None]:
+        timeline_bucket = await self.get_timeline_bucket()
+        if not timeline_bucket:
+            return None, None
+
+        start_date = datetime.fromisoformat(timeline_bucket[-1]['timeBucket']).replace(tzinfo=None)
+        end_date = datetime.fromisoformat(timeline_bucket[0]['timeBucket']).replace(tzinfo=None)
+        return start_date.date(), end_date.date()
+
     async def get_asset(self, asset_id: str) -> List[str] or None:
         url = f"{self.IMMICH_BASE_URL}/api/assets/{asset_id}/thumbnail"
 
         headers = {
-            'Authorization': f'Bearer {self.bearer_token}',
+            'Authorization': f'Bearer {await self.get_bearer_token()}',
         }
+
+        if not self.WORKING:
+            return None, None
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)

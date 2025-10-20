@@ -4,7 +4,7 @@ import mimetypes
 import os
 from datetime import datetime, date
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 import aiofiles
 
@@ -52,7 +52,7 @@ class InstagramProvider(MemoryProvider):
 
         for message in data['messages']:
             _dt = datetime.fromtimestamp(message.get('timestamp_ms') / 1000.0)
-            if _dt.date() != on_date:
+            if on_date and _dt.date() != on_date:
                 continue
 
             text = message.get('content')
@@ -103,7 +103,7 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
         print("Starting to fetch from Instagram")
 
         chat_path = 'data/instagram'
