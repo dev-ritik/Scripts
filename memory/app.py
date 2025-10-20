@@ -11,9 +11,9 @@ import aiofiles
 
 from datetime import datetime, timedelta
 
-from flask import Flask, render_template, request, send_file, make_response
+from flask import Flask, render_template, request, send_file, make_response, jsonify
 
-from common import get_user_dp, MemoryAggregator
+from common import get_user_dp, MemoryAggregator, get_profile_json
 
 app = Flask(__name__)
 
@@ -80,6 +80,19 @@ async def status():
     providers = dict(results)
 
     return render_template("status.html", providers=providers)
+
+
+@app.route("/people")
+async def people_page():
+    return render_template("people.html")
+
+
+@app.route("/people_data")
+async def people_data():
+    data = list((await get_profile_json()).values())
+    data.sort(key=lambda x: x['display_name'])
+    return jsonify(data)
+
 
 @app.route('/user/dp/<name>')
 async def user_dp(name):
