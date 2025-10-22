@@ -28,7 +28,8 @@ async def index():
         providers_param = request.args.get('providers')  # comma-separated list
 
         if not on_date_str:
-            return "Missing date parameter", 400
+            return render_template('index.html', events=[])
+
         seek_days = 0 if seek_days < 0 else seek_days
         try:
             on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
@@ -42,10 +43,9 @@ async def index():
                                                              ignore_groups=not group,
                                                              providers=providers)
 
-        events.sort(key=lambda x: x['datetime'])
+        events.sort(key=lambda x: x.datetime)
 
-    return render_template('index.html', events=events)
-
+    return render_template('index.html', events=[event.to_dict() for event in events])
 
 
 @app.route("/status")

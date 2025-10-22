@@ -1,13 +1,13 @@
+import asyncio
 import os
 import re
 from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 import aiofiles
-import asyncio
 
-from provider.base_provider import MemoryProvider, MessageType
+from provider.base_provider import MemoryProvider, MessageType, Message
 
 
 class DiaryProvider(MemoryProvider):
@@ -59,7 +59,7 @@ class DiaryProvider(MemoryProvider):
             print(f"Error parsing date in {text}: {e}")
             return None, None
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
         results = []
         if not self.WORKING:
             return results
@@ -97,11 +97,11 @@ class DiaryProvider(MemoryProvider):
                     continue
 
                 if _dt.date() == on_date:
-                    results.append(self.get_data_template(_datetime=_dt,
-                                                           message=text,
-                                                           message_type=MessageType.SENT,
-                                                           provider=self.NAME,
-                                                           sender="Ritik"))
+                    results.append(Message(_datetime=_dt,
+                                           message=text,
+                                           message_type=MessageType.SENT,
+                                           provider=self.NAME,
+                                           sender="Ritik"))
 
         print("Done fetching from Diary")
         return results

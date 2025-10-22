@@ -21,25 +21,38 @@ class MediaType(Enum):
 class Compressions(Enum):
     NO_VIDEO = "NO_VIDEO"
 
+
+class Message:
+    def __init__(self, _datetime: datetime, message_type: MessageType = None, message: str = '', sender='',
+                 provider=None, context: dict = None, chat_name=None, is_group: bool = False,
+                 media_type: MediaType = MediaType.TEXT,
+                 ):
+
+        self.datetime = _datetime
+        self.message_type = message_type
+        self.message = message
+        self.sender = sender
+        self.provider = provider
+        self.context = context
+        self.chat_name = chat_name
+        self.is_group = is_group
+        self.media_type = media_type
+
+    def to_dict(self):
+        return {
+            'datetime': self.datetime,
+            'type': self.message_type.value if self.message_type else None,
+            'message': self.message,
+            'provider': self.provider,
+            'sender': self.sender,
+            'context': self.context,
+            'chat_name': self.chat_name,
+            'is_group': self.is_group,
+            'media_type': self.media_type.value,
+        }
+
 class MemoryProvider(ABC):
     NAME = None
-
-    @staticmethod
-    def get_data_template(_datetime: datetime, message_type: MessageType = None, message: str = '', sender='',
-                          provider=None, context: dict = None, chat_name=None, is_group: bool = False,
-                          media_type: MediaType = MediaType.TEXT,
-                          ):
-        return {
-            'datetime': _datetime,
-            'type': message_type.value if message_type else None,
-            'message': message,
-            'provider': provider,
-            'sender': sender,
-            'context': context,
-            'chat_name': chat_name,
-            'is_group': is_group,
-            'media_type': media_type.value,
-        }
 
     async def setup(self, compressions: List[Compressions] = None):
         """
@@ -49,11 +62,11 @@ class MemoryProvider(ABC):
         return NotImplementedError
 
     @abstractmethod
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
         pass
 
     async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime.date, List[Dict]]:
+        datetime.date, List[Message]]:
         tasks = []
         dates = []
 
@@ -76,8 +89,8 @@ class MemoryProvider(ABC):
     async def get_start_end_date(self) -> Tuple[date | None, date | None]:
         # This is not the most efficient way to do this, but it's the easiest for now.
         all_memories = await self.fetch(on_date=None, ignore_groups=False)
-        start_date = min(all_memories, key=lambda m: m['datetime']).get('datetime').date()
-        end_date = max(all_memories, key=lambda m: m['datetime']).get('datetime').date()
+        start_date = min(all_memories, key=lambda m: m.datetime).datetime.date()
+        end_date = max(all_memories, key=lambda m: m.datetime).datetime.date()
         return start_date, end_date
 
     def get_logo(self):

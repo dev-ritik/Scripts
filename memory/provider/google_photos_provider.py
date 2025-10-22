@@ -14,7 +14,7 @@ from anyio import sleep
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from provider.base_provider import MemoryProvider, MediaType, Compressions
+from provider.base_provider import MemoryProvider, MediaType, Compressions, Message
 from utils import post_with_retries, AsyncDownloadManager
 
 
@@ -252,7 +252,7 @@ class GooglePhotosProvider(MemoryProvider):
             }, f)
 
     async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime.date, List[Dict]]:
+        datetime.date, List[Message]]:
         results = defaultdict(list)
         if not self.WORKING:
             return results
@@ -267,23 +267,22 @@ class GooglePhotosProvider(MemoryProvider):
                 if not item:
                     continue
                 _date = item.get('createTime')
-                results[current_date].append(MemoryProvider.get_data_template(
-                    _datetime=_date.replace(tzinfo=None),
-                    media_type=MediaType.NON_TEXT,
-                    provider=self.NAME,
-                    context={
-                        "asset_name": item.get('file_name'),
-                        "asset_id": item_id,
-                        "mime_type": item.get('mime_type'),
-                        "new_tab_url": f'/asset/{GooglePhotosProvider.NAME}/{item_id}'
-                    }
-                ))
+                results[current_date].append(Message(_datetime=_date.replace(tzinfo=None),
+                                                     media_type=MediaType.NON_TEXT,
+                                                     provider=self.NAME,
+                                                     context={
+                                                         "asset_name": item.get('file_name'),
+                                                         "asset_id": item_id,
+                                                         "mime_type": item.get('mime_type'),
+                                                         "new_tab_url": f'/asset/{GooglePhotosProvider.NAME}/{item_id}'
+                                                     })
+                                             )
             current_date += timedelta(days=1)
 
         print("Done fetching from Google Photos")
         return results
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
         if not on_date:
             raise ValueError("Google Photos provider requires a date")
 

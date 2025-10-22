@@ -1,3 +1,4 @@
+import asyncio
 import mimetypes
 import os
 import re
@@ -5,9 +6,8 @@ from datetime import datetime, date
 from typing import List, Dict, Optional, Tuple
 
 import aiofiles
-import asyncio
 
-from provider.base_provider import MemoryProvider, MessageType, MediaType
+from provider.base_provider import MemoryProvider, MessageType, MediaType, Message
 
 
 class WhatsAppProvider(MemoryProvider):
@@ -45,7 +45,7 @@ class WhatsAppProvider(MemoryProvider):
         return None
 
     @staticmethod
-    async def parse_whatsapp_chat(file_path: str, target_date: date, ignore_groups: bool = False) -> List[dict]:
+    async def parse_whatsapp_chat(file_path: str, target_date: date, ignore_groups: bool = False) -> List[Message]:
         # print(file_path)
         chat_entries = []
 
@@ -130,16 +130,16 @@ class WhatsAppProvider(MemoryProvider):
                 is_group = True
                 if ignore_groups:
                     return
-            chat_entries.append(
-                MemoryProvider.get_data_template(current_datetime,
-                                                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
-                                                 media_type=media_type,
-                                                 message=text,
-                                                 sender=current_sender or "System",
-                                                 provider=WhatsAppProvider.NAME,
-                                                 chat_name=chat_name,
-                                                 is_group=is_group,
-                                                 context=context)
+            chat_entries.append(Message(
+                current_datetime,
+                message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                media_type=media_type,
+                message=text,
+                sender=current_sender or "System",
+                provider=WhatsAppProvider.NAME,
+                chat_name=chat_name,
+                is_group=is_group,
+                context=context)
             )
 
         start_line = index_datetime_pairs[first_index][0]
@@ -172,7 +172,7 @@ class WhatsAppProvider(MemoryProvider):
 
         return chat_entries
 
-    async def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Message]:
         print("Starting to fetch from WhatsApp")
 
         memories = []
@@ -189,7 +189,7 @@ class WhatsAppProvider(MemoryProvider):
         for chat_list in results:
             memories.extend(chat_list)
 
-        memories.sort(key=lambda memory: memory['datetime'])
+        memories.sort(key=lambda memory: memory.datetime)
 
         print("Done fetching from Whatsapp")
         return memories

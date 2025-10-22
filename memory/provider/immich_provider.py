@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Any
 
 import httpx
 
-from provider.base_provider import MemoryProvider, MediaType
+from provider.base_provider import MemoryProvider, MediaType, Message
 from utils import post_with_retries
 
 
@@ -47,11 +47,11 @@ class ImmichProvider(MemoryProvider):
         self.bearer_token = response.json()["accessToken"]
         return self.bearer_token
 
-    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Message]:
         raise NotImplementedError
 
     async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime.date, List[Dict]]:
+        datetime.date, List[Message]]:
         results = defaultdict(list)
         if not self.WORKING:
             return results
@@ -102,17 +102,16 @@ class ImmichProvider(MemoryProvider):
                     #     "duration": asset["duration"],
                     # })
                     _date = datetime.fromisoformat(asset["localDateTime"]).replace(tzinfo=None)
-                    results[_date.date()].append(MemoryProvider.get_data_template(
-                        _datetime=_date,
-                        media_type=MediaType.NON_TEXT,
-                        provider=self.NAME,
-                        context={
-                            "asset_name": asset["originalFileName"],
-                            "asset_id": asset["id"],
-                            "mime_type": 'image/webp',
-                            "new_tab_url": f'{self.IMMICH_BASE_URL}/photos/{asset["id"]}'
-                        }
-                    ))
+                    results[_date.date()].append(Message(_datetime=_date,
+                                                         media_type=MediaType.NON_TEXT,
+                                                         provider=self.NAME,
+                                                         context={
+                                                             "asset_name": asset["originalFileName"],
+                                                             "asset_id": asset["id"],
+                                                             "mime_type": 'image/webp',
+                                                             "new_tab_url": f'{self.IMMICH_BASE_URL}/photos/{asset["id"]}'
+                                                         })
+                                                 )
                 if data.get("assets", {}).get("nextPage") is None:
                     break
 

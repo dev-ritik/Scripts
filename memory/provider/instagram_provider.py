@@ -4,11 +4,11 @@ import mimetypes
 import os
 from datetime import datetime, date
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import aiofiles
 
-from provider.base_provider import MemoryProvider, MessageType, MediaType
+from provider.base_provider import MemoryProvider, MessageType, MediaType, Message
 
 
 class InstagramProvider(MemoryProvider):
@@ -35,7 +35,7 @@ class InstagramProvider(MemoryProvider):
         return InstagramProvider.fix_mojibake(message).strip()
 
     @staticmethod
-    def parse_json(data, name_from_file, on_date, ignore_groups: bool = False):
+    def parse_json(data, name_from_file, on_date, ignore_groups: bool = False) -> List[Message]:
         messages = []
         chat_name = name_from_file
 
@@ -92,18 +92,20 @@ class InstagramProvider(MemoryProvider):
 
             contexts = contexts if contexts else [None]
             for context in contexts:
-                messages.append(MemoryProvider.get_data_template(_dt, message_type, text,
-                                                          sender=sender_name,
-                                                          provider=InstagramProvider.NAME,
-                                                          chat_name=chat_name,
-                                                                 media_type=media_type,
-                                                                 context=context,
-                                                                 is_group=is_group))
+                messages.append(Message(_dt,
+                                        message_type,
+                                        text,
+                                        sender=sender_name,
+                                        provider=InstagramProvider.NAME,
+                                        chat_name=chat_name,
+                                        media_type=media_type,
+                                        context=context,
+                                        is_group=is_group))
 
         messages.reverse()
         return messages
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Dict]:
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
         print("Starting to fetch from Instagram")
 
         chat_path = 'data/instagram'
@@ -123,7 +125,7 @@ class InstagramProvider(MemoryProvider):
 
         memories_nested = await asyncio.gather(*tasks)
         memories = [item for sublist in memories_nested for item in sublist]
-        memories.sort(key=lambda m: m['datetime'])
+        memories.sort(key=lambda m: m.datetime)
         print("Done fetching from Instagram")
         return memories
 

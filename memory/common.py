@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 
 import aiofiles
 
-from provider.base_provider import MemoryProvider
+from provider.base_provider import MemoryProvider, Message
 from provider.diary_provider import DiaryProvider
 from provider.google_photos_provider import GooglePhotosProvider
 from provider.immich_provider import ImmichProvider
@@ -43,7 +43,7 @@ class MemoryAggregator:
                 cls._instance = cls()
         return cls._instance
 
-    async def aggregate(self, on_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def aggregate(self, on_date: date, ignore_groups: bool = False) -> List[Message]:
         tasks = [
             provider.fetch(on_date, ignore_groups=ignore_groups)
             for provider in self.providers.values()
@@ -51,11 +51,11 @@ class MemoryAggregator:
         results = await asyncio.gather(*tasks)
 
         events = [event for sublist in results for event in sublist]
-        events.sort(key=lambda x: x['datetime'])
+        events.sort(key=lambda x: x.datetime)
         return events
 
     async def aggregate_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                              providers: List[str] = None) -> List[Dict]:
+                              providers: List[str] = None) -> List[Message]:
         available_providers = providers or self.providers.keys()
         tasks = [
             self.providers.get(provider).fetch_dates(start_date, end_date, ignore_groups=ignore_groups)
@@ -68,29 +68,29 @@ class MemoryAggregator:
             for _events in result.values():
                 events.extend(_events)
 
-        events.sort(key=lambda x: x['datetime'])
+        events.sort(key=lambda x: x.datetime)
         return events
 
     @staticmethod
-    async def get_events_for_date(_date: date, ignore_groups: bool = False) -> List[Dict]:
+    async def get_events_for_date(_date: date, ignore_groups: bool = False) -> List[Message]:
         # Initialize all providers
         aggregator = MemoryAggregator.get_instance()
         events = await aggregator.aggregate(_date, ignore_groups)
         # TODO: Remove traditional name with display name if it is in profile.json
         for event in events:
-            if display_name := await get_display_name_from_name(event['sender']):
-                event['sender'] = display_name
+            if display_name := await get_display_name_from_name(event.sender):
+                event.sender = display_name
         return events
 
     @staticmethod
     async def get_events_for_dates(start_date: date, end_date: date, ignore_groups: bool = False,
-                                   providers: List[str] = None) -> List[Dict]:
+                                   providers: List[str] = None) -> List[Message]:
         aggregator = MemoryAggregator.get_instance()
         events = await aggregator.aggregate_dates(start_date, end_date, ignore_groups, providers)
         # TODO: Remove traditional name with display name if it is in profile.json
         for event in events:
-            if display_name := await get_display_name_from_name(event['sender']):
-                event['sender'] = display_name
+            if display_name := await get_display_name_from_name(event.sender):
+                event.sender = display_name
         return events
 
     async def get_asset(self, provider: str, asset_id: str) -> Optional[List[str]]:
