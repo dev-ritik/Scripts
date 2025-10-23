@@ -15,7 +15,6 @@ class InstagramProvider(MemoryProvider):
     NAME = "Instagram"
 
     USER = 'Ritik Kumar'
-    SYSTEM = 'system'
     DELETED_USER = 'deleted_user'
     INSTAGRAM_PATH = 'data/instagram'
 

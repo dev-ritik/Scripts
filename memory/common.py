@@ -1,13 +1,15 @@
 import asyncio
 import json
 import re
+from collections import defaultdict
 from datetime import date
 from threading import Lock
 from typing import List, Dict, Optional
 
 import aiofiles
 
-from provider.base_provider import MemoryProvider, Message
+import init
+from provider.base_provider import MemoryProvider, Message, MediaType
 from provider.diary_provider import DiaryProvider
 from provider.google_photos_provider import GooglePhotosProvider
 from provider.immich_provider import ImmichProvider
@@ -92,6 +94,23 @@ class MemoryAggregator:
             if display_name := await get_display_name_from_name(event.sender):
                 event.sender = display_name
         return events
+
+    @staticmethod
+    async def get_messages_by_sender(start_date: date, end_date: date, ignore_groups: bool = False, exclude_self=True,
+                                     providers: List[str] = None) -> Dict[str, List[Message]]:
+        messages_by_sender = defaultdict(list)
+        messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers)
+        for message in messages:
+            if not message.sender:
+                continue
+            if message.sender == MemoryProvider.SYSTEM:
+                continue
+            if exclude_self and message.sender == init.USER:
+                continue
+            if message.media_type == MediaType.NON_TEXT:
+                continue
+            messages_by_sender[message.sender].append(message)
+        return messages_by_sender
 
     async def get_asset(self, provider: str, asset_id: str) -> Optional[List[str]]:
         if provider not in self.providers:

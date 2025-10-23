@@ -3,7 +3,7 @@ import mimetypes
 import os
 import re
 from datetime import datetime, date
-from typing import List, Dict, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import aiofiles
 
@@ -13,7 +13,6 @@ from provider.base_provider import MemoryProvider, MessageType, MediaType, Messa
 class WhatsAppProvider(MemoryProvider):
     NAME = "Whatsapp"
     USER = 'Ritik'
-    SYSTEM = 'system'
 
     WHATSAPP_PATH = 'data/whatsapp'
     WHATSAPP_FILE_NAME_PREFIX = 'WhatsApp Chat with '
@@ -135,7 +134,7 @@ class WhatsAppProvider(MemoryProvider):
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
                 media_type=media_type,
                 message=text,
-                sender=current_sender or "System",
+                sender=current_sender or MemoryProvider.SYSTEM,
                 provider=WhatsAppProvider.NAME,
                 chat_name=chat_name,
                 is_group=is_group,

@@ -1,4 +1,6 @@
 import asyncio
+import string
+from collections import defaultdict
 
 import init
 
@@ -92,6 +94,58 @@ async def people_data():
     data = list((await get_profile_json()).values())
     data.sort(key=lambda x: x['display_name'])
     return jsonify(data)
+
+
+@app.route("/circles")
+def circles_page():
+    return render_template("circles.html")
+
+
+@app.route("/circle_data")
+async def circle_data():
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+    end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+    if not start_date or not end_date or end_date < start_date:
+        return "Invalid date format", 400
+
+    if end_date - start_date > timedelta(days=10):
+        # TODO: Improve handling of this
+        return "Date range too large", 400
+
+    messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
+                                                                                      ignore_groups=True)
+    message_count_by_sender = {}
+    most_spoken_words = {}
+    for sender, messages in messages_by_sender.items():
+        message_count_by_sender[sender] = len(messages)
+        words_counter = defaultdict(int)
+        for message in messages:
+            if message.message:
+                words = message.message.split()
+                for word in words:
+                    if len(word) == 1 and (word.isdigit() or word in string.punctuation):
+                        continue
+                    words_counter[word] += 1
+
+        words_counter = sorted(words_counter.items(), key=lambda x: x[1], reverse=True)[:8]
+        most_spoken_words[sender] = [word[0] for word in words_counter]
+
+    # Get the top 15 most active people
+    top_15_people = sorted(message_count_by_sender.items(), key=lambda x: x[1], reverse=True)[:15]
+
+    people = []
+    for top_people in top_15_people:
+        people.append({
+            "name": top_people[0],
+            "dp": f"/user/dp/{top_people[0]}",
+            "chats": top_people[1],
+        })
+
+    return jsonify({"people": people, "words": most_spoken_words})
 
 
 @app.route('/user/dp/<name>')

@@ -53,6 +53,8 @@ class Message:
 
 class MemoryProvider(ABC):
     NAME = None
+    SYSTEM = 'system'
+
 
     async def setup(self, compressions: List[Compressions] = None):
         """
