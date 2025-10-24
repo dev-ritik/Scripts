@@ -3,7 +3,7 @@ import mimetypes
 import os
 import re
 from datetime import datetime, date
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import aiofiles
 
@@ -44,8 +44,8 @@ class WhatsAppProvider(MemoryProvider):
         return None
 
     @staticmethod
-    async def parse_whatsapp_chat(file_path: str, target_date: date, ignore_groups: bool = False) -> List[Message]:
-        # print(file_path)
+    async def parse_whatsapp_chat(file_path: str, on_date: Optional[date] = None, start_date: Optional[date] = None,
+                                  end_date: Optional[date] = None, ignore_groups: bool = False) -> List[Message]:
         chat_entries = []
 
         media_included = not file_path.endswith('.txt')
@@ -77,10 +77,15 @@ class WhatsAppProvider(MemoryProvider):
             return []  # No valid messages at all
 
         # Early exit if date is out of range
-        if target_date and (target_date < index_datetime_pairs[0][1] or target_date > index_datetime_pairs[-1][1]):
+        first_date, last_date = index_datetime_pairs[0][1], index_datetime_pairs[-1][1]
+        if on_date and (on_date < first_date or on_date > last_date):
+            return []
+        elif start_date and start_date > last_date:
+            return []
+        elif end_date and end_date < first_date:
             return []
 
-        def binary_search_date(target):
+        def binary_search_on_date(target):
             low, high = 0, len(index_datetime_pairs) - 1
             result_index = None
             while low <= high:
@@ -95,12 +100,28 @@ class WhatsAppProvider(MemoryProvider):
                     high = mid - 1  # Move to the earliest match
             return result_index
 
-        if target_date:
-            first_index = binary_search_date(target_date)
+        def binary_search_start_date(target):
+            """Find the index of the first message on or after the target date."""
+            low, high = 0, len(index_datetime_pairs) - 1
+            result_index = None
+            while low <= high:
+                mid = (low + high) // 2
+                mid_date = index_datetime_pairs[mid][1]
+                if mid_date < target:
+                    low = mid + 1
+                else:
+                    result_index = mid
+                    high = mid - 1
+            return result_index
+
+        if on_date:
+            first_index = binary_search_on_date(on_date)
+        elif start_date:
+            first_index = binary_search_start_date(start_date)
         else:
             first_index = 0
         if first_index is None:
-            return []  # No messages on that date
+            return []  # No relevant messages found
 
         def _process_buffer():
             if not message_buffer:
@@ -152,8 +173,13 @@ class WhatsAppProvider(MemoryProvider):
             match = WhatsAppProvider.MSG_START_RE.match(line)
             if match:
                 dt = WhatsAppProvider.try_parse_date(match.group(1))
-                if target_date and dt.date() != target_date:
+                if on_date and dt.date() != on_date:
                     break
+                if start_date and dt.date() < start_date:
+                    continue
+                elif end_date and dt.date() > end_date:
+                    break
+
                 _process_buffer()
                 current_datetime = dt
                 content = match.group(2)
@@ -171,8 +197,9 @@ class WhatsAppProvider(MemoryProvider):
 
         return chat_entries
 
-    async def fetch(self, on_date: datetime, ignore_groups: bool = False) -> List[Message]:
-        print("Starting to fetch from WhatsApp")
+    async def _fetch(self, on_date: Optional[date] = None, start_date: Optional[date] = None,
+                     end_date: Optional[date] = None, ignore_groups: bool = False) -> List[Message]:
+        print(f"Starting to fetch from WhatsApp {on_date=} {start_date=} {end_date=}")
 
         memories = []
         tasks = []
@@ -180,7 +207,9 @@ class WhatsAppProvider(MemoryProvider):
             if not found.startswith(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX):
                 continue
 
-            tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date, ignore_groups))
+            tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date=on_date,
+                                                  start_date=start_date, end_date=end_date,
+                                                  ignore_groups=ignore_groups))
 
         # Run parsing concurrently
         results = await asyncio.gather(*tasks)
@@ -192,6 +221,24 @@ class WhatsAppProvider(MemoryProvider):
 
         print("Done fetching from Whatsapp")
         return memories
+
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
+        return await self._fetch(on_date=on_date, ignore_groups=ignore_groups)
+
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
+        datetime.date, List[Message]]:
+        results: Dict[date, List[Message]] = {}
+        all_messages = await self._fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
+        for msg in all_messages:
+            msg_date = msg.datetime.date()
+            if start_date <= msg_date <= end_date:
+                results.setdefault(msg_date, []).append(msg)
+
+            # Sort messages within each date
+        for msgs in results.values():
+            msgs.sort(key=lambda m: m.datetime)
+
+        return results
 
     @staticmethod
     def generate_asset_id(chat_name, file_name) -> str:

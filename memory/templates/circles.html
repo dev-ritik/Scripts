@@ -310,11 +310,21 @@
         let start_date = "", end_date = "";
 
         if (range === "custom") {
-            // use manual input dates
+            const fromDate = document.getElementById("fromDate");
+            const toDate = document.getElementById("toDate");
+
             start_date = fromDate.value;
             end_date = toDate.value;
 
+            // ✅ If user hasn’t selected both dates yet, stop here
             if (!start_date || !end_date) {
+                console.log("Waiting for valid custom dates...");
+                return;
+            }
+
+            // ✅ Optional: Validate logical order
+            if (new Date(start_date) > new Date(end_date)) {
+                console.warn("Invalid date range — start is after end.");
                 return;
             }
         } else {
@@ -322,6 +332,9 @@
             if (rangeData) {
                 start_date = rangeData.start_date;
                 end_date = rangeData.end_date;
+            } else {
+                // fallback safety
+                return;
             }
         }
 

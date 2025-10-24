@@ -4,7 +4,7 @@ import mimetypes
 import os
 from datetime import datetime, date
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 
 import aiofiles
 
@@ -17,9 +17,22 @@ class InstagramProvider(MemoryProvider):
     USER = 'Ritik Kumar'
     DELETED_USER = 'deleted_user'
     INSTAGRAM_PATH = 'data/instagram'
+    _working = True
+
+    def __init__(self):
+        super().__init__()
+        if not self._working:
+            return
+
+        chat_path = Path('data/instagram')
+        if not chat_path.exists():
+            print("Instagram data folder not found")
+            self._working = False
+            return
+
 
     def is_working(self):
-        return True
+        return self._working
 
     @staticmethod
     def fix_mojibake(text: str) -> str:
@@ -34,7 +47,8 @@ class InstagramProvider(MemoryProvider):
         return InstagramProvider.fix_mojibake(message).strip()
 
     @staticmethod
-    def parse_json(data, name_from_file, on_date, ignore_groups: bool = False) -> List[Message]:
+    def parse_json(data, name_from_file, on_date=None, start_date: date = None, end_date: date = None,
+                   ignore_groups: bool = False) -> List[Message]:
         messages = []
         chat_name = name_from_file
 
@@ -52,6 +66,12 @@ class InstagramProvider(MemoryProvider):
         for message in data['messages']:
             _dt = datetime.fromtimestamp(message.get('timestamp_ms') / 1000.0)
             if on_date and _dt.date() != on_date:
+                continue
+
+            # Messages are sorted by time descending in Instagram export
+            if start_date and _dt.date() < start_date:
+                break
+            elif end_date and _dt.date() > end_date:
                 continue
 
             text = message.get('content')
@@ -104,8 +124,11 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
-        print("Starting to fetch from Instagram")
+    async def _fetch(self, on_date: Optional[date] = None,
+                     start_date: Optional[date] = None,
+                     end_date: Optional[date] = None,
+                     ignore_groups: bool = False) -> List[Message]:
+        print(f"Starting to fetch from Instagram {on_date=} {start_date=} {end_date=}")
 
         chat_path = 'data/instagram'
 
@@ -120,7 +143,9 @@ class InstagramProvider(MemoryProvider):
             if friend == found:
                 friend = self.DELETED_USER
 
-            tasks.append(self._read_and_parse(friend_path, friend, on_date, ignore_groups))
+            tasks.append(
+                self._read_and_parse(friend_path, friend, on_date=on_date, start_date=start_date, end_date=end_date,
+                                     ignore_groups=ignore_groups))
 
         memories_nested = await asyncio.gather(*tasks)
         memories = [item for sublist in memories_nested for item in sublist]
@@ -128,14 +153,35 @@ class InstagramProvider(MemoryProvider):
         print("Done fetching from Instagram")
         return memories
 
-    async def _read_and_parse(self, filepath: Path, friend: str, on_date: date, ignore_groups: bool):
+    async def _read_and_parse(self, filepath: Path, friend: str, on_date: Optional[date] = None,
+                              start_date: Optional[date] = None, end_date: Optional[date] = None,
+                              ignore_groups: bool = False):
         try:
             async with aiofiles.open(filepath, mode='r', encoding='utf-8') as f:
                 raw = await f.read()
                 data = json.loads(raw)
-                return self.parse_json(data, friend, on_date, ignore_groups)
+                return self.parse_json(data, friend, on_date=on_date, start_date=start_date, end_date=end_date,
+                                       ignore_groups=ignore_groups)
         except (FileNotFoundError, json.JSONDecodeError):
             return []
+
+    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
+        return await self._fetch(on_date=on_date, ignore_groups=ignore_groups)
+
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
+        datetime.date, List[Message]]:
+        results: Dict[date, List[Message]] = {}
+        all_messages = await self._fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
+        for msg in all_messages:
+            msg_date = msg.datetime.date()
+            if start_date <= msg_date <= end_date:
+                results.setdefault(msg_date, []).append(msg)
+
+            # Sort messages within each date
+        for msgs in results.values():
+            msgs.sort(key=lambda m: m.datetime)
+
+        return results
 
     @staticmethod
     def generate_asset_id(file_id) -> str:

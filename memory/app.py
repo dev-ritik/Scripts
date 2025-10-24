@@ -110,11 +110,8 @@ async def circle_data():
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
 
     if not start_date or not end_date or end_date < start_date:
-        return "Invalid date format", 400
-
-    if end_date - start_date > timedelta(days=10):
-        # TODO: Improve handling of this
-        return "Date range too large", 400
+        print(start_date, end_date)
+        return f"Invalid date format {start_date} {end_date}", 400
 
     messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
                                                                                       ignore_groups=True)

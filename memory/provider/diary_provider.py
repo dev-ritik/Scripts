@@ -3,9 +3,10 @@ import os
 import re
 from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import aiofiles
+from black.trans import defaultdict
 
 from provider.base_provider import MemoryProvider, MessageType, Message
 
@@ -14,8 +15,29 @@ class DiaryProvider(MemoryProvider):
     NAME = "Diary"
     WORKING = True
 
+    def __init__(self):
+        super().__init__()
+        if not self.WORKING:
+            return
+
+        if not (diary_folder := os.getenv("DIARY_PATH")):
+            self.WORKING = False
+            print("Diary folder not found")
+            return
+        self.diary_folder = Path(diary_folder)
+        if not self.diary_folder.exists():
+            self.WORKING = False
+            print("Diary folder not found")
+            return
+
     def is_working(self):
         return self.WORKING
+
+    def _get_diary_filepath_for_year(self, year: int):
+        for filename in os.listdir(self.diary_folder):
+            if f"{year}" in filename:
+                return os.path.join(self.diary_folder, filename)
+        return None
 
     @staticmethod
     def capitalize_after_newline(text: str) -> str:
@@ -70,23 +92,9 @@ class DiaryProvider(MemoryProvider):
         print("Starting to fetch from Diary")
 
         year = on_date.year
-        if not (diary_folder := os.getenv("DIARY_PATH")):
-            self.WORKING = False
-            print("Diary folder not found")
-            return results
-        diary_folder = Path(diary_folder)
-        if not diary_folder.exists():
-            self.WORKING = False
-            print("Diary folder not found")
-            return results
-
-        diary_filepath = None
-        for filename in os.listdir(diary_folder):
-            if f'{year}' in filename:
-                diary_filepath = os.path.join(diary_folder, filename)
+        diary_filepath = self._get_diary_filepath_for_year(year)
 
         if diary_filepath is None:
-            self.WORKING = False
             print("Diary folder not found")
             return results
 
@@ -104,6 +112,47 @@ class DiaryProvider(MemoryProvider):
                                            sender="Ritik"))
 
         print("Done fetching from Diary")
+        return results
+
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
+        date, List[Message]]:
+        results: Dict[date, List[Message]] = defaultdict(list)
+        if not self.WORKING:
+            return results
+
+        print(f"Fetching diary entries from {start_date} to {end_date}")
+
+        for year in range(start_date.year, end_date.year + 1):
+            diary_filepath = self._get_diary_filepath_for_year(year)
+
+            if diary_filepath is None:
+                print(f"No diary file found for {year}")
+                continue
+
+            async with aiofiles.open(diary_filepath, "r", encoding="utf-8") as f:
+                async for line in f:
+                    _dt, text = DiaryProvider._get_date_and_memory_from_text(line.strip())
+                    if not _dt:
+                        continue
+
+                    # Assuming lines are sorted ascending, we can stop reading
+                    curr_date = _dt.date()
+                    if curr_date < start_date:
+                        continue
+                    if curr_date > end_date:
+                        break
+
+                    results[curr_date].append(
+                        Message(
+                            _datetime=_dt,
+                            message=text,
+                            message_type=MessageType.SENT,
+                            provider=self.NAME,
+                            sender="Ritik"
+                        )
+                    )
+
+        print(f"Done fetching diary entries from {start_date} to {end_date}")
         return results
 
     @staticmethod
