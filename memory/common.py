@@ -97,9 +97,9 @@ class MemoryAggregator:
 
     @staticmethod
     async def get_messages_by_sender(start_date: date, end_date: date, ignore_groups: bool = False, exclude_self=True,
-                                     providers: List[str] = None) -> Dict[str, List[Message]]:
+                                     providers: List[str] = None, sender_regex = None) -> Dict[str, List[Message]]:
         messages_by_sender = defaultdict(list)
-        messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers)
+        messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers, sender_regex)
         for message in messages:
             if not message.sender:
                 continue

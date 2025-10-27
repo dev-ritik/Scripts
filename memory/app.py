@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 from flask import Flask, render_template, request, send_file, make_response, jsonify
 
-from common import get_user_dp, MemoryAggregator, get_profile_json
+from common import get_user_dp, MemoryAggregator, get_profile_json, get_user_profile_from_name
 
 app = Flask(__name__)
 
@@ -143,7 +143,6 @@ async def circle_data():
     messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
                                                                                       ignore_groups=True)
     message_count_by_sender = {}
-    most_spoken_words = {}
     for sender, messages in messages_by_sender.items():
         message_count_by_sender[sender] = len(messages)
         words_counter = defaultdict(int)
@@ -154,9 +153,6 @@ async def circle_data():
                     if len(word) == 1 and (word.isdigit() or word in string.punctuation):
                         continue
                     words_counter[word] += 1
-
-        words_counter = sorted(words_counter.items(), key=lambda x: x[1], reverse=True)[:8]
-        most_spoken_words[sender] = [word[0] for word in words_counter]
 
     # Get the top 15 most active people
     top_15_people = sorted(message_count_by_sender.items(), key=lambda x: x[1], reverse=True)[:15]
@@ -169,7 +165,51 @@ async def circle_data():
             "chats": top_people[1],
         })
 
-    return jsonify({"people": people, "words": most_spoken_words})
+    return jsonify({"people": people})
+
+
+@app.route("/user/stats/<name>")
+async def get_user_stats(name):
+    """
+    Returns most common words used by the user.
+    Example: GET /user/stats/Alice
+    """
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    # Parse and validate dates
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else None
+    except ValueError:
+        return jsonify({"error": "Invalid date format, use YYYY-MM-DD"}), 400
+
+    user_profile = await get_user_profile_from_name(name)
+    if not user_profile:
+        return jsonify({"error": "User not found"}), 404
+
+    user_regex = user_profile.get('name_regex')
+    messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
+                                                                                      ignore_groups=True,
+                                                                                      sender_regex=user_regex)
+
+    if not messages_by_sender:
+        return jsonify({"error": "User has no data in the period"}), 404
+
+    assert len(messages_by_sender) == 1, "Expected only one sender"
+
+    words_counter = defaultdict(int)
+    for message in list(messages_by_sender.values())[0]:
+        if message.message:
+            words = message.message.split()
+            for word in words:
+                if len(word) == 1 and (word.isdigit() or word in string.punctuation):
+                    continue
+                words_counter[word] += 1
+
+    most_spoken_words = sorted(words_counter.items(), key=lambda x: x[1], reverse=True)[:18]
+
+    return jsonify(most_spoken_words), 200
 
 
 @app.route('/user/dp/<name>')

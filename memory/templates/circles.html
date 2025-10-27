@@ -179,7 +179,8 @@
         background: rgba(255, 255, 255, 0.08);
         padding: 1.5rem;
         border-radius: 1rem;
-        width: 320px;
+        width: 90%;
+        max-width: 400px;
         margin-left: auto;
         margin-right: auto;
         text-align: center;
@@ -188,20 +189,10 @@
     }
 
     .common-words h3 {
-        margin-bottom: 0.5rem;
+        margin-bottom: 1rem;
         color: #ffd54a;
     }
 
-    .common-words ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .common-words li {
-        font-size: 1rem;
-        margin: 0.2rem 0;
-    }
 </style>
 
 <h1>💬 Chat Circles</h1>
@@ -241,15 +232,13 @@
 
 <div id="common-words" class="common-words">
     <h3>Most Common Words</h3>
-    <ul id="words-list">
-        <li>Click on a friend to see their most used words!</li>
-    </ul>
+    <div id="word-cloud-container" style="width: 100%; height: 300px;"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+
 <script>
-
-    let wordsMap = {};
-
+    let start_date, end_date;
     const rangeSelect = document.getElementById("range");
     const customInputs = document.getElementById("customDateInputs");
     const fromDate = document.getElementById("fromDate");
@@ -298,6 +287,8 @@
                 return null;
         }
 
+        start_date = formatDate(start)
+        end_date = formatDate(end)
         return {
             start_date: formatDate(start),
             end_date: formatDate(end),
@@ -342,8 +333,6 @@
         const res = await fetch(`/circle_data?${query}`);
         const data = await res.json();
 
-        wordsMap = data.words || {};
-
         renderCircles(data.people);
     }
 
@@ -377,7 +366,7 @@
                 img.style.left = `${50 + 50 * Math.sin((angle * Math.PI) / 180)}%`;
 
                 img.addEventListener("click", () => {
-                    updateCommonWords(person.name);
+                    updateCommonWords(person.name, start_date, end_date);
                 });
 
                 orbit.appendChild(img);
@@ -385,20 +374,45 @@
         });
     }
 
-    function updateCommonWords(name) {
-        const list = document.getElementById("words-list");
-        list.innerHTML = "";
+    async function updateCommonWords(name, start_date, end_date) {
+        const container = document.getElementById("word-cloud-container");
+        container.innerHTML = `<p style="color:#bbb">Loading ${name}'s words...</p>`;
 
-        if (!wordsMap[name]) {
-            list.innerHTML = `<li>No data available for ${name}</li>`;
-            return;
+        try {
+            const query = new URLSearchParams({start_date, end_date}).toString();
+            const res = await fetch(`/user/stats/${encodeURIComponent(name)}?${query}`);
+            if (!res.ok) throw new Error("Network response not ok");
+
+            const data = await res.json();
+
+            const personWords = data || [];
+            container.innerHTML = "";
+
+            if (personWords.length === 0) {
+                container.innerHTML = `<p style="color:#ccc">No data available for ${name}</p>`;
+                return;
+            }
+
+            const maxFreq = Math.max(...personWords.map(([_, count]) => count));
+
+            WordCloud(container, {
+                list: personWords,
+                gridSize: 8,
+                weightFactor: (size) => (size / maxFreq) * 40 + 10, // font size scaling
+                fontFamily: 'Impact, sans-serif',
+                color: () => {
+                    const colors = ['#ff6b6b', '#ffd93d', '#6bc5ff', '#b26bff', '#6bff95'];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                },
+                rotateRatio: 0.5,
+                rotationSteps: 2,
+                backgroundColor: 'transparent',
+            });
+
+        } catch (err) {
+            console.error("Error fetching user stats:", err);
+            container.innerHTML = `<p style="color:#f66">Failed to load data for ${name}</p>`;
         }
-
-        wordsMap[name].forEach(word => {
-            const li = document.createElement("li");
-            li.textContent = word;
-            list.appendChild(li);
-        });
     }
 
     // Handle range selection

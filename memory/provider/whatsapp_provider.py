@@ -32,7 +32,7 @@ class WhatsAppProvider(MemoryProvider):
 
     # WhatsApp line start regex: date, time, dash, then message content
     MSG_START_RE = re.compile(r"^(\d{1,2}/\d{1,2}/\d{2,4}, \d{1,2}:\d{2}(?: [APMapm]{2})?) - (.+)$")
-    SENDER_RE = re.compile(r"^(.*?): (.*)$")
+    SENDER_RE = re.compile(r"^([^:]+):\s*(.*)$")
 
     @staticmethod
     def try_parse_date(date_str: str) -> Optional[datetime]:
@@ -83,7 +83,7 @@ class WhatsAppProvider(MemoryProvider):
 
         if not is_group and senders:
             # Skip chat if none of the participants match the provided sender regex patterns in case of DM
-            if not MemoryProvider._sender_matched(chat_name, senders) or not MemoryProvider._sender_matched(
+            if not MemoryProvider._sender_matched(chat_name, senders) and not MemoryProvider._sender_matched(
                     WhatsAppProvider.USER, senders):
                 return []
 
@@ -137,7 +137,7 @@ class WhatsAppProvider(MemoryProvider):
         def _process_buffer():
             if not message_buffer:
                 return
-            if senders and not MemoryProvider._sender_matched(current_sender, senders):
+            if senders and (not current_sender or not MemoryProvider._sender_matched(current_sender, senders)):
                 return
             nonlocal is_group
             context = {}
