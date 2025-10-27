@@ -3,7 +3,7 @@ import mimetypes
 import os
 import re
 from datetime import datetime, date
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple
 
 import aiofiles
 
@@ -197,8 +197,11 @@ class WhatsAppProvider(MemoryProvider):
 
         return chat_entries
 
-    async def _fetch(self, on_date: Optional[date] = None, start_date: Optional[date] = None,
-                     end_date: Optional[date] = None, ignore_groups: bool = False) -> List[Message]:
+    async def fetch(self, on_date: Optional[date] = None,
+                    start_date: Optional[date] = None,
+                    end_date: Optional[date] = None,
+                    ignore_groups: bool = False,
+                    senders: List[str] = None) -> List[Message]:
         print(f"Starting to fetch from WhatsApp {on_date=} {start_date=} {end_date=}")
 
         memories = []
@@ -222,23 +225,24 @@ class WhatsAppProvider(MemoryProvider):
         print("Done fetching from Whatsapp")
         return memories
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
-        return await self._fetch(on_date=on_date, ignore_groups=ignore_groups)
+    # async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
+    #         List[Message]:
+    #     return await self.fetch(on_date=on_date, ignore_groups=ignore_groups)
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime.date, List[Message]]:
-        results: Dict[date, List[Message]] = {}
-        all_messages = await self._fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
-        for msg in all_messages:
-            msg_date = msg.datetime.date()
-            if start_date <= msg_date <= end_date:
-                results.setdefault(msg_date, []).append(msg)
-
-            # Sort messages within each date
-        for msgs in results.values():
-            msgs.sort(key=lambda m: m.datetime)
-
-        return results
+    # async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
+    #                       senders: List[str] = None) -> Dict[datetime.date, List[Message]]:
+    #     results: Dict[date, List[Message]] = {}
+    #     all_messages = await self.fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
+    #     for msg in all_messages:
+    #         msg_date = msg.datetime.date()
+    #         if start_date <= msg_date <= end_date:
+    #             results.setdefault(msg_date, []).append(msg)
+    #
+    #         # Sort messages within each date
+    #     for msgs in results.values():
+    #         msgs.sort(key=lambda m: m.datetime)
+    #
+    #     return results
 
     @staticmethod
     def generate_asset_id(chat_name, file_name) -> str:

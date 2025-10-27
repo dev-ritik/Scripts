@@ -4,7 +4,7 @@ import mimetypes
 import os
 from datetime import datetime, date
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional
 
 import aiofiles
 
@@ -124,10 +124,11 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    async def _fetch(self, on_date: Optional[date] = None,
+    async def fetch(self, on_date: Optional[date] = None,
                      start_date: Optional[date] = None,
                      end_date: Optional[date] = None,
-                     ignore_groups: bool = False) -> List[Message]:
+                    ignore_groups: bool = False,
+                    senders: List[str] = None) -> List[Message]:
         print(f"Starting to fetch from Instagram {on_date=} {start_date=} {end_date=}")
 
         chat_path = 'data/instagram'
@@ -165,23 +166,24 @@ class InstagramProvider(MemoryProvider):
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
-        return await self._fetch(on_date=on_date, ignore_groups=ignore_groups)
-
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime.date, List[Message]]:
-        results: Dict[date, List[Message]] = {}
-        all_messages = await self._fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
-        for msg in all_messages:
-            msg_date = msg.datetime.date()
-            if start_date <= msg_date <= end_date:
-                results.setdefault(msg_date, []).append(msg)
-
-            # Sort messages within each date
-        for msgs in results.values():
-            msgs.sort(key=lambda m: m.datetime)
-
-        return results
+    # async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
+    #         List[Message]:
+    #     return await self.fetch(on_date=on_date, ignore_groups=ignore_groups)
+    #
+    # async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
+    #                       senders: List[str] = None) -> Dict[datetime.date, List[Message]]:
+    #     results: Dict[date, List[Message]] = {}
+    #     all_messages = await self.fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
+    #     for msg in all_messages:
+    #         msg_date = msg.datetime.date()
+    #         if start_date <= msg_date <= end_date:
+    #             results.setdefault(msg_date, []).append(msg)
+    #
+    #         # Sort messages within each date
+    #     for msgs in results.values():
+    #         msgs.sort(key=lambda m: m.datetime)
+    #
+    #     return results
 
     @staticmethod
     def generate_asset_id(file_id) -> str:

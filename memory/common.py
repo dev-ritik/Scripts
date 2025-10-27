@@ -47,7 +47,7 @@ class MemoryAggregator:
 
     async def aggregate(self, on_date: date, ignore_groups: bool = False) -> List[Message]:
         tasks = [
-            provider.fetch(on_date, ignore_groups=ignore_groups)
+            provider.fetch(on_date=on_date, ignore_groups=ignore_groups)
             for provider in self.providers.values()
         ]
         results = await asyncio.gather(*tasks)
@@ -60,18 +60,17 @@ class MemoryAggregator:
                               providers: List[str] = None) -> List[Message]:
         available_providers = providers or self.providers.keys()
         tasks = [
-            self.providers.get(provider).fetch_dates(start_date, end_date, ignore_groups=ignore_groups)
+            self.providers.get(provider).fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
             for provider in available_providers
         ]
-        results = await asyncio.gather(*tasks)
+        providers_events_list = await asyncio.gather(*tasks)
 
-        events = []
-        for result in results:  # result is a dict {date: [events]}
-            for _events in result.values():
-                events.extend(_events)
+        all_events = []
+        for events_by_provider in providers_events_list:
+            all_events.extend(events_by_provider)
 
-        events.sort(key=lambda x: x.datetime)
-        return events
+        all_events.sort(key=lambda x: x.datetime)
+        return all_events
 
     @staticmethod
     async def get_events_for_date(_date: date, ignore_groups: bool = False) -> List[Message]:

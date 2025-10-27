@@ -81,15 +81,19 @@ class DiaryProvider(MemoryProvider):
             print(f"Error parsing date in {text}: {e}")
             return None, None
 
-    async def fetch(self, on_date: Optional[date], ignore_groups: bool = False) -> List[Message]:
+    async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
+            List[Message]:
         results = []
         if not self.WORKING:
             return results
 
+        print("Starting to fetch from Diary")
+
         if not on_date:
             raise ValueError("Diary provider requires a date")
 
-        print("Starting to fetch from Diary")
+        if senders:
+            return []
 
         year = on_date.year
         diary_filepath = self._get_diary_filepath_for_year(year)
@@ -114,8 +118,8 @@ class DiaryProvider(MemoryProvider):
         print("Done fetching from Diary")
         return results
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        date, List[Message]]:
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
+                          senders: List[str] = None) -> Dict[date, List[Message]]:
         results: Dict[date, List[Message]] = defaultdict(list)
         if not self.WORKING:
             return results

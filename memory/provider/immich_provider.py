@@ -47,16 +47,21 @@ class ImmichProvider(MemoryProvider):
         self.bearer_token = response.json()["accessToken"]
         return self.bearer_token
 
-    async def fetch(self, on_date: date, ignore_groups: bool = False) -> List[Message]:
+    async def fetch_on_date(self, on_date: date, ignore_groups: bool = False, senders: List[str] = None) -> List[
+        Message]:
         raise NotImplementedError
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False) -> Dict[
-        datetime.date, List[Message]]:
+    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
+                          senders: List[str] = None) -> Dict[datetime.date, List[Message]]:
         results = defaultdict(list)
         if not self.WORKING:
             return results
 
         print("Starting to fetch from Immich")
+
+        if senders:
+            # TODO: Check if face grouping is possible and exposed in API
+            return results
 
         url = f"{self.IMMICH_BASE_URL}/api/search/metadata"
         page = 1
