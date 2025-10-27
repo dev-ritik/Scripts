@@ -76,6 +76,10 @@ class WhatsAppProvider(MemoryProvider):
         if not index_datetime_pairs:
             return []  # No valid messages at all
 
+        is_group = len(lines) >= 2 and 'created group' in lines[1].lower()
+        if is_group and ignore_groups:
+            return []
+
         # Early exit if date is out of range
         first_date, last_date = index_datetime_pairs[0][1], index_datetime_pairs[-1][1]
         if on_date and (on_date < first_date or on_date > last_date):
@@ -146,10 +150,6 @@ class WhatsAppProvider(MemoryProvider):
             elif text == 'null':
                 text = '<View once message>'
             context['edited'] = '<This message was edited>' in text
-            if len(chat_entries) < 5 and not is_group and 'created group' in text.lower():
-                is_group = True
-                if ignore_groups:
-                    return
             chat_entries.append(Message(
                 current_datetime,
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
