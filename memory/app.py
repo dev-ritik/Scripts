@@ -20,34 +20,61 @@ from common import get_user_dp, MemoryAggregator, get_profile_json
 app = Flask(__name__)
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
 async def index():
-    events = []
-    if request.method == 'GET':
-        on_date_str = request.args.get('date')
-        seek_days = int(request.args.get('seek_days', 0))
-        group = request.args.get('group', 'true') == 'true'
-        providers_param = request.args.get('providers')  # comma-separated list
+    on_date_str = request.args.get('date')
+    seek_days = int(request.args.get('seek_days', 0))
+    group = request.args.get('group', 'true') == 'true'
+    providers_param = request.args.get('providers')  # comma-separated list
 
-        if not on_date_str:
-            return render_template('index.html', events=[])
+    if not on_date_str:
+        return render_template('index.html', events=[])
 
-        seek_days = 0 if seek_days < 0 else seek_days
-        try:
-            on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            return "Invalid date format", 400
+    seek_days = 0 if seek_days < 0 else seek_days
+    try:
+        on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Invalid date format", 400
 
-        providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
+    providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
 
-        events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
-                                                             on_date + timedelta(days=seek_days),
-                                                             ignore_groups=not group,
-                                                             providers=providers)
+    events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
+                                                         on_date + timedelta(days=seek_days),
+                                                         ignore_groups=not group,
+                                                         providers=providers)
 
-        events.sort(key=lambda x: x.datetime)
+    events.sort(key=lambda x: x.datetime)
 
     return render_template('index.html', events=[event.to_dict() for event in events])
+
+
+@app.route('/chat_data', methods=['GET'])
+async def chat_data():
+    on_date_str = request.args.get('date')
+    seek_days = int(request.args.get('seek_days', 0))
+    group = request.args.get('group', 'true') == 'true'
+    providers_param = request.args.get('providers')  # comma-separated list
+    sender_regex = request.args.get('sender_regex')
+
+    if not on_date_str:
+        return render_template('index.html', events=[])
+
+    seek_days = 0 if seek_days < 0 else seek_days
+    try:
+        on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Invalid date format", 400
+
+    providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
+
+    events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
+                                                         on_date + timedelta(days=seek_days),
+                                                         ignore_groups=not group,
+                                                         providers=providers, sender_regex=sender_regex)
+
+    events.sort(key=lambda x: x.datetime)
+
+    return jsonify([event.to_dict() for event in events])
 
 
 @app.route("/status")

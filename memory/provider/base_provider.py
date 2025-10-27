@@ -1,4 +1,5 @@
 import asyncio
+import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, date
 from enum import Enum
@@ -54,7 +55,14 @@ class Message:
 class MemoryProvider(ABC):
     NAME = None
     SYSTEM = 'system'
+    UNKNOWN = 'unknown'
 
+    @staticmethod
+    def _sender_matched(sender, allowed_senders):
+        for pattern in allowed_senders:
+            if re.search(pattern, sender, re.IGNORECASE):
+                return True
+        return False
 
     async def setup(self, compressions: List[Compressions] = None):
         """

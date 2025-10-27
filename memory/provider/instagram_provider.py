@@ -48,7 +48,7 @@ class InstagramProvider(MemoryProvider):
 
     @staticmethod
     def parse_json(data, name_from_file, on_date=None, start_date: date = None, end_date: date = None,
-                   ignore_groups: bool = False) -> List[Message]:
+                   ignore_groups: bool = False, senders: List[str] = None) -> List[Message]:
         messages = []
         chat_name = name_from_file
 
@@ -63,6 +63,17 @@ class InstagramProvider(MemoryProvider):
         if ignore_groups and is_group:
             return []
 
+        # Skip chat if none of the participants match the provided sender regex patterns
+        if senders:
+            participants = [p.get('name', '') for p in data['participants']]
+            matched = False
+            for participant in participants:
+                if MemoryProvider._sender_matched(participant, senders):
+                    matched = True
+                    break
+            if not matched:
+                return []
+
         for message in data['messages']:
             _dt = datetime.fromtimestamp(message.get('timestamp_ms') / 1000.0)
             if on_date and _dt.date() != on_date:
@@ -72,6 +83,12 @@ class InstagramProvider(MemoryProvider):
             if start_date and _dt.date() < start_date:
                 break
             elif end_date and _dt.date() > end_date:
+                continue
+
+            sender_name = InstagramProvider.clean_message(message.get('sender_name'))
+            sender_name = MemoryProvider.UNKNOWN if sender_name == 'Instagram User' else sender_name
+
+            if senders and not InstagramProvider._sender_matched(sender_name, senders):
                 continue
 
             text = message.get('content')
@@ -106,7 +123,6 @@ class InstagramProvider(MemoryProvider):
             text = InstagramProvider.clean_message(text) if text else ''
             media_type = MediaType.NON_TEXT if contexts else MediaType.TEXT
 
-            sender_name = InstagramProvider.clean_message(message.get('sender_name'))
             message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED
 
             contexts = contexts if contexts else [None]
@@ -146,7 +162,7 @@ class InstagramProvider(MemoryProvider):
 
             tasks.append(
                 self._read_and_parse(friend_path, friend, on_date=on_date, start_date=start_date, end_date=end_date,
-                                     ignore_groups=ignore_groups))
+                                     ignore_groups=ignore_groups, senders=senders))
 
         memories_nested = await asyncio.gather(*tasks)
         memories = [item for sublist in memories_nested for item in sublist]
@@ -156,13 +172,13 @@ class InstagramProvider(MemoryProvider):
 
     async def _read_and_parse(self, filepath: Path, friend: str, on_date: Optional[date] = None,
                               start_date: Optional[date] = None, end_date: Optional[date] = None,
-                              ignore_groups: bool = False):
+                              ignore_groups: bool = False, senders: List[str] = None):
         try:
             async with aiofiles.open(filepath, mode='r', encoding='utf-8') as f:
                 raw = await f.read()
                 data = json.loads(raw)
                 return self.parse_json(data, friend, on_date=on_date, start_date=start_date, end_date=end_date,
-                                       ignore_groups=ignore_groups)
+                                       ignore_groups=ignore_groups, senders=senders)
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 

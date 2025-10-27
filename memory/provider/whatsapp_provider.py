@@ -45,7 +45,8 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     async def parse_whatsapp_chat(file_path: str, on_date: Optional[date] = None, start_date: Optional[date] = None,
-                                  end_date: Optional[date] = None, ignore_groups: bool = False) -> List[Message]:
+                                  end_date: Optional[date] = None, ignore_groups: bool = False,
+                                  senders: List[str] = None) -> List[Message]:
         chat_entries = []
 
         media_included = not file_path.endswith('.txt')
@@ -79,6 +80,12 @@ class WhatsAppProvider(MemoryProvider):
         is_group = len(lines) >= 2 and 'created group' in lines[1].lower()
         if is_group and ignore_groups:
             return []
+
+        if not is_group and senders:
+            # Skip chat if none of the participants match the provided sender regex patterns in case of DM
+            if not MemoryProvider._sender_matched(chat_name, senders) or not MemoryProvider._sender_matched(
+                    WhatsAppProvider.USER, senders):
+                return []
 
         # Early exit if date is out of range
         first_date, last_date = index_datetime_pairs[0][1], index_datetime_pairs[-1][1]
@@ -129,6 +136,8 @@ class WhatsAppProvider(MemoryProvider):
 
         def _process_buffer():
             if not message_buffer:
+                return
+            if senders and not MemoryProvider._sender_matched(current_sender, senders):
                 return
             nonlocal is_group
             context = {}
@@ -212,7 +221,7 @@ class WhatsAppProvider(MemoryProvider):
 
             tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date=on_date,
                                                   start_date=start_date, end_date=end_date,
-                                                  ignore_groups=ignore_groups))
+                                                  ignore_groups=ignore_groups, senders=senders))
 
         # Run parsing concurrently
         results = await asyncio.gather(*tasks)
