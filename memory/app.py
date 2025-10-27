@@ -48,7 +48,7 @@ async def index():
     return render_template('index.html', events=[event.to_dict() for event in events])
 
 
-@app.route('/chat_data', methods=['GET'])
+@app.route('/chat_data')
 async def chat_data():
     on_date_str = request.args.get('date')
     seek_days = int(request.args.get('seek_days', 0))
@@ -57,7 +57,7 @@ async def chat_data():
     sender_regex = request.args.get('sender_regex')
 
     if not on_date_str:
-        return render_template('index.html', events=[])
+        return 'Invalid date format', 400
 
     seek_days = 0 if seek_days < 0 else seek_days
     try:

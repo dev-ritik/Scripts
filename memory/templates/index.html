@@ -283,27 +283,6 @@
         return urlParams.get(name);
     }
 
-    function filterMessages() {
-        const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
-            .map(option => option.value);
-        // Get all event elements
-        const eventElements = document.querySelectorAll('.event');
-
-        eventElements.forEach(event => {
-            const senderNameElement = event.querySelector('.sender-name');
-            // Extract just the sender name (before the • character if it exists)
-            const senderNameText = senderNameElement.textContent.split('•')[0].trim();
-
-            // If no senders are selected, show all messages
-            // Otherwise, only show messages from selected senders
-            if (selectedSenders.length === 0 || selectedSenders.includes(senderNameText)) {
-                event.style.display = 'flex';
-            } else {
-                event.style.display = 'none';
-            }
-        });
-    }
-
     function seekMemories() {
         const date = document.getElementById('date').value;
         const seekDays = document.getElementById('seek_days').value;
@@ -322,16 +301,219 @@
             queryParams.set("providers", selectedProviders.join(","));
         }
 
-        // Redirect to the same page with query parameters
         window.location.href = `?${queryParams.toString()}`;
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        // Add "Select All" and "Clear All" functionality
-        const form = document.getElementById('memoryForm');
-        const selectElement = document.getElementById('senders');
+    function filterMessages() {
+        const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
+            .map(option => option.value);
 
-        // Create buttons
+        const eventElements = document.querySelectorAll('.event');
+        eventElements.forEach(event => {
+            const senderNameElement = event.querySelector('.sender-name');
+            const senderNameText = senderNameElement?.textContent.split('•')[0].trim() || '';
+            if (selectedSenders.length === 0 || selectedSenders.includes(senderNameText)) {
+                event.style.display = 'flex';
+            } else {
+                event.style.display = 'none';
+            }
+        });
+    }
+
+    async function loadChatData() {
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '<p>Loading memories...</p>';
+
+        const date = getUrlParameter('date');
+        const seekDays = getUrlParameter('seek_days') || '0';
+        const group = getUrlParameter('group') || 'true';
+        const providers = getUrlParameter('providers') || '';
+
+        let queryParams = new URLSearchParams();
+        if (date) queryParams.set('date', date);
+        if (seekDays) queryParams.set('seek_days', seekDays);
+        if (group) queryParams.set('group', group);
+        if (providers) queryParams.set('providers', providers);
+
+        try {
+            const response = await fetch(`/chat_data?${queryParams.toString()}`);
+            const events = await response.json();
+            renderChat(events);
+            populateSenders(events);
+        } catch (err) {
+            console.error('Error loading chat data:', err);
+            container.innerHTML = '<p>Failed to load memories.</p>';
+        }
+    }
+
+    function populateSenders(events) {
+        const senderSelect = document.getElementById("senders");
+        senderSelect.innerHTML = "";
+
+        // Extract unique senders
+        const uniqueSenders = [...new Set(events.map(ev => ev.sender))];
+
+        if (uniqueSenders.length === 0) {
+            const opt = document.createElement("option");
+            opt.disabled = true;
+            opt.textContent = "No senders found";
+            senderSelect.appendChild(opt);
+            return;
+        }
+
+        for (const sender of uniqueSenders) {
+            const opt = document.createElement("option");
+            opt.value = sender;
+            opt.textContent = sender;
+            senderSelect.appendChild(opt);
+        }
+    }
+
+    function renderChat(events) {
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '';
+
+        if (!events || events.length === 0) {
+            container.innerHTML = '<p>No memories found. Please select a date and search.</p>';
+            return;
+        }
+
+        const header = document.createElement('div');
+        header.className = 'chat-header';
+        header.innerHTML = '<h2 style="margin: 0;">Memory</h2>';
+        container.appendChild(header);
+
+        let ns = {current_provider: null, previous_sender: null, previous_chat: null};
+
+        events.forEach(event => {
+            if (event.provider !== ns.current_provider) {
+                ns.current_provider = event.provider;
+                const providerDiv = document.createElement('div');
+                providerDiv.className = 'provider-header';
+                providerDiv.textContent = event.provider;
+                container.appendChild(providerDiv);
+            }
+
+            const isConsecutive = event.sender === ns.previous_sender && event.chat_name === ns.previous_chat;
+
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${isConsecutive ? 'consecutive' : ''} ${event.type === 'sent' ? 'sent-message' : ''}`;
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = `avatar ${(isConsecutive || event.type === 'sent') ? 'hidden' : ''}`;
+            if (event.sender && event.type !== 'sent') {
+                const img = document.createElement('img');
+                img.src = `/user/dp/${encodeURIComponent(event.sender)}`;
+                img.onerror = function () {
+                    this.style.display = 'none';
+                    this.nextElementSibling.style.display = 'flex';
+                };
+                img.style.cssText = "width:100%;height:100%;border-radius:50%;object-fit:cover;";
+                const fallback = document.createElement('div');
+                fallback.style.cssText = "display:none;width:100%;height:100%;align-items:center;justify-content:center;";
+                fallback.textContent = event.sender[0]?.toUpperCase() || '';
+                avatarDiv.appendChild(img);
+                avatarDiv.appendChild(fallback);
+            }
+            eventDiv.appendChild(avatarDiv);
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message-content ${isConsecutive ? 'consecutive' : ''} ${event.type === 'sent' ? 'sent' : ''}`;
+
+            const senderNameDiv = document.createElement('div');
+            senderNameDiv.className = `sender-name ${isConsecutive ? 'hidden' : ''}`;
+            senderNameDiv.textContent = event.sender + (event.chat_name ? ` • ${event.chat_name}` : '');
+            messageDiv.appendChild(senderNameDiv);
+
+            const messageTextDiv = document.createElement('div');
+            messageTextDiv.className = 'message-text';
+
+            if (['non_text', 'mixed'].includes(event.media_type) && event.context?.mime_type) {
+                const mediaWrapper = document.createElement('div');
+                mediaWrapper.style.maxWidth = '300px';
+                mediaWrapper.style.margin = '5px 0';
+
+                if (event.context.mime_type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = `/asset/${event.provider}/${event.context.asset_id}`;
+                    img.style.cssText = "width:100%;border-radius:8px;cursor:pointer;";
+                    img.onclick = () => window.open(event.context.new_tab_url, '_blank');
+                    mediaWrapper.appendChild(img);
+                } else if (event.context.mime_type.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.controls = true;
+                    video.style.cssText = "width:100%;border-radius:8px;";
+                    const source = document.createElement('source');
+                    source.src = `/asset/${event.provider}/${event.context.asset_id}`;
+                    source.type = event.context.mime_type;
+                    video.appendChild(source);
+                    mediaWrapper.appendChild(video);
+                } else {
+                    const p = document.createElement('p');
+                    p.textContent = `Unsupported media type: ${event.context.mime_type}`;
+                    mediaWrapper.appendChild(p);
+                }
+
+                messageTextDiv.appendChild(mediaWrapper);
+            }
+
+            if (['text', 'mixed'].includes(event.media_type) && event.message) {
+                const words = event.message.replace(/\n/g, ' NEWLINE ').split(' ');
+                words.forEach(word => {
+                    if (word === 'NEWLINE') {
+                        messageTextDiv.appendChild(document.createElement('br'));
+                    } else if (word.startsWith('http://') || word.startsWith('https://')) {
+                        if (word.includes('instagram.com')) {
+                            const blockquote = document.createElement('blockquote');
+                            blockquote.className = 'instagram-media';
+                            blockquote.dataset.instgrmCaptioned = '';
+                            blockquote.dataset.instgrmPermalink = `${word}?utm_source=ig_embed&utm_campaign=loading`;
+                            blockquote.dataset.instgrmVersion = '14';
+                            blockquote.style.cssText = 'background:#FFF;border:0;border-radius:3px;box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15);margin:1px;max-width:540px;min-width:326px;padding:0;width:calc(100% - 2px);';
+                            const innerDiv = document.createElement('div');
+                            innerDiv.style.padding = '16px';
+                            innerDiv.innerHTML = `<a href="${word}?utm_source=ig_embed&utm_campaign=loading" style="background:#FFFFFF;line-height:0;text-align:center;text-decoration:none;width:100%;" target="_blank">View this post on Instagram</a>`;
+                            blockquote.appendChild(innerDiv);
+                            messageTextDiv.appendChild(blockquote);
+                        } else {
+                            const a = document.createElement('a');
+                            a.href = word;
+                            a.target = '_blank';
+                            a.rel = 'noopener noreferrer';
+                            a.textContent = word;
+                            messageTextDiv.appendChild(a);
+                            messageTextDiv.append(' ');
+                        }
+                    } else {
+                        messageTextDiv.append(word + ' ');
+                    }
+                });
+            }
+
+            messageDiv.appendChild(messageTextDiv);
+
+            const messageTimeDiv = document.createElement('div');
+            messageTimeDiv.className = 'message-time';
+            messageTimeDiv.textContent = new Date(event.datetime).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            messageDiv.appendChild(messageTimeDiv);
+
+            eventDiv.appendChild(messageDiv);
+            container.appendChild(eventDiv);
+
+            ns.previous_sender = event.sender;
+            ns.previous_chat = event.chat_name;
+        });
+
+        if (window.instgrm) {
+            window.instgrm.Embeds.process();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectElement = document.getElementById('senders');
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'select-buttons';
 
@@ -353,213 +535,79 @@
 
         buttonContainer.appendChild(selectAllBtn);
         buttonContainer.appendChild(clearAllBtn);
-
-        // Insert buttons after the select element
         selectElement.parentNode.insertBefore(buttonContainer, selectElement.nextSibling);
 
         const dateParam = getUrlParameter('date');
-        // If the date parameter exists, set it as the input value
-        if (dateParam) {
-            document.getElementById('date').value = dateParam;
-        }
-
+        if (dateParam) document.getElementById('date').value = dateParam;
         const groupParam = getUrlParameter('group');
-        const groupCheckbox = document.getElementById('group');
-        groupCheckbox.checked = groupParam === null || groupParam === 'true';
-
-        const seekDaysParam = getUrlParameter('seek_days');
-        document.getElementById('seek_days').value = seekDaysParam !== null ? seekDaysParam : '0';
+        document.getElementById('group').checked = groupParam === null || groupParam === 'true';
+        document.getElementById('seek_days').value = getUrlParameter('seek_days') ?? '0';
 
         fetch("/available_providers")
-            .then(response => response.json())
+            .then(r => r.json())
             .then(providers => {
                 const providerSelect = document.getElementById("providers");
                 const urlProvidersParam = getUrlParameter('providers');
                 const selectedProviders = urlProvidersParam ? urlProvidersParam.split(",") : [];
-
                 providers.forEach(provider => {
                     const option = document.createElement("option");
                     option.value = provider;
                     option.textContent = provider;
-                    // Pre-select if in query param
-                    if (selectedProviders.includes(provider)) {
-                        option.selected = true;
-                    }
+                    if (selectedProviders.includes(provider)) option.selected = true;
                     providerSelect.appendChild(option);
                 });
-            })
-            .catch(err => console.error("Error fetching providers:", err));
+            });
+
+        loadChatData();
     });
 </script>
 {% endblock %}
 
 {% block content %}
-
-    <div class="form-container">
-        <form id="memoryForm" onsubmit="return false;">
-            <div class="form-group">
-                <div class="input-wrapper">
-                    <i class="fas fa-calendar"></i>
-                    <label for="date">Select Date:</label>
-                    <input type="date" id="date" name="date" required>
-                </div>
-                <div class="input-wrapper">
-                    <i class="fas fa-clock"></i>
-                    <label for="seek_days">Seek Days:</label>
-                    <input type="number" id="seek_days" name="seek_days" value="0" min="0">
-                </div>
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="group" name="group" checked>
-                    <label for="group">
-                        <i class="fas fa-users"></i>
-                        Show Group Messages
-                    </label>
-                </div>
+<div class="form-container">
+    <!-- existing form unchanged -->
+    <form id="memoryForm" onsubmit="return false;">
+        <div class="form-group">
+            <div class="input-wrapper">
+                <i class="fas fa-calendar"></i>
+                <label for="date">Select Date:</label>
+                <input type="date" id="date" name="date" required>
             </div>
-            <div class="form-group">
-                <div class="select-wrapper">
-                    <i class="fas fa-user"></i>
-                    <label for="senders">Select Senders:</label>
-                    <select id="senders" name="senders" multiple>
-                        {% set unique_senders = [] %}
-                        {% for event in events %}
-                            {% if event.sender not in unique_senders %}
-                                {% set _ = unique_senders.append(event.sender) %}
-                                <option value="{{ event.sender }}">{{ event.sender }}</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- New Provider Select -->
-                <div class="select-wrapper">
-                    <i class="fas fa-database"></i>
-                    <label for="providers">Select Providers:</label>
-                    <select id="providers" name="providers" multiple>
-                        <!-- Options will be filled dynamically -->
-                    </select>
-                </div>
-
+            <div class="input-wrapper">
+                <i class="fas fa-clock"></i>
+                <label for="seek_days">Seek Days:</label>
+                <input type="number" id="seek_days" name="seek_days" value="0" min="0">
             </div>
-            <div class="button-group">
-                <button type="button" onclick="seekMemories()">
-                    <i class="fas fa-search"></i> Seek Memories
-                </button>
-                <button type="button" onclick="filterMessages()">
-                    <i class="fas fa-filter"></i> Filter Messages
-                </button>
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="group" name="group" checked>
+                <label for="group">
+                    <i class="fas fa-users"></i>
+                    Show Group Messages
+                </label>
             </div>
-        </form>
-    </div>
-
-    {% if events %}
-        <div class="chat-container">
-            <div class="chat-header">
-                <h2 style="margin: 0;">Memory</h2>
-            </div>
-            {% set ns = namespace(current_provider=None, previous_sender=None, previous_chat=None) %}
-            {% for event in events %}
-                {% if event.provider != ns.current_provider %}
-                    {% set ns.current_provider = event.provider %}
-                    <div class="provider-header">{{ event.provider }}</div>
-                {% endif %}
-
-                {% set is_consecutive = event.sender == ns.previous_sender and event.chat_name == ns.previous_chat %}
-                <div class="event {% if is_consecutive %}consecutive{% endif %} {% if event.type == 'sent' %}sent-message{% endif %}">
-                    <div class="avatar {% if is_consecutive or event.type == 'sent' %}hidden{% endif %}">
-                        {% if event.sender and not event.type == 'sent' %}
-                            {% set dp_url = url_for('user_dp', name=event.sender) %}
-                            <img src="{{ dp_url }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
-                            <div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center;">
-                                {{ event.sender[0] | upper }}
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="message-content {% if is_consecutive %}consecutive{% endif %} {% if event.type == 'sent' %}sent{% endif %}">
-                        <div class="sender-name {% if is_consecutive %}hidden{% endif %}">
-                            {{ event.sender }}
-                            {% if event.chat_name %} • {{ event.chat_name }}{% endif %}
-                        </div>
-                        <div class="message-text">
-                        {% if event.media_type in ['non_text', 'mixed'] %}
-                            <div style="max-width: 300px; margin: 5px 0">
-                                {% if event.context.mime_type.startswith('image/') %}
-                                    <img src="/asset/{{ event.provider }}/{{ event.context.asset_id }}"
-                                         style="width: 100%; border-radius: 8px; cursor: pointer;"
-                                         onclick="window.open('{{ event.context.new_tab_url }}', '_blank')">
-                                {% elif event.context.mime_type.startswith('video/') %}
-                                    <video controls style="width: 100%; border-radius: 8px;">
-                                        <source src="/asset/{{ event.provider }}/{{ event.context.asset_id }}" type="{{ event.context.mime_type }}">
-                                        Your browser does not support the video tag.
-                                    </video>
-                                {% else %}
-                                    <p>Unsupported media type: {{ event.context.mime_type }}</p>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                        {% if event.media_type in ['text', 'mixed'] %}
-                            {% set words = event.message.replace('\n', ' NEWLINE ') %}
-                            {% set words = words.split(' ') %}
-                            {% for word in words %}
-                                {% if word == 'NEWLINE' %}
-                                    <br>
-                                {% elif word.startswith(('http://', 'https://')) %}
-<!--                            TODO: Add Youtube embeds-->
-                                    {% if 'instagram.com' in word %}
-                                        <blockquote class="instagram-media"
-                                            data-instgrm-captioned
-                                            data-instgrm-permalink="{{ word }}?utm_source=ig_embed&utm_campaign=loading"
-                                            data-instgrm-version="14"
-                                            style="background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15);
-                                                   margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
-                                            <div style="padding:16px;">
-                                                <a href="{{ word }}?utm_source=ig_embed&utm_campaign=loading" style="background:#FFFFFF;
-                                                   line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%;" target="_blank">
-                                                    <div style="display: flex; flex-direction: row; align-items: center;">
-                                                        <div style="background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 40px; margin-right: 14px; width: 40px;"></div>
-                                                        <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center;">
-                                                            <div style="background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 100px;"></div>
-                                                            <div style="background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 60px;"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div style="padding: 19% 0;"></div>
-                                                    <div style="display:block; height:50px; margin:0 auto 12px; width:50px;">
-                                                        <svg width="50px" height="50px" viewBox="0 0 60 60"
-                                                             version="1.1" xmlns="https://www.w3.org/2000/svg">
-                                                            <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                                                                <g transform="translate(-511.000000, -20.000000)" fill="#000000">
-                                                                    <g>
-                                                                        <path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path>
-                                                                    </g>
-                                                                </g>
-                                                            </g>
-                                                        </svg>
-                                                    </div>
-                                                    <div style="padding-top: 8px;">
-                                                        <div style="color:#3897f0; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:550; line-height:18px;">View this post on Instagram</div>
-                                                    </div>
-                                                </a>
-                                            </div>
-                                        </blockquote>
-                                    {% else %}
-                                        <a href="{{ word }}" target="_blank" rel="noopener noreferrer">{{ word }}</a>
-                                    {% endif %}
-                                {% else %}
-                                    {{ word }}
-                                {% endif %}
-                                {% if not loop.last %} {% endif %}
-                            {% endfor %}
-                        {% endif %}
-                        </div>
-                        <div class="message-time">{{ event.datetime.strftime('%H:%M') }}</div>
-                    </div>
-                </div>
-                {% set ns.previous_sender = event.sender %}
-                {% set ns.previous_chat = event.chat_name %}
-            {% endfor %}
         </div>
-    {% else %}
-        <p>No memories found. Please select a date and search.</p>
-    {% endif %}
+        <div class="form-group">
+            <div class="select-wrapper">
+                <i class="fas fa-user"></i>
+                <label for="senders">Select Senders:</label>
+                <select id="senders" name="senders" multiple></select>
+            </div>
+            <div class="select-wrapper">
+                <i class="fas fa-database"></i>
+                <label for="providers">Select Providers:</label>
+                <select id="providers" name="providers" multiple></select>
+            </div>
+        </div>
+        <div class="button-group">
+            <button type="button" onclick="seekMemories()">
+                <i class="fas fa-search"></i> Seek Memories
+            </button>
+            <button type="button" onclick="filterMessages()">
+                <i class="fas fa-filter"></i> Filter Messages
+            </button>
+        </div>
+    </form>
+</div>
 
+<div id="chatContainer" class="chat-container"></div>
 {% endblock %}
