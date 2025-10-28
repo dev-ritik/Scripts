@@ -1,6 +1,6 @@
 import asyncio
 import string
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 import init
 
@@ -197,20 +197,67 @@ async def get_user_stats(name):
         return jsonify({"error": "User has no data in the period"}), 404
 
     assert len(messages_by_sender) == 1, "Expected only one sender"
+    user_messages = list(messages_by_sender.values())[0]
 
-    words_counter = defaultdict(int)
-    for message in list(messages_by_sender.values())[0]:
-        if message.message:
-            words = message.message.split()
-            for word in words:
-                if len(word) == 1 and (word.isdigit() or word in string.punctuation):
-                    continue
-                words_counter[word] += 1
+    words_counter = Counter()
+    for msg in user_messages:
+        if not msg.message:
+            continue
+        words = msg.message.split()
+        for word in words:
+            # filter noise like punctuation or 1-character digits
+            w = word.strip(string.punctuation).lower()
+            if len(w) <= 1 or w.isdigit():
+                continue
+            words_counter[w] += 1
 
-    most_spoken_words = sorted(words_counter.items(), key=lambda x: x[1], reverse=True)[:18]
+    most_spoken_words = words_counter.most_common(18)
 
-    return jsonify(most_spoken_words), 200
+    # -------------------------------
+    # 2️⃣ MESSAGES PER HOUR OF DAY
+    # -------------------------------
+    hour_counts = [0] * 24
+    for msg in user_messages:
+        if hasattr(msg, "datetime") and msg.datetime:
+            hour_counts[msg.datetime.hour] += 1
+    per_hour = {
+        "labels": [f"{h % 12 or 12}{'a' if h < 12 else 'p'}" for h in range(24)],
+        "values": hour_counts
+    }
 
+    # -------------------------------
+    # 3️⃣ MESSAGES PER DAY OF WEEK
+    # -------------------------------
+    weekday_counts = [0] * 7  # Mon=0
+    for msg in user_messages:
+        if hasattr(msg, "datetime") and msg.datetime:
+            weekday_counts[msg.datetime.weekday()] += 1
+    per_weekday = {
+        "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "values": weekday_counts
+    }
+
+    # -------------------------------
+    # 4️⃣ MESSAGES PER WEEK (IN PERIOD)
+    # -------------------------------
+    week_counts = defaultdict(int)
+    for msg in user_messages:
+        if hasattr(msg, "datetime") and msg.datetime:
+            week_key = msg.datetime.isocalendar()[1]  # week number
+            week_counts[week_key] += 1
+
+    sorted_weeks = sorted(week_counts.items())
+    per_week = {
+        "labels": [f"Week {wk}" for wk, _ in sorted_weeks],
+        "values": [cnt for _, cnt in sorted_weeks]
+    }
+
+    return jsonify({
+        "words": most_spoken_words,
+        "per_hour": per_hour,
+        "per_weekday": per_weekday,
+        "per_week": per_week
+    }), 200
 
 @app.route('/user/dp/<name>')
 async def user_dp(name):

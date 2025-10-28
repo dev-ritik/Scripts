@@ -193,6 +193,24 @@
         color: #ffd54a;
     }
 
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-top: 20px;
+    }
+
+    canvas {
+        width: 100%;
+        height: 180px;
+    }
+
+    h4 {
+        color: #aaa;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
 </style>
 
 <h1>💬 Chat Circles</h1>
@@ -235,7 +253,26 @@
     <div id="word-cloud-container" style="width: 100%; height: 300px;"></div>
 </div>
 
+<div id="msg-trends" class="msg-trends">
+    <h3>Message Activity</h3>
+    <div class="charts-grid">
+        <div>
+            <h4>Messages per Hour</h4>
+            <canvas id="chart-hourly"></canvas>
+        </div>
+        <div>
+            <h4>Messages per Day of Week</h4>
+            <canvas id="chart-weekday"></canvas>
+        </div>
+        <div>
+            <h4>Messages per Week</h4>
+            <canvas id="chart-weekly"></canvas>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     let start_date, end_date;
@@ -374,18 +411,27 @@
         });
     }
 
+    let charts = [];
     async function updateCommonWords(name, start_date, end_date) {
         const container = document.getElementById("word-cloud-container");
         container.innerHTML = `<p style="color:#bbb">Loading ${name}'s words...</p>`;
+
+        if (charts.length > 0) {
+            charts.forEach(chart => chart.destroy());
+            charts = [];
+        }
 
         try {
             const query = new URLSearchParams({start_date, end_date}).toString();
             const res = await fetch(`/user/stats/${encodeURIComponent(name)}?${query}`);
             if (!res.ok) throw new Error("Network response not ok");
-
             const data = await res.json();
 
-            const personWords = data || [];
+            const personWords = data.words || [];
+            const perHour = data.per_hour || [];
+            const perWeekday = data.per_weekday || [];
+            const perWeek = data.per_week || [];
+
             container.innerHTML = "";
 
             if (personWords.length === 0) {
@@ -393,26 +439,77 @@
                 return;
             }
 
-            const maxFreq = Math.max(...personWords.map(([_, count]) => count));
-
+            // --- Word Cloud ---
+            const maxFreq = Math.max(...personWords.map(([_, c]) => c));
             WordCloud(container, {
                 list: personWords,
                 gridSize: 8,
-                weightFactor: (size) => (size / maxFreq) * 40 + 10, // font size scaling
+                weightFactor: s => (s / maxFreq) * 40 + 10,
                 fontFamily: 'Impact, sans-serif',
                 color: () => {
                     const colors = ['#ff6b6b', '#ffd93d', '#6bc5ff', '#b26bff', '#6bff95'];
                     return colors[Math.floor(Math.random() * colors.length)];
                 },
                 rotateRatio: 0.5,
-                rotationSteps: 2,
-                backgroundColor: 'transparent',
+                backgroundColor: 'transparent'
             });
+
+            // --- Charts ---
+            renderBarChart("chart-hourly", "Messages per Hour", perHour.labels, perHour.values);
+            renderBarChart("chart-weekday", "Messages per Day", perWeekday.labels, perWeekday.values);
+            renderBarChart("chart-weekly", "Messages per Week", perWeek.labels, perWeek.values);
 
         } catch (err) {
             console.error("Error fetching user stats:", err);
             container.innerHTML = `<p style="color:#f66">Failed to load data for ${name}</p>`;
         }
+    }
+
+    function renderBarChart(id, label, labels, data) {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+
+        charts.push(new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: data,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    backgroundColor: '#9aa0a6' // fallback before gradient applied
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        grid: {display: false},
+                        ticks: {color: '#999'}
+                    },
+                    y: {
+                        grid: {color: '#333'},
+                        ticks: {color: '#777'}
+                    }
+                },
+                plugins: {legend: {display: false}}
+            },
+            plugins: [{
+                id: 'metalGradient',
+                beforeDatasetsDraw(chart) {
+                    const {ctx, chartArea} = chart;
+                    if (!chartArea) return; // wait until chart area is ready
+
+                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                    gradient.addColorStop(0, '#d7d9db');  // lighter metallic tone
+                    gradient.addColorStop(0.5, '#a8aaad'); // mid-tone
+                    gradient.addColorStop(1, '#5f6368');  // darker base
+
+                    chart.data.datasets[0].backgroundColor = gradient;
+                }
+            }]
+        }));
     }
 
     // Handle range selection
