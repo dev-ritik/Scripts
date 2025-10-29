@@ -3,6 +3,7 @@ import string
 from collections import defaultdict, Counter
 
 import init
+from configs import COMMON_WORDS_FOR_USER_STATS
 
 # This should be the first line in the file. It initializes the app.
 init.init()
@@ -196,7 +197,7 @@ async def get_user_stats(name):
     if not messages_by_sender:
         return jsonify({"error": "User has no data in the period"}), 404
 
-    assert len(messages_by_sender) == 1, "Expected only one sender"
+    assert len(messages_by_sender) == 1, f"Expected only one sender got {messages_by_sender.keys()} {user_regex}"
     user_messages = list(messages_by_sender.values())[0]
 
     words_counter = Counter()
@@ -208,6 +209,8 @@ async def get_user_stats(name):
             # filter noise like punctuation or 1-character digits
             w = word.strip(string.punctuation).lower()
             if len(w) <= 1 or w.isdigit():
+                continue
+            if w.lower() in COMMON_WORDS_FOR_USER_STATS:
                 continue
             words_counter[w] += 1
 

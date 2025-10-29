@@ -9,20 +9,8 @@ from typing import List, Dict, Optional
 import aiofiles
 
 import init
+from configs import AVAILABLE_PROVIDERS
 from provider.base_provider import MemoryProvider, Message, MediaType
-from provider.diary_provider import DiaryProvider
-from provider.google_photos_provider import GooglePhotosProvider
-from provider.immich_provider import ImmichProvider
-from provider.instagram_provider import InstagramProvider
-from provider.whatsapp_provider import WhatsAppProvider
-
-AVAILABLE_PROVIDERS = [
-    WhatsAppProvider,
-    InstagramProvider,
-    DiaryProvider,
-    ImmichProvider,
-    GooglePhotosProvider
-]
 
 
 class MemoryAggregator:
