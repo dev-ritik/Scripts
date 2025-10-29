@@ -8,7 +8,6 @@ from typing import List, Dict, Optional
 
 import aiofiles
 
-import init
 from configs import AVAILABLE_PROVIDERS
 from provider.base_provider import MemoryProvider, Message, MediaType
 
@@ -84,7 +83,7 @@ class MemoryAggregator:
         return events
 
     @staticmethod
-    async def get_messages_by_sender(start_date: date, end_date: date, ignore_groups: bool = False, exclude_self=True,
+    async def get_messages_by_sender(start_date: date, end_date: date, ignore_groups: bool = False,
                                      providers: List[str] = None, sender_regex = None) -> Dict[str, List[Message]]:
         messages_by_sender = defaultdict(list)
         messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers, sender_regex)
@@ -92,8 +91,6 @@ class MemoryAggregator:
             if not message.sender:
                 continue
             if message.sender == MemoryProvider.SYSTEM:
-                continue
-            if exclude_self and message.sender == init.USER:
                 continue
             if message.media_type == MediaType.NON_TEXT:
                 continue

@@ -3,7 +3,7 @@ import string
 from collections import defaultdict, Counter
 
 import init
-from configs import COMMON_WORDS_FOR_USER_STATS
+from configs import COMMON_WORDS_FOR_USER_STATS, USER
 
 # This should be the first line in the file. It initializes the app.
 init.init()
@@ -273,6 +273,14 @@ async def user_dp(name):
     response.headers['Cache-Control'] = 'public, max-age=86400'
     return response
 
+
+@app.route('/user/admin')
+async def user_admin():
+    user_profile = await get_user_profile_from_name(USER)
+    if not user_profile:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify(user_profile), 200
 
 @app.route('/asset/<provider>/<file_id>')
 async def asset(provider, file_id):

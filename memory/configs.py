@@ -6,6 +6,8 @@ from provider.whatsapp_provider import WhatsAppProvider
 
 # This file has all the customizations for setups
 
+USER = "Ritik"
+
 AVAILABLE_PROVIDERS = [
     WhatsAppProvider,
     InstagramProvider,
@@ -52,5 +54,6 @@ COMMON_WORDS_FOR_USER_STATS = {
     'or',
     'from',
     'they',
-    'at'
+    'at',
+    'as'
 }

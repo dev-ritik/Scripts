@@ -240,7 +240,7 @@
 
 <div class="orbit-container">
     <div class="center-avatar">
-        <img src="/user/dp/ritik" alt="You">
+        <img alt="You" id="center-avatar">
     </div>
 
     <div class="orbit orbit1" id="orbit1"></div>
@@ -529,8 +529,20 @@
         }
     });
 
+    async function loadAdminUser() {
+        const res = await fetch(`/user/admin`);
+        const data = await res.json();
+        const centerAvatar = document.getElementById("center-avatar");
+        centerAvatar.src = '/user/dp/' + data.display_name;
+        centerAvatar.addEventListener("click", () => {
+            updateCommonWords(data.display_name, start_date, end_date);
+        });
+
+    }
+
     // Initial load
     loadData();
+    loadAdminUser();
 
 </script>
 
