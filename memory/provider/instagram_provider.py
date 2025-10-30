@@ -19,6 +19,11 @@ class InstagramProvider(MemoryProvider):
     INSTAGRAM_PATH = 'data/instagram'
     _working = True
 
+    # Instagram adds these in regional language sometimes
+    REGIONAL_LANGUAGE_LIKED_MESSAGE = [
+        'ಸಂದೇಶವನ್ನು ಇಷ್ಟಪಟ್ಟಿದ್ದಾರೆ'
+    ]
+
     def __init__(self):
         super().__init__()
         if not self._working:
@@ -121,6 +126,8 @@ class InstagramProvider(MemoryProvider):
                 continue
 
             text = InstagramProvider.clean_message(text) if text else ''
+            if text in InstagramProvider.REGIONAL_LANGUAGE_LIKED_MESSAGE:
+                text = 'Liked the message'
             media_type = MediaType.NON_TEXT if contexts else MediaType.TEXT
 
             message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED

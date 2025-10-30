@@ -2,6 +2,7 @@ import asyncio
 import string
 from collections import defaultdict, Counter
 
+import configs
 import init
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
 
@@ -143,6 +144,8 @@ async def circle_data():
 
     messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
                                                                                       ignore_groups=True)
+    del messages_by_sender[configs.USER]
+
     message_count_by_sender = {}
     for sender, messages in messages_by_sender.items():
         message_count_by_sender[sender] = len(messages)

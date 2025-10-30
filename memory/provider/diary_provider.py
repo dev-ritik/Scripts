@@ -126,6 +126,9 @@ class DiaryProvider(MemoryProvider):
 
         print(f"Fetching diary entries from {start_date} to {end_date}")
 
+        if senders:
+            return results
+
         for year in range(start_date.year, end_date.year + 1):
             diary_filepath = self._get_diary_filepath_for_year(year)
 

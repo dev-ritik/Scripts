@@ -27,9 +27,10 @@ Add `DIARY_PATH` to the `.env` file and set it to the folder path
 #### Instagram
   - Go to this [link](https://accountscenter.instagram.com/info_and_permissions/dyi/?entry_point=deeplink_screen)
   - Select the 
-    - profile >> Select messages
+    - Customize information >> Select messages
     - Date Range: All time
     - Format: JSON
+    - Media quality: Lower quality (for smaller storage usage)
   - Make a new `data/instagram` subdirectory in the data directory. Extract the `messages/inbox` from the downloaded zip here.
 
 #### Whatsapp
