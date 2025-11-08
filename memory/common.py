@@ -83,8 +83,13 @@ class MemoryAggregator:
         return events
 
     @staticmethod
-    async def get_messages_by_sender(start_date: date, end_date: date, ignore_groups: bool = False,
-                                     providers: List[str] = None, sender_regex = None) -> Dict[str, List[Message]]:
+    async def get_messages_by_sender(start_date: date,
+                                     end_date: date,
+                                     include_media_type: MediaType = None,
+                                     ignore_media_type: MediaType = None,
+                                     ignore_groups: bool = False,
+                                     providers: List[str] = None,
+                                     sender_regex=None) -> Dict[str, List[Message]]:
         messages_by_sender = defaultdict(list)
         messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers, sender_regex)
         for message in messages:
@@ -92,7 +97,9 @@ class MemoryAggregator:
                 continue
             if message.sender == MemoryProvider.SYSTEM:
                 continue
-            if message.media_type == MediaType.NON_TEXT:
+            if include_media_type and message.media_type != include_media_type:
+                continue
+            if ignore_media_type and message.media_type == ignore_media_type:
                 continue
             messages_by_sender[message.sender].append(message)
         return messages_by_sender

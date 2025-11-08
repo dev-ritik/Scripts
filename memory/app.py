@@ -5,6 +5,7 @@ from collections import defaultdict, Counter
 import configs
 import init
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
+from provider.base_provider import MediaType
 
 # This should be the first line in the file. It initializes the app.
 init.init()
@@ -142,8 +143,11 @@ async def circle_data():
         print(start_date, end_date)
         return f"Invalid date format {start_date} {end_date}", 400
 
-    messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
-                                                                                      ignore_groups=True)
+    messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(
+        start_date,
+        end_date,
+        ignore_groups=True)
+
     del messages_by_sender[configs.USER]
 
     message_count_by_sender = {}
@@ -151,7 +155,7 @@ async def circle_data():
         message_count_by_sender[sender] = len(messages)
         words_counter = defaultdict(int)
         for message in messages:
-            if message.message:
+            if message.message and message.media_type != MediaType.NON_TEXT:
                 words = message.message.split()
                 for word in words:
                     if len(word) == 1 and (word.isdigit() or word in string.punctuation):
@@ -193,9 +197,12 @@ async def get_user_stats(name):
         return jsonify({"error": "User not found"}), 404
 
     user_regex = user_profile.get('name_regex')
-    messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(start_date, end_date,
-                                                                                      ignore_groups=True,
-                                                                                      sender_regex=user_regex)
+    messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(
+        start_date,
+        end_date,
+        ignore_groups=True,
+        include_media_type=MediaType.NON_TEXT,
+        sender_regex=user_regex)
 
     if not messages_by_sender:
         return jsonify({"error": "User has no data in the period"}), 404
