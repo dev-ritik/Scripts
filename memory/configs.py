@@ -57,5 +57,7 @@ COMMON_WORDS_FOR_USER_STATS = {
     'at',
     'as',
     'liked',
-    'message'
+    'message',
+    'reacted',
+    'your'
 }

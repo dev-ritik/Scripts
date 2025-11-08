@@ -248,6 +248,10 @@
     <div class="orbit orbit3" id="orbit3"></div>
 </div>
 
+<div id="weekly-chart" style="width: 100%; height: 400px; margin-top: 40px;">
+    <canvas id="weeklyLineChart"></canvas>
+</div>
+
 <div id="common-words" class="common-words">
     <h3>Most Common Words</h3>
     <div id="word-cloud-container" style="width: 100%; height: 300px;"></div>
@@ -371,6 +375,84 @@
         const data = await res.json();
 
         renderCircles(data.people);
+        await renderMovingAverageChart(data.people)
+    }
+
+    async function renderMovingAverageChart(people) {
+        if (movingAvgChart) {
+            movingAvgChart.destroy();
+            movingAvgChart = null;
+        }
+        // Extract labels (weeks)
+        const allWeeks = Array.from(
+            new Set(
+                people.flatMap(p => Object.keys(p.chat_times.weekly_moving_avg))
+            )
+        ).sort();
+
+        const ctx = document.getElementById("weeklyLineChart").getContext("2d");
+
+        const top10People = people
+            .sort((a, b) => b.chats - a.chats) // sort by chats descending
+            .slice(0, 10);                     // take top 10
+
+        const datasets = await Promise.all(
+            top10People.map(async (p, idx) => {
+                const avgMap = p.chat_times.weekly_moving_avg;
+                const values = allWeeks.map(w => avgMap[w] || null);
+
+                const color = `hsl(${(idx * 360 / people.length)}, 70%, 55%)`;
+
+                return {
+                    label: p.name,
+                    data: values,
+                    borderColor: color,
+                    backgroundColor: color,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                };
+            })
+        );
+
+        movingAvgChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: allWeeks,
+                datasets: datasets,
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: "nearest",
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {display: false},
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}`,
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        title: {display: true, text: "Week"},
+                        grid: {display: false},
+                    },
+                    y: {
+                        type: "logarithmic",
+                        title: {display: true, text: "Messages (3-week avg)"},
+                        beginAtZero: false,
+                        ticks: {
+                            callback: (val) => Number(val).toLocaleString(),
+                        },
+                    },
+                },
+            },
+        });
     }
 
     function renderCircles(people) {
@@ -412,6 +494,7 @@
     }
 
     let charts = [];
+    let movingAvgChart = null;
     async function updateCommonWords(name, start_date, end_date) {
         const container = document.getElementById("word-cloud-container");
         container.innerHTML = `<p style="color:#bbb">Loading ${name}'s words...</p>`;

@@ -2,6 +2,8 @@ import asyncio
 import string
 from collections import defaultdict, Counter
 
+import pandas as pd
+
 import configs
 import init
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
@@ -44,11 +46,19 @@ async def index():
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
     peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else None
 
+    user_regexes = []
+    for people in peoples:
+        user_profile = await get_user_profile_from_name(people)
+        if not user_profile:
+            return jsonify({"error": "User not found"}), 404
+
+        user_regexes.append(user_profile.get('name_regex'))
+
     events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
                                                          on_date + timedelta(days=seek_days),
                                                          ignore_groups=not group,
                                                          providers=providers,
-                                                         sender_regex=peoples)
+                                                         sender_regex=user_regexes)
 
     events.sort(key=lambda x: x.datetime)
 
@@ -75,11 +85,19 @@ async def chat_data():
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
     peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else None
 
+    user_regexes = []
+    for people in peoples:
+        user_profile = await get_user_profile_from_name(people)
+        if not user_profile:
+            return jsonify({"error": "User not found"}), 404
+
+        user_regexes.append(user_profile.get('name_regex'))
+
     events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
                                                          on_date + timedelta(days=seek_days),
                                                          ignore_groups=not group,
                                                          providers=providers,
-                                                         sender_regex=peoples)
+                                                         sender_regex=user_regexes)
 
     events.sort(key=lambda x: x.datetime)
 
@@ -157,9 +175,14 @@ async def circle_data():
     del messages_by_sender[configs.USER]
 
     message_count_by_sender = {}
+    sender_weekly_counts = {}
+
     for sender, messages in messages_by_sender.items():
         message_count_by_sender[sender] = len(messages)
         words_counter = defaultdict(int)
+
+        # bucket messages by ISO week
+        weekly_counts = defaultdict(int)
         for message in messages:
             if message.message and message.media_type != MediaType.NON_TEXT:
                 words = message.message.split()
@@ -168,15 +191,37 @@ async def circle_data():
                         continue
                     words_counter[word] += 1
 
+                if message.datetime:
+                    year_week = message.datetime.strftime("%Y-%W")
+                    weekly_counts[year_week] += 1
+
+        sender_weekly_counts[sender] = dict(weekly_counts)
+
     # Get the top 15 most active people
     top_15_people = sorted(message_count_by_sender.items(), key=lambda x: x[1], reverse=True)[:15]
 
     people = []
-    for top_people in top_15_people:
+    for name, chat_count in top_15_people:
+        weekly_series = (
+            pd.Series(sender_weekly_counts.get(name, {}))
+            .sort_index()
+            .astype(int)
+        )
+        moving_avg_series = (
+            weekly_series.rolling(window=3, min_periods=1).mean().round(2)
+        )
+
+        weekly_counts_dict = {k: int(v) for k, v in weekly_series.to_dict().items()}
+        moving_avg_dict = {k: float(v) for k, v in moving_avg_series.to_dict().items()}
+
         people.append({
-            "name": top_people[0],
-            "dp": f"/user/dp/{top_people[0]}",
-            "chats": top_people[1],
+            "name": name,
+            "dp": f"/user/dp/{name}",
+            "chats": chat_count,
+            "chat_times": {
+                "weekly_counts": weekly_counts_dict,
+                "weekly_moving_avg": moving_avg_dict
+            }
         })
 
     return jsonify({"people": people})
@@ -207,7 +252,7 @@ async def get_user_stats(name):
         start_date,
         end_date,
         ignore_groups=True,
-        include_media_type=MediaType.NON_TEXT,
+        ignore_media_type=MediaType.NON_TEXT,
         sender_regex=user_regex)
 
     if not messages_by_sender:
