@@ -67,22 +67,14 @@
 </style>
 
 <script>
-document.addEventListener("DOMContentLoaded", async () => {
-    const container = document.getElementById("people-container");
-    let people = JSON.parse(localStorage.getItem("people"));
+    // import {loadPeople} from "{{ url_for('static', filename='js/utils.js') }}";
 
-    if (!people) {
-        try {
-            const res = await fetch("/people_data");
-            people = await res.json();
-            localStorage.setItem("people", JSON.stringify(people));
-        } catch (err) {
-            console.error("Failed to fetch people:", err);
-            return;
-        }
-    }
+    document.addEventListener("DOMContentLoaded", async () => {
+        let people = await loadPeople();
 
-    people.forEach(fav => {
+        const container = document.getElementById("people-container");
+        container.innerHTML = ""; // clear any previous content
+        people.forEach(fav => {
         const card = document.createElement("div");
         card.className = "fav-card";
         card.innerHTML = `

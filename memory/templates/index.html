@@ -278,18 +278,21 @@
 
 <script async src="//www.instagram.com/embed.js"></script>
 <script>
+    // import {loadPeople} from "{{ url_for('static', filename='js/utils.js') }}";
+
     function getUrlParameter(name) {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get(name);
     }
 
-    function seekMemories() {
+    async function seekMemories() {
         const date = document.getElementById('date').value;
         const seekDays = document.getElementById('seek_days').value;
         const group = document.getElementById('group').checked;
         const providerSelect = document.getElementById("providers");
         const allProviders = Array.from(providerSelect.options).map(opt => opt.value);
         const selectedProviders = Array.from(providerSelect.selectedOptions).map(opt => opt.value);
+        const selectedPeoples = Array.from(document.getElementById('senders').selectedOptions).map(opt => opt.value);
 
         let queryParams = new URLSearchParams();
         queryParams.set("date", date);
@@ -301,73 +304,92 @@
             queryParams.set("providers", selectedProviders.join(","));
         }
 
-        window.location.href = `?${queryParams.toString()}`;
-    }
+        if (selectedPeoples.length > 0) {
+            queryParams.set("peoples", selectedPeoples.join(","));
+        }
 
-    function filterMessages() {
-        const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
-            .map(option => option.value);
+        // window.location.href = `?${queryParams.toString()}`;
 
-        const eventElements = document.querySelectorAll('.event');
-        eventElements.forEach(event => {
-            const senderNameElement = event.querySelector('.sender-name');
-            const senderNameText = senderNameElement?.textContent.split('•')[0].trim() || '';
-            if (selectedSenders.length === 0 || selectedSenders.includes(senderNameText)) {
-                event.style.display = 'flex';
-            } else {
-                event.style.display = 'none';
-            }
-        });
-    }
-
-    async function loadChatData() {
         const container = document.getElementById('chatContainer');
         container.innerHTML = '<p>Loading memories...</p>';
-
-        const date = getUrlParameter('date');
-        const seekDays = getUrlParameter('seek_days') || '0';
-        const group = getUrlParameter('group') || 'true';
-        const providers = getUrlParameter('providers') || '';
-
-        let queryParams = new URLSearchParams();
-        if (date) queryParams.set('date', date);
-        if (seekDays) queryParams.set('seek_days', seekDays);
-        if (group) queryParams.set('group', group);
-        if (providers) queryParams.set('providers', providers);
 
         try {
             const response = await fetch(`/chat_data?${queryParams.toString()}`);
             const events = await response.json();
             renderChat(events);
-            populateSenders(events);
+            // populateSenders(events);
         } catch (err) {
             console.error('Error loading chat data:', err);
             container.innerHTML = '<p>Failed to load memories.</p>';
         }
     }
 
-    function populateSenders(events) {
-        const senderSelect = document.getElementById("senders");
-        senderSelect.innerHTML = "";
+    // function filterMessages() {
+    //     const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
+    //         .map(option => option.value);
+    //
+    //     const eventElements = document.querySelectorAll('.event');
+    //     eventElements.forEach(event => {
+    //         const senderNameElement = event.querySelector('.sender-name');
+    //         const senderNameText = senderNameElement?.textContent.split('•')[0].trim() || '';
+    //         if (selectedSenders.length === 0 || selectedSenders.includes(senderNameText)) {
+    //             event.style.display = 'flex';
+    //         } else {
+    //             event.style.display = 'none';
+    //         }
+    //     });
+    // }
 
-        // Extract unique senders
-        const uniqueSenders = [...new Set(events.map(ev => ev.sender))];
+    // async function loadChatData() {
+    //     const container = document.getElementById('chatContainer');
+    //     container.innerHTML = '<p>Loading memories...</p>';
+    //
+    //     const date = getUrlParameter('date');
+    //     const seekDays = getUrlParameter('seek_days') || '0';
+    //     const group = getUrlParameter('group') || 'true';
+    //     const providers = getUrlParameter('providers') || '';
+    //     const peoples = getUrlParameter('peoples') || '';
+    //
+    //     let queryParams = new URLSearchParams();
+    //     if (date) queryParams.set('date', date);
+    //     if (seekDays) queryParams.set('seek_days', seekDays);
+    //     if (group) queryParams.set('group', group);
+    //     if (providers) queryParams.set('providers', providers);
+    //     if (peoples) queryParams.set('peoples', peoples);
+    //
+    //     try {
+    //         const response = await fetch(`/chat_data?${queryParams.toString()}`);
+    //         const events = await response.json();
+    //         renderChat(events);
+    //         // populateSenders(events);
+    //     } catch (err) {
+    //         console.error('Error loading chat data:', err);
+    //         container.innerHTML = '<p>Failed to load memories.</p>';
+    //     }
+    // }
 
-        if (uniqueSenders.length === 0) {
-            const opt = document.createElement("option");
-            opt.disabled = true;
-            opt.textContent = "No senders found";
-            senderSelect.appendChild(opt);
-            return;
-        }
-
-        for (const sender of uniqueSenders) {
-            const opt = document.createElement("option");
-            opt.value = sender;
-            opt.textContent = sender;
-            senderSelect.appendChild(opt);
-        }
-    }
+    // function populateSenders(events) {
+    //     const senderSelect = document.getElementById("senders");
+    //     senderSelect.innerHTML = "";
+    //
+    //     // Extract unique senders
+    //     const uniqueSenders = [...new Set(events.map(ev => ev.sender))];
+    //
+    //     if (uniqueSenders.length === 0) {
+    //         const opt = document.createElement("option");
+    //         opt.disabled = true;
+    //         opt.textContent = "No senders found";
+    //         senderSelect.appendChild(opt);
+    //         return;
+    //     }
+    //
+    //     for (const sender of uniqueSenders) {
+    //         const opt = document.createElement("option");
+    //         opt.value = sender;
+    //         opt.textContent = sender;
+    //         senderSelect.appendChild(opt);
+    //     }
+    // }
 
     function renderChat(events) {
         const container = document.getElementById('chatContainer');
@@ -512,7 +534,7 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', async function () {
         const selectElement = document.getElementById('senders');
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'select-buttons';
@@ -522,7 +544,7 @@
         selectAllBtn.textContent = 'Select All';
         selectAllBtn.onclick = function () {
             Array.from(selectElement.options).forEach(option => option.selected = true);
-            filterMessages();
+            // filterMessages();
         };
 
         const clearAllBtn = document.createElement('button');
@@ -530,7 +552,7 @@
         clearAllBtn.textContent = 'Clear All';
         clearAllBtn.onclick = function () {
             Array.from(selectElement.options).forEach(option => option.selected = false);
-            filterMessages();
+            // filterMessages();
         };
 
         buttonContainer.appendChild(selectAllBtn);
@@ -558,7 +580,16 @@
                 });
             });
 
-        loadChatData();
+        const peoples = await loadPeople()
+        const sendersSelect = document.getElementById("senders");
+        peoples.forEach(people => {
+            const option = document.createElement("option");
+            option.value = people.display_name;
+            option.textContent = people.display_name;
+            sendersSelect.appendChild(option);
+        });
+
+        // loadChatData();
     });
 </script>
 {% endblock %}
@@ -602,9 +633,9 @@
             <button type="button" onclick="seekMemories()">
                 <i class="fas fa-search"></i> Seek Memories
             </button>
-            <button type="button" onclick="filterMessages()">
-                <i class="fas fa-filter"></i> Filter Messages
-            </button>
+            <!--            <button type="button" onclick="filterMessages()">-->
+            <!--                <i class="fas fa-filter"></i> Filter Messages-->
+            <!--            </button>-->
         </div>
     </form>
 </div>

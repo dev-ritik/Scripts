@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Any
 
 import httpx
 
+from profile import get_immich_ids_from_senders
 from provider.base_provider import MemoryProvider, MediaType, Message
 from utils import post_with_retries
 
@@ -59,10 +60,6 @@ class ImmichProvider(MemoryProvider):
 
         print("Starting to fetch from Immich")
 
-        if senders:
-            # TODO: Check if face grouping is possible and exposed in API
-            return results
-
         url = f"{self.IMMICH_BASE_URL}/api/search/metadata"
         page = 1
 
@@ -84,6 +81,13 @@ class ImmichProvider(MemoryProvider):
                     "page": page,
                     "size": self.SEARCH_PAGE_SIZE,
                 }
+
+                if senders:
+                    immich_ids = await get_immich_ids_from_senders(senders)
+                    if immich_ids:
+                        payload["personIds"] = immich_ids
+                    else:
+                        return results
 
                 response = await post_with_retries(url, payload, headers)
 

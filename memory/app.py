@@ -18,7 +18,8 @@ from datetime import datetime, timedelta
 
 from flask import Flask, render_template, request, send_file, make_response, jsonify
 
-from common import get_user_dp, MemoryAggregator, get_profile_json, get_user_profile_from_name
+from common import MemoryAggregator
+from profile import get_user_dp, get_profile_json, get_user_profile_from_name
 
 app = Flask(__name__)
 
@@ -29,6 +30,7 @@ async def index():
     seek_days = int(request.args.get('seek_days', 0))
     group = request.args.get('group', 'true') == 'true'
     providers_param = request.args.get('providers')  # comma-separated list
+    peoples_param = request.args.get('peoples')  # comma-separated list
 
     if not on_date_str:
         return render_template('index.html', events=[])
@@ -40,11 +42,13 @@ async def index():
         return "Invalid date format", 400
 
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
+    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else None
 
     events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
                                                          on_date + timedelta(days=seek_days),
                                                          ignore_groups=not group,
-                                                         providers=providers)
+                                                         providers=providers,
+                                                         sender_regex=peoples)
 
     events.sort(key=lambda x: x.datetime)
 
@@ -57,7 +61,7 @@ async def chat_data():
     seek_days = int(request.args.get('seek_days', 0))
     group = request.args.get('group', 'true') == 'true'
     providers_param = request.args.get('providers')  # comma-separated list
-    sender_regex = request.args.get('sender_regex')
+    peoples_param = request.args.get('peoples')  # comma-separated list
 
     if not on_date_str:
         return 'Invalid date format', 400
@@ -69,11 +73,13 @@ async def chat_data():
         return "Invalid date format", 400
 
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
+    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else None
 
     events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
                                                          on_date + timedelta(days=seek_days),
                                                          ignore_groups=not group,
-                                                         providers=providers, sender_regex=sender_regex)
+                                                         providers=providers,
+                                                         sender_regex=peoples)
 
     events.sort(key=lambda x: x.datetime)
 

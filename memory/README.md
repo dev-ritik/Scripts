@@ -92,6 +92,11 @@ Wanna make the UI for the web app more elegant? Add `profile.json` to the data f
   {
     "display_name": "Ritik",
     "name_regex": "(?i)ritik",  // Used to club senders across platform
-    "dp": "ritik.jpg" // Used to add a dp to the chats
+    "dp": "ritik.jpg" // Used to add a dp to the chats,
+    "provider_details": {
+      "immich": {
+        "person_id": "" // Used to filter immich message by people. Use /api/people to get the person_id
+      }
+    }
   }
 ]
