@@ -11,6 +11,61 @@
             border-radius: 5px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
+        .dropdown {
+            margin: 1rem 0 5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .dropdown label {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        #range {
+            padding: 0.6rem 1rem;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            outline: none;
+        }
+        #range:hover {
+            border-color: #33b37a;
+            box-shadow: 0 3px 8px rgba(51, 179, 122, 0.2);
+        }
+        #range:focus {
+            border-color: #33b37a;
+            box-shadow: 0 0 0 3px rgba(51, 179, 122, 0.2);
+        }
+        .custom-date-range {
+            display: none;
+            flex-direction: row;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            animation: fadeIn 0.3s ease;
+        }
+        .custom-date-range label {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .custom-date-range input[type="date"] {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.95rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        .custom-date-range input[type="date"]:focus {
+            border-color: #33b37a;
+        }
         .chat-container {
             background-color: white;
             border-radius: 10px;
@@ -316,8 +371,19 @@
     }
 
     async function seekMemories() {
-        const date = document.getElementById('date').value;
-        const seekDays = document.getElementById('seek_days').value;
+        const range = document.getElementById('range').value;
+        let {start_date, end_date} = getDateRange(range) || {};
+
+        if (range === 'custom') {
+            start_date = document.getElementById('fromDate').value;
+            end_date = document.getElementById('toDate').value;
+        }
+
+        if (!start_date || !end_date) {
+            alert("Please select a valid date range.");
+            return;
+        }
+
         const group = document.getElementById('group').checked;
         const allProviders = Array.from(document.querySelectorAll('.provider-option'))
             .map(el => el.textContent.trim());
@@ -326,9 +392,9 @@
         const selectedPeoples = Array.from(document.getElementById('senders').selectedOptions).map(opt => opt.value);
 
         let queryParams = new URLSearchParams();
-        queryParams.set("date", date);
-        queryParams.set("seek_days", seekDays);
         queryParams.set("group", group);
+        queryParams.set("start_date", start_date);
+        queryParams.set("end_date", end_date);
 
         // Only add providers if subset is chosen
         if (selectedProviders.length > 0 && selectedProviders.length < allProviders.length) {
@@ -355,6 +421,66 @@
         }
     }
 
+    // Helper: format date as YYYY-MM-DD
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // Get start & end dates for preset ranges
+    function getDateRange(range) {
+        const today = new Date();
+        let start, end;
+
+        switch (range) {
+            case "week":
+                end = new Date(today);
+                start = new Date();
+                start.setDate(end.getDate() - 7);
+                break;
+
+            case "month":
+                end = new Date(today);
+                start = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                break;
+
+            case "quarter":
+                end = new Date(today);
+                start = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+                break;
+
+            case "2020":
+            case "2021":
+            case "2022":
+            case "2023":
+            case "2024":
+            case "2025":
+                start = new Date(parseInt(range), 0, 1);
+                end = new Date(parseInt(range), 11, 31);
+                break;
+
+            default:
+                if (range.endsWith("yearago") || range.endsWith("yearsago")) {
+                    const num = parseInt(range);
+                    start = new Date(today);
+                    start.setFullYear(today.getFullYear() - num);
+                    end = new Date(start);
+                    return {
+                        start_date: formatDate(start),
+                        end_date: formatDate(end)
+                    };
+                }
+                return null;
+        }
+
+        return {
+            start_date: formatDate(start),
+            end_date: formatDate(end)
+        };
+    }
+
     // function filterMessages() {
     //     const selectedSenders = Array.from(document.getElementById('senders').selectedOptions)
     //         .map(option => option.value);
@@ -375,15 +501,11 @@
     //     const container = document.getElementById('chatContainer');
     //     container.innerHTML = '<p>Loading memories...</p>';
     //
-    //     const date = getUrlParameter('date');
-    //     const seekDays = getUrlParameter('seek_days') || '0';
     //     const group = getUrlParameter('group') || 'true';
     //     const providers = getUrlParameter('providers') || '';
     //     const peoples = getUrlParameter('peoples') || '';
     //
     //     let queryParams = new URLSearchParams();
-    //     if (date) queryParams.set('date', date);
-    //     if (seekDays) queryParams.set('seek_days', seekDays);
     //     if (group) queryParams.set('group', group);
     //     if (providers) queryParams.set('providers', providers);
     //     if (peoples) queryParams.set('peoples', peoples);
@@ -566,6 +688,17 @@
     }
 
     document.addEventListener('DOMContentLoaded', async function () {
+        const rangeSelect = document.getElementById('range');
+        const customDateInputs = document.getElementById('customDateInputs');
+
+        rangeSelect.addEventListener('change', function () {
+            if (this.value === 'custom') {
+                customDateInputs.style.display = 'flex';
+            } else {
+                customDateInputs.style.display = 'none';
+            }
+        });
+
         const selectElement = document.getElementById('senders');
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'select-buttons';
@@ -594,7 +727,6 @@
         if (dateParam) document.getElementById('date').value = dateParam;
         const groupParam = getUrlParameter('group');
         document.getElementById('group').checked = groupParam === null || groupParam === 'true';
-        document.getElementById('seek_days').value = getUrlParameter('seek_days') ?? '0';
 
         fetch("/available_providers")
             .then(r => r.json())
@@ -646,16 +778,38 @@
     <!-- existing form unchanged -->
     <form id="memoryForm" onsubmit="return false;">
         <div class="form-group">
-            <div class="input-wrapper">
-                <i class="fas fa-calendar"></i>
-                <label for="date">Select Date:</label>
-                <input type="date" id="date" name="date" required>
+            <div class="dropdown">
+                <label for="range">📅 Select Range:</label>
+                <select id="range">
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="quarter">This Quarter</option>
+                    <option value="2020">2020</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option disabled>──────────────</option>
+                    <option value="1yearago">1 Year Ago Today</option>
+                    <option value="2yearsago">2 Years Ago Today</option>
+                    <option value="3yearsago">3 Years Ago Today</option>
+                    <option value="4yearsago">4 Years Ago Today</option>
+                    <option value="5yearsago">5 Years Ago Today</option>
+                    <option value="10yearsago">10 Years Ago Today</option>
+                    <option value="15yearsago">15 Years Ago Today</option>
+                    <option disabled>──────────────</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+
+                <div class="custom-date-range" id="customDateInputs">
+                    <label>From:</label>
+                    <input type="date" id="fromDate">
+                    <label>To:</label>
+                    <input type="date" id="toDate">
+                </div>
             </div>
-            <div class="input-wrapper">
-                <i class="fas fa-clock"></i>
-                <label for="seek_days">Seek Days:</label>
-                <input type="number" id="seek_days" name="seek_days" value="0" min="0">
-            </div>
+
             <div class="checkbox-wrapper">
                 <input type="checkbox" id="group" name="group" checked>
                 <label for="group">

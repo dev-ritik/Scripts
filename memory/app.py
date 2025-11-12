@@ -28,20 +28,21 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 async def index():
-    on_date_str = request.args.get('date')
-    seek_days = int(request.args.get('seek_days', 0))
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+    end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+    if not start_date or not end_date:
+        return render_template('index.html', events=[])
+
+    if end_date < start_date:
+        return f"Invalid date format {start_date} {end_date}", 400
+
     group = request.args.get('group', 'true') == 'true'
     providers_param = request.args.get('providers')  # comma-separated list
     peoples_param = request.args.get('peoples')  # comma-separated list
-
-    if not on_date_str:
-        return render_template('index.html', events=[])
-
-    seek_days = 0 if seek_days < 0 else seek_days
-    try:
-        on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return "Invalid date format", 400
 
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
     peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
@@ -54,8 +55,8 @@ async def index():
 
         user_regexes.append(user_profile.get('name_regex'))
 
-    events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
-                                                         on_date + timedelta(days=seek_days),
+    events = await MemoryAggregator.get_events_for_dates(start_date,
+                                                         end_date,
                                                          ignore_groups=not group,
                                                          providers=providers,
                                                          sender_regex=user_regexes)
@@ -67,20 +68,18 @@ async def index():
 
 @app.route('/chat_data')
 async def chat_data():
-    on_date_str = request.args.get('date')
-    seek_days = int(request.args.get('seek_days', 0))
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+    end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+    if not start_date or not end_date or end_date < start_date:
+        return f"Invalid date format {start_date} {end_date}", 400
+
     group = request.args.get('group', 'true') == 'true'
     providers_param = request.args.get('providers')  # comma-separated list
     peoples_param = request.args.get('peoples')  # comma-separated list
-
-    if not on_date_str:
-        return 'Invalid date format', 400
-
-    seek_days = 0 if seek_days < 0 else seek_days
-    try:
-        on_date = datetime.strptime(on_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return "Invalid date format", 400
 
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
     peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
@@ -93,8 +92,8 @@ async def chat_data():
 
         user_regexes.append(user_profile.get('name_regex'))
 
-    events = await MemoryAggregator.get_events_for_dates(on_date - timedelta(days=seek_days),
-                                                         on_date + timedelta(days=seek_days),
+    events = await MemoryAggregator.get_events_for_dates(start_date,
+                                                         end_date,
                                                          ignore_groups=not group,
                                                          providers=providers,
                                                          sender_regex=user_regexes)
@@ -172,7 +171,7 @@ async def circle_data():
         end_date,
         ignore_groups=True)
 
-    del messages_by_sender[configs.USER]
+    messages_by_sender.pop(configs.USER)
 
     message_count_by_sender = {}
     sender_weekly_counts = {}

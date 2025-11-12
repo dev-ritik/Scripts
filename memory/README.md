@@ -5,6 +5,7 @@ memory providers.
 ![image](https://github.com/user-attachments/assets/50912aff-e470-498b-a66e-331e6d005d74)
 
 ## Usage
+[Deprecated] Use the web app instead.
 `python main.py --on 27-04-2025 --seek-days 1`
 
 ## Supported Memory Providers
