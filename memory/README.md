@@ -13,11 +13,14 @@ memory providers.
 ## Planned Supported Memory Providers
 - Call logs (not exportable in Samsung)
 - Splitwise
+- iMessage
 
 ## Setup
 - Git clone the repo
 - Set up the dependencies
 - The data goes in the data/ folder
+- Create a `.env` file with the environment variables
+  - `DEBUG='True'` to enable debug mode
 ### Memory provider setup
 #### Diary
 The current implementation expects a folder with files containing the year.

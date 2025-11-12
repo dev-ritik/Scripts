@@ -723,8 +723,6 @@
         buttonContainer.appendChild(clearAllBtn);
         selectElement.parentNode.insertBefore(buttonContainer, selectElement.nextSibling);
 
-        const dateParam = getUrlParameter('date');
-        if (dateParam) document.getElementById('date').value = dateParam;
         const groupParam = getUrlParameter('group');
         document.getElementById('group').checked = groupParam === null || groupParam === 'true';
 

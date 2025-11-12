@@ -1,7 +1,11 @@
 import asyncio
+import typing
 from typing import List, Coroutine, Any
 
 import httpx
+from flask import Response, make_response
+
+import init
 
 
 async def post_with_retries(url, payload, headers, retries=3) -> httpx.Response or None:
@@ -42,3 +46,13 @@ class AsyncDownloadManager:
         results = await asyncio.gather(*self.tasks, return_exceptions=True)
         self.tasks.clear()  # reset after run
         return results
+
+
+def add_caching_to_response(response: Any, ttl_prod: int = 3600, ttl_debug: int = 5) -> Response:
+    """Add caching headers to the response"""
+    response = make_response(response)
+    if init.DEBUG:
+        response.headers["Cache-Control"] = f"public, max-age={ttl_debug}"
+    else:
+        response.headers["Cache-Control"] = f"public, max-age={ttl_prod}"
+    return response

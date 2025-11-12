@@ -8,6 +8,7 @@ import configs
 import init
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
 from provider.base_provider import MediaType
+from utils import add_caching_to_response
 
 # This should be the first line in the file. It initializes the app.
 init.init()
@@ -16,7 +17,7 @@ import mimetypes
 
 import aiofiles
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import Flask, render_template, request, send_file, make_response, jsonify
 
@@ -35,7 +36,7 @@ async def index():
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
 
     if not start_date or not end_date:
-        return render_template('index.html', events=[])
+        return add_caching_to_response(render_template('index.html', events=[]))
 
     if end_date < start_date:
         return f"Invalid date format {start_date} {end_date}", 400
@@ -63,8 +64,8 @@ async def index():
 
     events.sort(key=lambda x: x.datetime)
 
-    return render_template('index.html', events=[event.to_dict() for event in events])
-
+    return add_caching_to_response(
+        render_template('index.html', events=[event.to_dict() for event in events]))
 
 @app.route('/chat_data')
 async def chat_data():
@@ -100,7 +101,7 @@ async def chat_data():
 
     events.sort(key=lambda x: x.datetime)
 
-    return jsonify([event.to_dict() for event in events])
+    return add_caching_to_response(jsonify([event.to_dict() for event in events]))
 
 
 @app.route("/status")
@@ -134,24 +135,24 @@ async def status():
     results = await asyncio.gather(*tasks)
     providers = dict(results)
 
-    return render_template("status.html", providers=providers)
+    return add_caching_to_response(make_response(render_template("status.html", providers=providers), 20))
 
 
 @app.route("/people")
 async def people_page():
-    return render_template("people.html")
+    return add_caching_to_response(render_template("people.html"))
 
 
 @app.route("/people_data")
 async def people_data():
     data = list((await get_profile_json()).values())
     data.sort(key=lambda x: x['display_name'])
-    return jsonify(data)
+    return add_caching_to_response(jsonify(data))
 
 
 @app.route("/circles")
 def circles_page():
-    return render_template("circles.html")
+    return add_caching_to_response(render_template("circles.html"))
 
 
 @app.route("/circle_data")
@@ -171,7 +172,7 @@ async def circle_data():
         end_date,
         ignore_groups=True)
 
-    messages_by_sender.pop(configs.USER)
+    messages_by_sender.pop(configs.USER, None)
 
     message_count_by_sender = {}
     sender_weekly_counts = {}
@@ -223,7 +224,7 @@ async def circle_data():
             }
         })
 
-    return jsonify({"people": people})
+    return add_caching_to_response(jsonify({"people": people}), 3600, 30)
 
 
 @app.route("/user/stats/<name>")
@@ -315,23 +316,20 @@ async def get_user_stats(name):
         "values": [cnt for _, cnt in sorted_weeks]
     }
 
-    return jsonify({
+    return add_caching_to_response(jsonify({
         "words": most_spoken_words,
         "per_hour": per_hour,
         "per_weekday": per_weekday,
         "per_week": per_week
-    }), 200
+    }), 3600, 30)
 
 @app.route('/user/dp/<name>')
 async def user_dp(name):
     dp_path = await get_user_dp(name)
     if not dp_path:
-        return "Display picture not found", 404
+        return add_caching_to_response(("Display picture not found", 404), 60, 30)
 
-    response = make_response(send_file(dp_path))
-    # Cache for 24 hours
-    response.headers['Cache-Control'] = 'public, max-age=86400'
-    return response
+    return add_caching_to_response(send_file(dp_path), 86400)
 
 
 @app.route('/user/admin')
@@ -340,7 +338,7 @@ async def user_admin():
     if not user_profile:
         return jsonify({"error": "User not found"}), 404
 
-    return jsonify(user_profile), 200
+    return add_caching_to_response(jsonify(user_profile))
 
 @app.route('/asset/<provider>/<file_id>')
 async def asset(provider, file_id):
@@ -355,20 +353,18 @@ async def asset(provider, file_id):
     asset, mime_type = await MemoryAggregator.get_instance().get_asset(provider, file_id)
     if not asset:
         return "Asset not found", 404
-    # Cache for 24 hours
     response = make_response(asset)
-    response.headers['Cache-Control'] = 'public, max-age=86400'
     response.headers['Content-Type'] = mime_type
     # with open('test_image.webp', 'wb') as f:
     #     f.write(asset)
-    return response
+    return add_caching_to_response(response, 86400, 15)
 
 
 @app.route('/available_providers')
 async def get_available_providers():
-    return [(provider_name, instance.get_logo()) for provider_name, instance in
+    return add_caching_to_response([(provider_name, instance.get_logo()) for provider_name, instance in
             MemoryAggregator.get_instance().providers.items() if
-            instance.is_working()]
+                                    instance.is_working()], 10)
 
 if __name__ == '__main__':
     app.run(debug=True)
