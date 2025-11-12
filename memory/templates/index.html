@@ -30,6 +30,36 @@
             font-size: 12px;
             margin: 15px 0;
         }
+        .providers-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .provider-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            cursor: pointer;
+            background-color: #fff;
+            transition: background 0.2s;
+        }
+        .provider-option:hover {
+            background-color: #f5f5f5;
+        }
+        .provider-option.selected {
+            background-color: #d9f7d9;
+            border-color: #52c41a;
+        }
+        .provider-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
         .event {
             display: flex;
             align-items: flex-start;
@@ -289,9 +319,10 @@
         const date = document.getElementById('date').value;
         const seekDays = document.getElementById('seek_days').value;
         const group = document.getElementById('group').checked;
-        const providerSelect = document.getElementById("providers");
-        const allProviders = Array.from(providerSelect.options).map(opt => opt.value);
-        const selectedProviders = Array.from(providerSelect.selectedOptions).map(opt => opt.value);
+        const allProviders = Array.from(document.querySelectorAll('.provider-option'))
+            .map(el => el.textContent.trim());
+        const selectedProviders = Array.from(document.querySelectorAll('.provider-option.selected'))
+            .map(el => el.textContent.trim());
         const selectedPeoples = Array.from(document.getElementById('senders').selectedOptions).map(opt => opt.value);
 
         let queryParams = new URLSearchParams();
@@ -568,15 +599,31 @@
         fetch("/available_providers")
             .then(r => r.json())
             .then(providers => {
-                const providerSelect = document.getElementById("providers");
+                const container = document.getElementById("providersContainer");
                 const urlProvidersParam = getUrlParameter('providers');
                 const selectedProviders = urlProvidersParam ? urlProvidersParam.split(",") : [];
+
                 providers.forEach(provider => {
-                    const option = document.createElement("option");
-                    option.value = provider;
-                    option.textContent = provider;
-                    if (selectedProviders.includes(provider)) option.selected = true;
-                    providerSelect.appendChild(option);
+                    const optionDiv = document.createElement("div");
+                    optionDiv.className = "provider-option";
+                    if (selectedProviders.includes(provider)) optionDiv.classList.add("selected");
+
+                    const img = document.createElement("img");
+                    img.className = "provider-logo";
+                    img.src = provider[1]
+                    img.onerror = () => img.style.display = "none";
+
+                    const label = document.createElement("span");
+                    label.textContent = provider[0];
+
+                    optionDiv.appendChild(img);
+                    optionDiv.appendChild(label);
+
+                    optionDiv.onclick = () => {
+                        optionDiv.classList.toggle("selected");
+                    };
+
+                    container.appendChild(optionDiv);
                 });
             });
 
@@ -626,7 +673,7 @@
             <div class="select-wrapper">
                 <i class="fas fa-database"></i>
                 <label for="providers">Select Providers:</label>
-                <select id="providers" name="providers" multiple></select>
+                <div id="providersContainer" class="providers-container"></div>
             </div>
         </div>
         <div class="button-group">

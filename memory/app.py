@@ -44,7 +44,7 @@ async def index():
         return "Invalid date format", 400
 
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
-    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else None
+    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
 
     user_regexes = []
     for people in peoples:
@@ -83,7 +83,7 @@ async def chat_data():
         return "Invalid date format", 400
 
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
-    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else None
+    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
 
     user_regexes = []
     for people in peoples:
@@ -367,7 +367,8 @@ async def asset(provider, file_id):
 
 @app.route('/available_providers')
 async def get_available_providers():
-    return [provider_name for provider_name, instance in MemoryAggregator.get_instance().providers.items() if
+    return [(provider_name, instance.get_logo()) for provider_name, instance in
+            MemoryAggregator.get_instance().providers.items() if
             instance.is_working()]
 
 if __name__ == '__main__':
