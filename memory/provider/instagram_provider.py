@@ -104,23 +104,21 @@ class InstagramProvider(MemoryProvider):
             share_link = f"{message.get('share', {}).get('link', '')}"
             share_caption = f"{message.get('share', {}).get('share_text', '')}"
             share_text = f"{share_caption}{" " if share_link else ""}{share_link}"
-            assets = message.get('photos', []) + message.get('videos', [])
+            assets = message.get('photos', []) + message.get('videos', []) + message.get('audio_files', [])
             contexts = []
-            if assets:
-                for asset in assets:
-                    asset = asset.get('uri', '')
-                    if not asset.startswith('your_instagram_activity/messages/inbox/'):
-                        print("Invalid photo path")
-                        continue
-                    else:
-                        photo_id = asset[len('your_instagram_activity/messages/inbox/'):]
-                        asset_id = InstagramProvider.generate_asset_id(photo_id)
-                        photo_path = InstagramProvider.get_file_path(file_id=photo_id)
-                        contexts.append({
-                            "asset_id": asset_id,
-                            "mime_type": mimetypes.guess_type(photo_path)[0],
-                            "new_tab_url": f'/asset/{InstagramProvider.NAME}/{asset_id}'
-                        })
+            for asset in assets:
+                asset = asset.get('uri', '')
+                if not asset.startswith('your_instagram_activity/messages/inbox/'):
+                    print("Invalid asset path")
+                    continue
+                dump_asset_id = asset[len('your_instagram_activity/messages/inbox/'):]
+                parsable_asset_id = InstagramProvider.generate_asset_id(dump_asset_id)
+                asset_path = InstagramProvider.get_file_path(file_id=dump_asset_id)
+                contexts.append({
+                    "asset_id": parsable_asset_id,
+                    "mime_type": mimetypes.guess_type(asset_path)[0],
+                    "new_tab_url": f'/asset/{InstagramProvider.NAME}/{parsable_asset_id}'
+                })
             text = f"{text if text else ""}{" " if text and share_text else ""}{share_text}"
             if not text and not contexts:
                 continue
