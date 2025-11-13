@@ -234,25 +234,6 @@ class WhatsAppProvider(MemoryProvider):
         print("Done fetching from Whatsapp")
         return memories
 
-    # async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
-    #         List[Message]:
-    #     return await self.fetch(on_date=on_date, ignore_groups=ignore_groups)
-
-    # async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-    #                       senders: List[str] = None) -> Dict[datetime.date, List[Message]]:
-    #     results: Dict[date, List[Message]] = {}
-    #     all_messages = await self.fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups)
-    #     for msg in all_messages:
-    #         msg_date = msg.datetime.date()
-    #         if start_date <= msg_date <= end_date:
-    #             results.setdefault(msg_date, []).append(msg)
-    #
-    #         # Sort messages within each date
-    #     for msgs in results.values():
-    #         msgs.sort(key=lambda m: m.datetime)
-    #
-    #     return results
-
     @staticmethod
     def generate_asset_id(chat_name, file_name) -> str:
         return f"{chat_name}___{file_name}"

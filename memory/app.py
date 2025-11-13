@@ -256,6 +256,7 @@ async def get_user_stats(name):
         sender_regex=user_regex)
 
     if not messages_by_sender:
+        print(f"No messages found for user {user_profile.get('display_name')}")
         return jsonify({"error": "User has no data in the period"}), 404
 
     assert len(messages_by_sender) == 1, f"Expected only one sender got {messages_by_sender.keys()} {user_regex}"
