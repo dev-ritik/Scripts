@@ -41,9 +41,9 @@ class MemoryAggregator:
         return events
 
     async def aggregate_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                              providers: List[str] = None, sender_regex=None) -> List[Message]:
+                              providers: List[str] = None, senders=None) -> List[Message]:
         available_providers = providers or self.providers.keys()
-        senders = [sender_regex] if sender_regex and isinstance(sender_regex, str) else sender_regex
+        senders = [senders] if senders and isinstance(senders, str) else senders
         tasks = [
             self.providers.get(provider).fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups,
                                                senders=senders) for provider in available_providers
@@ -70,9 +70,9 @@ class MemoryAggregator:
 
     @staticmethod
     async def get_events_for_dates(start_date: date, end_date: date, ignore_groups: bool = False,
-                                   providers: List[str] = None, sender_regex=None) -> List[Message]:
+                                   providers: List[str] = None, senders=None) -> List[Message]:
         aggregator = MemoryAggregator.get_instance()
-        events = await aggregator.aggregate_dates(start_date, end_date, ignore_groups, providers, sender_regex)
+        events = await aggregator.aggregate_dates(start_date, end_date, ignore_groups, providers, senders)
         # TODO: Remove traditional name with display name if it is in profile.json
         for event in events:
             if display_name := await get_display_name_from_name(event.sender):
@@ -86,9 +86,9 @@ class MemoryAggregator:
                                      ignore_media_type: MediaType = None,
                                      ignore_groups: bool = False,
                                      providers: List[str] = None,
-                                     sender_regex=None) -> Dict[str, List[Message]]:
+                                     senders=None) -> Dict[str, List[Message]]:
         messages_by_sender = defaultdict(list)
-        messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers, sender_regex)
+        messages = await MemoryAggregator.get_events_for_dates(start_date, end_date, ignore_groups, providers, senders)
         for message in messages:
             if not message.sender:
                 continue

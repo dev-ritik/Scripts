@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 
 import aiofiles
 
+from profile import get_regex_from_name
 from provider.base_provider import MemoryProvider, MessageType, MediaType, Message
 
 
@@ -46,7 +47,7 @@ class WhatsAppProvider(MemoryProvider):
     @staticmethod
     async def parse_whatsapp_chat(file_path: str, on_date: Optional[date] = None, start_date: Optional[date] = None,
                                   end_date: Optional[date] = None, ignore_groups: bool = False,
-                                  senders: List[str] = None) -> List[Message]:
+                                  sender_regexes: List[str] = None) -> List[Message]:
         chat_entries = []
 
         media_included = not file_path.endswith('.txt')
@@ -81,13 +82,13 @@ class WhatsAppProvider(MemoryProvider):
         if is_group and ignore_groups:
             return []
 
-        if not is_group and senders:
+        if not is_group and sender_regexes:
             # Skip chat if none of the participants match the provided sender regex patterns in case of DM
-            if not MemoryProvider._sender_matched(chat_name, senders) and not MemoryProvider._sender_matched(
-                    WhatsAppProvider.USER, senders):
+            if not MemoryProvider._sender_matched(chat_name, sender_regexes) and not MemoryProvider._sender_matched(
+                    WhatsAppProvider.USER, sender_regexes):
                 return []
 
-        # Early exit if date is out of range
+        # Early exit if the date is out of range
         first_date, last_date = index_datetime_pairs[0][1], index_datetime_pairs[-1][1]
         if on_date and (on_date < first_date or on_date > last_date):
             return []
@@ -137,7 +138,7 @@ class WhatsAppProvider(MemoryProvider):
         def _process_buffer():
             if not message_buffer:
                 return
-            if senders and (not current_sender or not MemoryProvider._sender_matched(current_sender, senders)):
+            if sender_regexes and (not current_sender or not MemoryProvider._sender_matched(current_sender, sender_regexes)):
                 return
             nonlocal is_group
             context = {}
@@ -212,6 +213,7 @@ class WhatsAppProvider(MemoryProvider):
                     ignore_groups: bool = False,
                     senders: List[str] = None) -> List[Message]:
         print(f"Starting to fetch from WhatsApp {on_date=} {start_date=} {end_date=}")
+        sender_regexes = [await get_regex_from_name(sender) for sender in senders] if senders else None
 
         memories = []
         tasks = []
@@ -221,7 +223,7 @@ class WhatsAppProvider(MemoryProvider):
 
             tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date=on_date,
                                                   start_date=start_date, end_date=end_date,
-                                                  ignore_groups=ignore_groups, senders=senders))
+                                                  ignore_groups=ignore_groups, sender_regexes=sender_regexes))
 
         # Run parsing concurrently
         results = await asyncio.gather(*tasks)

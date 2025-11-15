@@ -3,6 +3,7 @@ from provider.google_photos_provider import GooglePhotosProvider
 from provider.immich_provider import ImmichProvider
 from provider.instagram_provider import InstagramProvider
 from provider.whatsapp_provider import WhatsAppProvider
+from provider.imessage_provider import IMessageProvider
 
 # This file has all the customizations for setups
 
@@ -13,7 +14,8 @@ AVAILABLE_PROVIDERS = [
     InstagramProvider,
     DiaryProvider,
     ImmichProvider,
-    GooglePhotosProvider
+    GooglePhotosProvider,
+    IMessageProvider,
 ]
 
 # These are the words that are removed from the most common words list

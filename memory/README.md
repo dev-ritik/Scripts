@@ -13,7 +13,6 @@ memory providers.
 ## Planned Supported Memory Providers
 - Call logs (not exportable in Samsung)
 - Splitwise
-- iMessage
 
 ## Setup
 - Git clone the repo
@@ -83,6 +82,21 @@ print(loop.run_until_complete(provider.setup(create_new_session=False)))
 ```
 - Large files can readily bloat the local assets folder
 
+#### iMessage
+We shall be using the unencrypted iMessage database (on mac) to get the messages.
+- Connect your iPhone to your Mac using USB 
+- Open Finder
+- In the left sidebar, click your iPhone under `Locations`
+- In the “Backups” section:
+  - UNCHECK: Encrypt local backup 
+  - If it was checked earlier, macOS will ask for your old password. 
+- Click `Apply` and/or `Back Up Now`
+- Open the path `~/Library/Application Support/MobileSync/Backup/` in finder
+- Rename the file `3d/3d0d7e5fb2ce288813306e4d4636395e047a3d28` as sms.db
+- Copy the sms.db file to the `data/imessage` folder here
+- Update the `profile.json` with `provider_details.imessage.chat_identifier` and add all the different `chat_identifier` from the `chat` table to label the chats
+
+
 ### Web app setup
 - Run `pip install -r requirements.txt`
 - `python app.py`
@@ -100,6 +114,10 @@ Wanna make the UI for the web app more elegant? Add `profile.json` to the data f
     "provider_details": {
       "immich": {
         "person_id": "" // Used to filter immich message by people. Use /api/people to get the person_id
+      },
+      "imessage": {
+        "chat_identifier": [
+        ]
       }
     }
   }

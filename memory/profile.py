@@ -1,6 +1,6 @@
 import json
 import re
-from typing import List
+from typing import List, Dict
 
 import aiofiles
 
@@ -71,6 +71,12 @@ async def get_display_name_from_name(name):
 
     return NAME_TO_DISPLAY_NAME.get(name)
 
+async def get_regex_from_name(_name):
+    user_profile = await get_user_profile_from_name(_name)
+    if not user_profile:
+        raise ValueError("User not found")
+    return user_profile.get('name_regex')
+
 
 async def get_immich_ids_from_senders(senders: List[str]) -> List[str]:
     profile_json = await get_profile_json()
@@ -83,3 +89,13 @@ async def get_immich_ids_from_senders(senders: List[str]) -> List[str]:
         if immich_id:
             immich_ids.append(immich_id)
     return immich_ids
+
+
+async def get_all_imessage_chat_ids_from_senders() -> Dict[str, list]:
+    profile_json = await get_profile_json()
+    chat_identifiers = {}
+    for sender, user_profile in profile_json.items():
+        chat_identifier: list = user_profile.get('provider_details', {}).get('imessage', {}).get('chat_identifier', [])
+        if chat_identifier:
+            chat_identifiers[sender] = chat_identifier
+    return chat_identifiers

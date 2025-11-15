@@ -52,13 +52,16 @@ class Message:
             'media_type': self.media_type.value,
         }
 
+    def __str__(self):
+        return f"{self.datetime} - {self.sender}: {self.message}"
+
 class MemoryProvider(ABC):
     NAME = None
     SYSTEM = 'system'
     UNKNOWN = 'unknown'
 
     @staticmethod
-    def _sender_matched(sender, allowed_senders):
+    def _sender_matched(sender, allowed_senders: List[str]):
         for pattern in allowed_senders:
             if re.search(pattern, sender, re.IGNORECASE):
                 return True
@@ -77,7 +80,7 @@ class MemoryProvider(ABC):
         Get all messages on the on_date. This is deprecated. Use fetch() instead.
         :param on_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
-        :param senders: Only fetch messages from these senders (in regex)
+        :param senders: Only fetch messages from these senders
         :return: List of messages on the date
         """
         return await self.fetch(on_date=on_date, ignore_groups=ignore_groups, senders=senders)
@@ -93,7 +96,7 @@ class MemoryProvider(ABC):
         :param end_date: Larger date (inclusive)
         :param on_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
-        :param senders: Only fetch messages from these senders (in regex)
+        :param senders: Only fetch messages from these senders
         :return: List of messages on the date
         """
         if on_date:
@@ -115,7 +118,7 @@ class MemoryProvider(ABC):
         :param start_date: Smaller date (inclusive)
         :param end_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
-        :param senders: Only fetch messages from these senders (in regex)
+        :param senders: Only fetch messages from these senders
         :return: Dict of dates and messages for each date
         """
         tasks = []

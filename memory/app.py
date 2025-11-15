@@ -48,19 +48,16 @@ async def index():
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
     peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
 
-    user_regexes = []
     for people in peoples:
         user_profile = await get_user_profile_from_name(people)
         if not user_profile:
             return jsonify({"error": "User not found"}), 404
 
-        user_regexes.append(user_profile.get('name_regex'))
-
     events = await MemoryAggregator.get_events_for_dates(start_date,
                                                          end_date,
                                                          ignore_groups=not group,
                                                          providers=providers,
-                                                         sender_regex=user_regexes)
+                                                         senders=peoples)
 
     events.sort(key=lambda x: x.datetime)
 
@@ -85,19 +82,16 @@ async def chat_data():
     providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
     peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
 
-    user_regexes = []
     for people in peoples:
         user_profile = await get_user_profile_from_name(people)
         if not user_profile:
             return jsonify({"error": "User not found"}), 404
 
-        user_regexes.append(user_profile.get('name_regex'))
-
     events = await MemoryAggregator.get_events_for_dates(start_date,
                                                          end_date,
                                                          ignore_groups=not group,
                                                          providers=providers,
-                                                         sender_regex=user_regexes)
+                                                         senders=peoples)
 
     events.sort(key=lambda x: x.datetime)
 
@@ -247,13 +241,12 @@ async def get_user_stats(name):
     if not user_profile:
         return jsonify({"error": "User not found"}), 404
 
-    user_regex = user_profile.get('name_regex')
     messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(
         start_date,
         end_date,
         ignore_groups=True,
         ignore_media_type=MediaType.NON_TEXT,
-        sender_regex=user_regex)
+        senders=name)
 
     if not messages_by_sender:
         print(f"No messages found for user {user_profile.get('display_name')}")
