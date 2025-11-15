@@ -269,7 +269,7 @@ async def get_user_stats(name):
                 continue
             words_counter[w] += 1
 
-    most_spoken_words = words_counter.most_common(18)
+    most_spoken_words = words_counter.most_common(30)
 
     # -------------------------------
     # 2️⃣ MESSAGES PER HOUR OF DAY
