@@ -4,7 +4,7 @@ from datetime import date
 from threading import Lock
 from typing import List, Dict, Optional
 
-from configs import AVAILABLE_PROVIDERS
+from configs import get_available_providers
 from profile import get_display_name_from_name
 from provider.base_provider import MemoryProvider, Message, MediaType
 
@@ -18,7 +18,7 @@ class MemoryAggregator:
             return
         self.providers: Dict[str, MemoryProvider] = {}
 
-        for provider in AVAILABLE_PROVIDERS:
+        for provider in get_available_providers():
             self.providers[provider.NAME] = provider()
         self._initialized = True
 

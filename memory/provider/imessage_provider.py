@@ -2,12 +2,14 @@ import sqlite3
 from datetime import datetime, date
 from typing import List, Tuple, Optional
 
+from configs import USER
 from profile import get_all_imessage_chat_ids_from_senders
 from provider.base_provider import MemoryProvider, Message, MediaType, MessageType
 
 
 class IMessageProvider(MemoryProvider):
     NAME = "iMessage"
+    USER = 'Ritik'
 
     IMESSAGE_PATH = 'data/imessage'
     APPLE_EPOCH = datetime(2001, 1, 1)
@@ -73,7 +75,7 @@ class IMessageProvider(MemoryProvider):
             variable_text_length, offset = IMessageProvider._read_apple_length(blob, constant_stuff_length)
             text = blob[offset: offset + variable_text_length]
             if text:
-                text = text.decode('utf-8').strip().removeprefix('\ufffc')
+                text = text.decode('utf-8').strip().replace('\ufffc', '').replace('\uFFFC', '')
                 return text
             else:
                 raise Exception("EMPTY ATTRIBUTED BODY")
@@ -95,14 +97,18 @@ class IMessageProvider(MemoryProvider):
     async def fetch(self, on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
-                    ignore_groups: bool = False, senders: List[str] = None) -> List[Message]:
+                    ignore_groups: bool = False,
+                    senders: List[str] = None) -> List[Message]:
         print("Starting to fetch from iMessage")
         messages = []
         start_ns = self.to_apple_time(datetime.combine(start_date, datetime.min.time()))
         end_ns = self.to_apple_time(datetime.combine(end_date, datetime.max.time()))
 
         sender_chat_identifiers = await get_all_imessage_chat_ids_from_senders()
-        if senders:
+        if senders and not USER in senders:
+            # Get messages from only the requested senders
+            # Since this is admin's own messages, we should get all messages from all senders if admin is in requested senders
+
             requested_chat_identifiers = {}
             for sender in senders:
                 if sender in sender_chat_identifiers:
@@ -134,6 +140,7 @@ class IMessageProvider(MemoryProvider):
                        m.date,
                        m.guid,
                        m.account,
+                       c.chat_identifier,
                        datetime(m.date / 1000000000 + strftime('%s', '2001-01-01'), 'unixepoch') AS timestamp,
     m.is_from_me,
     m.service,
@@ -177,12 +184,16 @@ class IMessageProvider(MemoryProvider):
             # print("Timestamp:", row["timestamp"])
             _dt = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
             user_id = row["handle_identifier"] if row["handle_identifier"] and row["handle_identifier"] != 0 else row[
-                "account"]
-            message_type = MessageType.SENT if row["is_from_me"] == 1 else MessageType.RECEIVED
-            if user_id in chat_identifier_sender:
-                sender_name = chat_identifier_sender[user_id]
+                'chat_identifier']
+            if row["is_from_me"] == 1:
+                message_type = MessageType.SENT
+                sender_name = self.USER
             else:
-                sender_name = user_id
+                message_type = MessageType.RECEIVED
+                sender_name = chat_identifier_sender[user_id]
+
+            if senders and sender_name not in senders:
+                continue
             # print("Service:", row["service"])
             # print("Has Attachments:", row["cache_has_attachments"])
 
@@ -194,7 +205,6 @@ class IMessageProvider(MemoryProvider):
             #     print("  Original Name:", row["attachment_original_name"])
 
             if not sender_name:
-                # TODO: Somehow this is linked to the chat identifier. Dont know how to fix this yet.
                 continue
 
             messages.append(
@@ -233,7 +243,44 @@ class IMessageProvider(MemoryProvider):
         return chat_identifiers
 
     async def get_start_end_date(self) -> Tuple[date | None, date | None]:
-        pass
+        sender_chat_identifiers = await get_all_imessage_chat_ids_from_senders()
+
+        # Create a reverse mapping of chat_identifier to sender
+        all_chat_identifiers = []
+        for sender, chat_identifiers in sender_chat_identifiers.items():
+            all_chat_identifiers.extend(chat_identifiers)
+
+        if len(all_chat_identifiers) == 0:
+            return None, None
+
+        chat_identifiers = f"('{"','".join(all_chat_identifiers)}')"
+
+        query = f"""
+                SELECT MIN(timestamp) AS min_timestamp,
+                       MAX(timestamp) AS max_timestamp
+                FROM (SELECT datetime(
+                                     m.date / 1000000000 + strftime('%s', '2001-01-01'),
+                                     'unixepoch'
+                             ) AS timestamp
+                      FROM message m
+                          JOIN chat_message_join cmj
+                      ON cmj.message_id = m.ROWID
+                          JOIN chat c ON c.ROWID = cmj.chat_id
+                      WHERE c.chat_identifier IN {chat_identifiers});
+                """
+
+        rows = IMessageProvider.query_sms_db(query, ())
+        if not rows or not len(rows) == 1:
+            return None, None
+        row = rows[0]
+        min_timestamp = row['min_timestamp']
+        max_timestamp = row['max_timestamp']
+        if min_timestamp and max_timestamp:
+            min_date = datetime.strptime(min_timestamp, "%Y-%m-%d %H:%M:%S")
+            max_date = datetime.strptime(max_timestamp, "%Y-%m-%d %H:%M:%S")
+            return min_date.date(), max_date.date()
+        return None, None
+
 
     async def get_asset(self, asset_id: str) -> List[str] or None:
         pass

@@ -5,3 +5,4 @@ aiofiles
 httpx
 google-auth-oauthlib
 google
+sqlite3

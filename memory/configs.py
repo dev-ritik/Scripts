@@ -1,22 +1,24 @@
-from provider.diary_provider import DiaryProvider
-from provider.google_photos_provider import GooglePhotosProvider
-from provider.immich_provider import ImmichProvider
-from provider.instagram_provider import InstagramProvider
-from provider.whatsapp_provider import WhatsAppProvider
-from provider.imessage_provider import IMessageProvider
-
 # This file has all the customizations for setups
 
 USER = "Ritik"
 
-AVAILABLE_PROVIDERS = [
-    WhatsAppProvider,
-    InstagramProvider,
-    DiaryProvider,
-    ImmichProvider,
-    GooglePhotosProvider,
-    IMessageProvider,
-]
+
+def get_available_providers() -> list:
+    from provider.diary_provider import DiaryProvider
+    from provider.google_photos_provider import GooglePhotosProvider
+    from provider.immich_provider import ImmichProvider
+    from provider.instagram_provider import InstagramProvider
+    from provider.whatsapp_provider import WhatsAppProvider
+    from provider.imessage_provider import IMessageProvider
+
+    return [
+        WhatsAppProvider,
+        InstagramProvider,
+        DiaryProvider,
+        ImmichProvider,
+        GooglePhotosProvider,
+        IMessageProvider,
+    ]
 
 # These are the words that are removed from the most common words list
 # Should be in lowercase
