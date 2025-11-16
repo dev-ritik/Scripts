@@ -95,7 +95,12 @@ We shall be using the unencrypted iMessage database (on mac) to get the messages
 - Rename the file `3d/3d0d7e5fb2ce288813306e4d4636395e047a3d28` as sms.db
 - Copy the sms.db file to the `data/imessage` folder here
 - Update the `profile.json` with `provider_details.imessage.chat_identifier` and add all the different `chat_identifier` from the `chat` table to label the chats
-
+- Attachments are stored in metadata.db. Copy the same to the `data/imessage` folder (only needed for attachments setup. Not needed for the web app)
+- Make appropriate modifications and run `IMessageProvider.get_script_for_attachment()`
+  - This shall give you a script `copy_attachments.sh`
+  - Copy this script to mac and run it
+    - If `cp` fails with `Operation not permitted`, you may need to give full system access to the terminal
+  - Copy the generated attachments folder to the `data/imessage/` folder
 
 ### Web app setup
 - Run `pip install -r requirements.txt`

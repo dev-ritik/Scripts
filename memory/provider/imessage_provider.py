@@ -1,6 +1,10 @@
+import mimetypes
+import os
 import sqlite3
 from datetime import datetime, date
 from typing import List, Tuple, Optional
+
+import aiofiles
 
 from configs import USER
 from profile import get_all_imessage_chat_ids_from_senders
@@ -84,8 +88,12 @@ class IMessageProvider(MemoryProvider):
             raise e
 
     @staticmethod
-    def query_sms_db(query, params):
-        conn = sqlite3.connect(f'{IMessageProvider.IMESSAGE_PATH}/sms.db')
+    def _list_to_query_string(lst):
+        return f"('{"','".join(lst)}')"
+
+    @staticmethod
+    def query_db_db(query, params, db_name='sms.db'):
+        conn = sqlite3.connect(f'{IMessageProvider.IMESSAGE_PATH}/{db_name}')
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
@@ -93,6 +101,14 @@ class IMessageProvider(MemoryProvider):
         conn.close()
 
         return rows
+
+    @staticmethod
+    def query_sms_db(query, params):
+        return IMessageProvider.query_db_db(query, params, 'sms.db')
+
+    @staticmethod
+    def query_manifest_db(query, params):
+        return IMessageProvider.query_db_db(query, params, 'Manifest.db')
 
     async def fetch(self, on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
@@ -129,7 +145,7 @@ class IMessageProvider(MemoryProvider):
 
         if len(chat_identifiers) == 0:
             return []
-        chat_identifiers = f"('{"','".join(chat_identifiers)}')"
+        chat_identifiers = IMessageProvider._list_to_query_string(chat_identifiers)
 
         query = f"""
                 SELECT m.ROWID          AS message_id,
@@ -177,10 +193,6 @@ class IMessageProvider(MemoryProvider):
         for row in rows:
             # print(row['guid'])
             text = row["message_text"] or IMessageProvider._decode_attributed_body(row["attributed_body"])
-            if not text:
-                # TODO: Add support for attachments
-                # TODO: Add support for emoji reactions
-                continue
             # print("Timestamp:", row["timestamp"])
             _dt = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
             user_id = row["handle_identifier"] if row["handle_identifier"] and row["handle_identifier"] != 0 else row[
@@ -196,14 +208,18 @@ class IMessageProvider(MemoryProvider):
                 continue
             # print("Service:", row["service"])
             # print("Has Attachments:", row["cache_has_attachments"])
-
-            # if row["attachment_id"]:
-            #     print("  --- Attachment ---")
-            #     print("  Attachment ID:", row["attachment_id"])
-            #     print("  Filename:", row["attachment_filename"])
-            #     print("  MIME:", row["attachment_mime"])
-            #     print("  Original Name:", row["attachment_original_name"])
-
+            context = {}
+            if row["attachment_id"]:
+                parsable_asset_id = IMessageProvider.get_serialized_asset_path(
+                    row["attachment_filename"].replace("~/Library/SMS/Attachments/", ""))
+                context = {
+                    "asset_id": parsable_asset_id,
+                    "mime_type": row["attachment_mime"],
+                    "new_tab_url": f'/asset/{IMessageProvider.NAME}/{parsable_asset_id}'
+                }
+            if not text and not context:
+                # TODO: Add support for emoji reactions
+                continue
             if not sender_name:
                 continue
 
@@ -215,8 +231,8 @@ class IMessageProvider(MemoryProvider):
                     sender=sender_name,
                     provider=IMessageProvider.NAME,
                     chat_name=sender_name,
-                    media_type=MediaType.TEXT,  # TODO: Fix
-                    context={},  # TODO: Add more details
+                    media_type=MediaType.TEXT if not context else MediaType.MIXED,
+                    context=context,
                     is_group=False  # TODO: Fix
                 )
             )
@@ -253,7 +269,7 @@ class IMessageProvider(MemoryProvider):
         if len(all_chat_identifiers) == 0:
             return None, None
 
-        chat_identifiers = f"('{"','".join(all_chat_identifiers)}')"
+        chat_identifiers = IMessageProvider._list_to_query_string(all_chat_identifiers)
 
         query = f"""
                 SELECT MIN(timestamp) AS min_timestamp,
@@ -281,6 +297,95 @@ class IMessageProvider(MemoryProvider):
             return min_date.date(), max_date.date()
         return None, None
 
+    @staticmethod
+    def get_serialized_asset_path(asset_path) -> str:
+        return asset_path.strip().replace('/', '___').replace(' ', '---')
+
+    @staticmethod
+    def get_deserialized_asset_path(serialized_asset_path: str) -> str:
+        return serialized_asset_path.strip().replace('___', '/').replace('---', ' ')
+
+    @staticmethod
+    async def get_script_for_attachment():
+        """
+        Given a list of chat_identifiers, extract attachment relative paths,
+        map them to fileIDs from the iPhone Manifest.db,
+        and generate a copy script to pull attachments into ./attachments/
+
+        Note: If cp fails with `Operation not permitted`, you may need to give full system access to the terminal
+        """
+
+        sender_chat_identifiers = await get_all_imessage_chat_ids_from_senders()
+        BACKUP_ROOT_FOLDER = "00008140-000C482014D1801C"  # Configure
+
+        # Create a reverse mapping of chat_identifier to sender
+        all_chat_identifiers = []
+        for sender, chat_identifiers in sender_chat_identifiers.items():
+            all_chat_identifiers.extend(chat_identifiers)
+
+        if len(all_chat_identifiers) == 0:
+            return None, None
+
+        # -----------------------------
+        # 1. FETCH RELATIVE PATHS FROM sms.db
+        # -----------------------------
+        query = f"""
+            SELECT a.filename AS rel_path
+            FROM message m
+            JOIN chat_message_join cmj ON cmj.message_id = m.ROWID
+            JOIN chat c2 ON cmj.chat_id = c2.ROWID
+            JOIN message_attachment_join maj ON maj.message_id = m.ROWID
+            JOIN attachment a ON a.ROWID = maj.attachment_id
+            WHERE c2.chat_identifier IN {IMessageProvider._list_to_query_string(all_chat_identifiers)}
+            """
+
+        rel_paths = {row["rel_path"] for row in IMessageProvider.query_sms_db(query, ())}
+        rel_paths = {p[2:] if p.startswith("~/") else p for p in rel_paths}
+
+        # -----------------------------
+        # 2. MAP RELATIVE PATH → fileID FROM Manifest.db
+        # -----------------------------
+        query2 = f"""
+            SELECT fileID, relativePath
+            FROM Files
+            WHERE relativePath IN {IMessageProvider._list_to_query_string(rel_paths)}
+            """
+
+        rows = IMessageProvider.query_manifest_db(query2, ())
+
+        # Build mapping
+        mapping = {row["relativePath"]: row["fileID"] for row in rows}
+
+        # -----------------------------
+        # 3. WRITE SHELL SCRIPT
+        # -----------------------------
+        output_shell = "copy_attachments.sh"
+        with open(output_shell, "w") as f:
+            f.write("#!/bin/bash\n\n")
+            f.write("mkdir -p attachments\n\n")
+
+            for rel, fid in mapping.items():
+                subdir = fid[:2]
+                src = os.path.join(f"~/Library/Application\\ Support/MobileSync/Backup/{BACKUP_ROOT_FOLDER}", subdir,
+                                   fid)
+                dst_rel = rel.replace("Library/SMS/Attachments/", "")
+                dst_rel_serialized = IMessageProvider.get_serialized_asset_path(dst_rel)
+                dst = f"attachments/{dst_rel_serialized}"
+                f.write(f"cp {src} {dst}\n\n")
+
+        print(f"Generated {output_shell}")
+        print(f"Found {len(mapping)} attachments")
 
     async def get_asset(self, asset_id: str) -> List[str] or None:
-        pass
+        media_file_path = f'{self.IMESSAGE_PATH}/attachments/{asset_id}'
+        if not os.path.exists(media_file_path):
+            raise FileNotFoundError(f"{media_file_path} does not exist")
+
+        mime_type, _ = mimetypes.guess_type(media_file_path)
+        if mime_type is None:
+            raise ValueError("Could not determine MIME type")
+
+        async with aiofiles.open(media_file_path, "rb") as media_file:
+            media_data = await media_file.read()
+        return media_data, mime_type
+
