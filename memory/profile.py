@@ -24,30 +24,37 @@ async def get_profile_json():
     return PROFILE_DATA
 
 
-def is_sender_profile(profile_data, name):
+def is_sender_profile(profile_data, name, use_regex=False):
     if not profile_data:
         return False
-    # Return true if name regex matches name
-    if not (pattern := profile_data.get('name_regex')):
-        return False
-    # Compile the regex pattern if it's a string, then match
-    if isinstance(pattern, str):
-        return bool(re.match(pattern, name))
-    # If it's already a compiled pattern, use it directly
-    return bool(pattern.match(name))
+
+    if profile_data["display_name"].lower() == name.lower():
+        return True
+
+    if use_regex and profile_data.get('name_regex'):
+        # Return true if name regex matches name
+        pattern = profile_data.get('name_regex')
+        # Compile the regex pattern if it's a string, then match
+        if isinstance(pattern, str):
+            return bool(re.match(pattern, name))
+        # If it's already a compiled pattern, use it directly
+        return bool(pattern.match(name))
+
+    return False
 
 
-async def get_user_profile_from_name(name):
+async def get_user_profile_from_name(name, use_regex=False):
     return next(
-        (profile_data for profile_data in (await get_profile_json()).values() if is_sender_profile(profile_data, name)),
+        (profile_data for profile_data in (await get_profile_json()).values() if
+         is_sender_profile(profile_data, name, use_regex=use_regex)),
         None)
 
 
-async def get_user_dp(name):
+async def get_user_dp(name, use_regex=False):
     global NAME_TO_DISPLAY_NAME
     global NON_IDENTIFIED_NAMES
 
-    display_name = await get_display_name_from_name(name)
+    display_name = await get_display_name_from_name(name, use_regex=use_regex)
     if not display_name:
         return None
 
@@ -55,7 +62,7 @@ async def get_user_dp(name):
     return f'data/dp/{user_profile["dp"]}' if user_profile else None
 
 
-async def get_display_name_from_name(name):
+async def get_display_name_from_name(name, use_regex=False):
     global NAME_TO_DISPLAY_NAME
     global NON_IDENTIFIED_NAMES
 
@@ -65,7 +72,7 @@ async def get_display_name_from_name(name):
     if name in NAME_TO_DISPLAY_NAME:
         return NAME_TO_DISPLAY_NAME[name]
 
-    user_profile = await get_user_profile_from_name(name)
+    user_profile = await get_user_profile_from_name(name, use_regex=use_regex)
     if user_profile:
         NAME_TO_DISPLAY_NAME[name] = user_profile['display_name']
 

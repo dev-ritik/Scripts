@@ -75,7 +75,7 @@ class MemoryAggregator:
         events = await aggregator.aggregate_dates(start_date, end_date, ignore_groups, providers, senders)
         # TODO: Remove traditional name with display name if it is in profile.json
         for event in events:
-            if display_name := await get_display_name_from_name(event.sender):
+            if display_name := await get_display_name_from_name(event.sender, use_regex=True):
                 event.sender = display_name
         return events
 
@@ -105,4 +105,3 @@ class MemoryAggregator:
         if provider not in self.providers:
             return None
         return await self.providers[provider].get_asset(asset_id)
-

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import string
 from collections import defaultdict, Counter
 
@@ -252,7 +253,7 @@ async def get_user_stats(name):
         print(f"No messages found for user {user_profile.get('display_name')}")
         return jsonify({"error": "User has no data in the period"}), 404
 
-    assert len(messages_by_sender) == 1, f"Expected only one sender got {messages_by_sender.keys()} {user_regex}"
+    assert len(messages_by_sender) == 1, f"Expected only one sender got {messages_by_sender.keys()} {name}"
     user_messages = list(messages_by_sender.values())[0]
 
     words_counter = Counter()
@@ -319,9 +320,15 @@ async def get_user_stats(name):
 
 @app.route('/user/dp/<name>')
 async def user_dp(name):
-    dp_path = await get_user_dp(name)
+    dp_path = await get_user_dp(name, use_regex=False)
     if not dp_path:
-        return add_caching_to_response(("Display picture not found", 404), 60, 30)
+        possible_file_path = f'data/dp/{name}'
+        if os.path.exists(possible_file_path):
+            dp_path = possible_file_path
+        else:
+            dp_path = await get_user_dp(name, use_regex=True)
+            if not dp_path:
+                return add_caching_to_response(("Display picture not found", 404), 60, 30)
 
     return add_caching_to_response(send_file(dp_path), 86400)
 

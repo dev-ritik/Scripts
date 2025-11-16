@@ -67,26 +67,25 @@
 </style>
 
 <script>
-    // import {loadPeople} from "{{ url_for('static', filename='js/utils.js') }}";
-
     document.addEventListener("DOMContentLoaded", async () => {
         let people = await loadPeople();
 
         const container = document.getElementById("people-container");
         container.innerHTML = ""; // clear any previous content
         people.forEach(fav => {
-        const card = document.createElement("div");
-        card.className = "fav-card";
-        card.innerHTML = `
-            <img src="/user/dp/${fav.dp}" alt="${fav.display_name}">
-            <div class="fav-name">${fav.display_name}</div>
-            <div class="regex-text">${fav.name_regex || ''}</div>
-            <ul class="phone-list">
-                ${fav.phone_numbers.map(num => `<li>${num}</li>`).join("")}
-            </ul>
-        `;
-        container.appendChild(card);
-    });
+                const card = document.createElement("div");
+                card.className = "fav-card";
+                card.innerHTML = `
+                <img src="/user/dp/${fav.dp}" alt="${fav.display_name}">
+                <div class="fav-name">${fav.display_name}</div>
+                <div class="regex-text">${fav.name_regex || ''}</div>
+                <ul class="phone-list">
+                    ${fav.phone_numbers.map(num => `<li>${num}</li>`).join("")}
+                </ul>
+            `;
+                container.appendChild(card);
+            }
+        );
 });
 </script>
 {% endblock %}

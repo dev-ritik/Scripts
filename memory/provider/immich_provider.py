@@ -89,7 +89,7 @@ class ImmichProvider(MemoryProvider):
                     else:
                         return results
 
-                response = await post_with_retries(url, payload, headers)
+                response = await post_with_retries(url, payload, headers, retries=2, timeout=2)
 
                 if not response or response.status_code != 200:
                     print('Fetching failed', response.text if response else 'No response')
