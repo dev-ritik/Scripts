@@ -1,5 +1,6 @@
 import mimetypes
 import os
+import re
 import sqlite3
 from datetime import datetime, date
 from typing import List, Tuple, Optional
@@ -114,7 +115,8 @@ class IMessageProvider(MemoryProvider):
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
-                    senders: List[str] = None) -> List[Message]:
+                    senders: List[str] = None,
+                    search_regex: str = None) -> List[Message]:
         print("Starting to fetch from iMessage")
         messages = []
         start_ns = self.to_apple_time(datetime.combine(start_date, datetime.min.time()))
@@ -190,6 +192,8 @@ class IMessageProvider(MemoryProvider):
 
         rows = IMessageProvider.query_sms_db(query, ())
 
+        pattern = re.compile(search_regex) if search_regex else None
+
         for row in rows:
             # print(row['guid'])
             text = row["message_text"] or IMessageProvider._decode_attributed_body(row["attributed_body"])
@@ -221,6 +225,9 @@ class IMessageProvider(MemoryProvider):
                 # TODO: Add support for emoji reactions
                 continue
             if not sender_name:
+                continue
+
+            if pattern and pattern.search(text) is None:
                 continue
 
             messages.append(
@@ -324,7 +331,7 @@ class IMessageProvider(MemoryProvider):
             all_chat_identifiers.extend(chat_identifiers)
 
         if len(all_chat_identifiers) == 0:
-            return None, None
+            return
 
         # -----------------------------
         # 1. FETCH RELATIVE PATHS FROM sms.db
@@ -353,7 +360,6 @@ class IMessageProvider(MemoryProvider):
 
         rows = IMessageProvider.query_manifest_db(query2, ())
 
-        # Build mapping
         mapping = {row["relativePath"]: row["fileID"] for row in rows}
 
         # -----------------------------
@@ -388,4 +394,3 @@ class IMessageProvider(MemoryProvider):
         async with aiofiles.open(media_file_path, "rb") as media_file:
             media_data = await media_file.read()
         return media_data, mime_type
-

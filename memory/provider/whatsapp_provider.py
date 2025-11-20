@@ -45,9 +45,13 @@ class WhatsAppProvider(MemoryProvider):
         return None
 
     @staticmethod
-    async def parse_whatsapp_chat(file_path: str, on_date: Optional[date] = None, start_date: Optional[date] = None,
-                                  end_date: Optional[date] = None, ignore_groups: bool = False,
-                                  sender_regexes: List[str] = None) -> List[Message]:
+    async def parse_whatsapp_chat(file_path: str,
+                                  on_date: Optional[date] = None,
+                                  start_date: Optional[date] = None,
+                                  end_date: Optional[date] = None,
+                                  ignore_groups: bool = False,
+                                  sender_regexes: List[str] = None,
+                                  pattern = None) -> List[Message]:
         chat_entries = []
 
         media_included = not file_path.endswith('.txt')
@@ -160,6 +164,9 @@ class WhatsAppProvider(MemoryProvider):
             elif text == 'null':
                 text = '<View once message>'
             context['edited'] = '<This message was edited>' in text
+
+            if pattern and pattern.search(text) is None:
+                return
             chat_entries.append(Message(
                 current_datetime,
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
@@ -207,23 +214,30 @@ class WhatsAppProvider(MemoryProvider):
 
         return chat_entries
 
-    async def fetch(self, on_date: Optional[date] = None,
+    async def fetch(self,
+                    on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
-                    senders: List[str] = None) -> List[Message]:
+                    senders: List[str] = None,
+                    search_regex: str = None) -> List[Message]:
         print(f"Starting to fetch from WhatsApp {on_date=} {start_date=} {end_date=}")
         sender_regexes = [await get_regex_from_name(sender) for sender in senders] if senders else None
 
         memories = []
         tasks = []
+        pattern = re.compile(search_regex) if search_regex else None
         for found in os.listdir(WhatsAppProvider.WHATSAPP_PATH):
             if not found.startswith(WhatsAppProvider.WHATSAPP_FILE_NAME_PREFIX):
                 continue
 
-            tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found), on_date=on_date,
-                                                  start_date=start_date, end_date=end_date,
-                                                  ignore_groups=ignore_groups, sender_regexes=sender_regexes))
+            tasks.append(self.parse_whatsapp_chat(os.path.join(WhatsAppProvider.WHATSAPP_PATH, found),
+                                                  on_date=on_date,
+                                                  start_date=start_date,
+                                                  end_date=end_date,
+                                                  ignore_groups=ignore_groups,
+                                                  sender_regexes=sender_regexes,
+                                                  pattern=pattern))
 
         # Run parsing concurrently
         results = await asyncio.gather(*tasks)

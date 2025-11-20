@@ -74,22 +74,27 @@ class MemoryProvider(ABC):
         """
         return NotImplementedError
 
-    async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
-            List[Message]:
+    async def fetch_on_date(self, on_date: Optional[date],
+                            ignore_groups: bool = False,
+                            senders: List[str] = None,
+                            search_regex: str = None) -> List[Message]:
         """
         Get all messages on the on_date. This is deprecated. Use fetch() instead.
         :param on_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
         :param senders: Only fetch messages from these senders
+        :param search_regex: Search for this string in message content
         :return: List of messages on the date
         """
-        return await self.fetch(on_date=on_date, ignore_groups=ignore_groups, senders=senders)
+        return await self.fetch(on_date=on_date, ignore_groups=ignore_groups, senders=senders, search_regex=search_regex)
 
     # @abstractmethod
     async def fetch(self, on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
-                    ignore_groups: bool = False, senders: List[str] = None) -> List[Message]:
+                    ignore_groups: bool = False,
+                    senders: List[str] = None,
+                    search_regex: str = None) -> List[Message]:
         """
         Get all messages from the date filter, time sorted.
         :param start_date: Smaller date (inclusive)
@@ -97,13 +102,19 @@ class MemoryProvider(ABC):
         :param on_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
         :param senders: Only fetch messages from these senders
+        :param search_regex: Search for this string in message content
         :return: List of messages on the date
         """
         if on_date:
-            return await self.fetch_on_date(on_date, ignore_groups=ignore_groups, senders=senders)
+            return await self.fetch_on_date(on_date, ignore_groups=ignore_groups, senders=senders, search_regex=search_regex)
         else:
-            all_messages = await self.fetch_dates(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups,
-                                          senders=senders)
+            all_messages = await self.fetch_dates(
+                start_date=start_date,
+                end_date=end_date,
+                ignore_groups=ignore_groups,
+                senders=senders,
+                search_regex=search_regex,
+            )
 
             merged_list = []
             for value_list in all_messages.values():
@@ -111,14 +122,18 @@ class MemoryProvider(ABC):
 
             return sorted(merged_list, key=lambda m: m.datetime)
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                          senders: List[str] = None) -> Dict[datetime.date, List[Message]]:
+    async def fetch_dates(self, start_date: date,
+                          end_date: date,
+                          ignore_groups: bool = False,
+                          senders: List[str] = None,
+                          search_regex: str = None) -> Dict[datetime.date, List[Message]]:
         """
         Get all messages for each day between start_date and end_date. This is deprecated. Use fetch() instead.
         :param start_date: Smaller date (inclusive)
         :param end_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
         :param senders: Only fetch messages from these senders
+        :param search_regex: search_regex for this string in message content
         :return: Dict of dates and messages for each date
         """
         tasks = []
@@ -126,7 +141,7 @@ class MemoryProvider(ABC):
 
         current = start_date
         while current <= end_date:
-            tasks.append(self.fetch(current, ignore_groups=ignore_groups))
+            tasks.append(self.fetch(current, ignore_groups=ignore_groups, senders=senders, search_regex=search_regex))
             dates.append(current)
             current += timedelta(days=1)
 

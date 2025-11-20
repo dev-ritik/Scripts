@@ -41,12 +41,12 @@ class MemoryAggregator:
         return events
 
     async def aggregate_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                              providers: List[str] = None, senders=None) -> List[Message]:
+                              providers: List[str] = None, senders=None, search=None) -> List[Message]:
         available_providers = providers or self.providers.keys()
         senders = [senders] if senders and isinstance(senders, str) else senders
         tasks = [
             self.providers.get(provider).fetch(start_date=start_date, end_date=end_date, ignore_groups=ignore_groups,
-                                               senders=senders) for provider in available_providers
+                                               senders=senders, search_regex=search) for provider in available_providers
         ]
         providers_events_list = await asyncio.gather(*tasks)
 
@@ -70,9 +70,9 @@ class MemoryAggregator:
 
     @staticmethod
     async def get_events_for_dates(start_date: date, end_date: date, ignore_groups: bool = False,
-                                   providers: List[str] = None, senders=None) -> List[Message]:
+                                   providers: List[str] = None, senders=None, search=None) -> List[Message]:
         aggregator = MemoryAggregator.get_instance()
-        events = await aggregator.aggregate_dates(start_date, end_date, ignore_groups, providers, senders)
+        events = await aggregator.aggregate_dates(start_date, end_date, ignore_groups, providers, senders, search=search)
         # TODO: Remove traditional name with display name if it is in profile.json
         for event in events:
             if display_name := await get_display_name_from_name(event.sender, use_regex=True):

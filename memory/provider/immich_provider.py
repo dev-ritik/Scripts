@@ -52,10 +52,17 @@ class ImmichProvider(MemoryProvider):
         Message]:
         raise NotImplementedError
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                          senders: List[str] = None) -> Dict[datetime.date, List[Message]]:
+    async def fetch_dates(self,
+                          start_date: date,
+                          end_date: date,
+                          ignore_groups: bool = False,
+                          senders: List[str] = None,
+                          search_regex: str = None) -> Dict[datetime.date, List[Message]]:
         results = defaultdict(list)
         if not self.WORKING:
+            return results
+
+        if search_regex:
             return results
 
         print("Starting to fetch from Immich")

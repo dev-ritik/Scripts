@@ -251,8 +251,12 @@ class GooglePhotosProvider(MemoryProvider):
                 "mediaItems": self.metadata_context_by_id
             }, f)
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                          senders: List[str] = None) -> Dict[
+    async def fetch_dates(self,
+                          start_date: date,
+                          end_date: date,
+                          ignore_groups: bool = False,
+                          senders: List[str] = None,
+                          search_regex: str = None) -> Dict[
         datetime.date, List[Message]]:
         results = defaultdict(list)
         if not self.WORKING:
@@ -261,6 +265,9 @@ class GooglePhotosProvider(MemoryProvider):
         print("Starting to fetch from Google Photos")
 
         if senders:
+            return results
+
+        if search_regex:
             return results
 
         current_date = start_date
@@ -286,12 +293,18 @@ class GooglePhotosProvider(MemoryProvider):
         print("Done fetching from Google Photos")
         return results
 
-    async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
-            List[Message]:
+    async def fetch_on_date(self,
+                            on_date: Optional[date],
+                            ignore_groups: bool = False,
+                            senders: List[str] = None,
+                            search_regex: str = None) -> List[Message]:
         if not on_date:
             raise ValueError("Google Photos provider requires a date")
 
         if senders:
+            return []
+
+        if search_regex:
             return []
 
         date_assets = await self.fetch_dates(start_date=on_date, end_date=on_date, ignore_groups=ignore_groups)

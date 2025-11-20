@@ -8,6 +8,7 @@ from typing import List, Optional, Dict
 import aiofiles
 from black.trans import defaultdict
 
+import configs
 from provider.base_provider import MemoryProvider, MessageType, Message
 
 
@@ -81,8 +82,11 @@ class DiaryProvider(MemoryProvider):
             print(f"Error parsing date in {text}: {e}")
             return None, None
 
-    async def fetch_on_date(self, on_date: Optional[date], ignore_groups: bool = False, senders: List[str] = None) -> \
-            List[Message]:
+    async def fetch_on_date(self,
+                            on_date: Optional[date],
+                            ignore_groups: bool = False,
+                            senders: List[str] = None,
+                            search_regex: str = None) -> List[Message]:
         results = []
         if not self.WORKING:
             return results
@@ -102,10 +106,15 @@ class DiaryProvider(MemoryProvider):
             print("Diary folder not found")
             return results
 
+        pattern = re.compile(search_regex) if search_regex else None
+
         async with aiofiles.open(diary_filepath, "r", encoding="utf-8") as f:
             async for line in f:
                 _dt, text = DiaryProvider._get_date_and_memory_from_text(line.strip())
                 if not _dt:
+                    continue
+
+                if pattern and pattern.search(text) is None:
                     continue
 
                 if _dt.date() == on_date:
@@ -113,13 +122,19 @@ class DiaryProvider(MemoryProvider):
                                            message=text,
                                            message_type=MessageType.SENT,
                                            provider=self.NAME,
-                                           sender="Ritik"))
+                                           sender=configs.USER
+                                           ))
 
         print("Done fetching from Diary")
         return results
 
-    async def fetch_dates(self, start_date: date, end_date: date, ignore_groups: bool = False,
-                          senders: List[str] = None) -> Dict[date, List[Message]]:
+    async def fetch_dates(self,
+                          start_date: date,
+                          end_date: date,
+                          ignore_groups: bool = False,
+                          senders: List[str] = None,
+                          search_regex: str = None
+                          ) -> Dict[date, List[Message]]:
         results: Dict[date, List[Message]] = defaultdict(list)
         if not self.WORKING:
             return results
@@ -136,6 +151,8 @@ class DiaryProvider(MemoryProvider):
                 print(f"No diary file found for {year}")
                 continue
 
+            pattern = re.compile(search_regex) if search_regex else None
+
             async with aiofiles.open(diary_filepath, "r", encoding="utf-8") as f:
                 async for line in f:
                     _dt, text = DiaryProvider._get_date_and_memory_from_text(line.strip())
@@ -149,13 +166,16 @@ class DiaryProvider(MemoryProvider):
                     if curr_date > end_date:
                         break
 
+                    if pattern and pattern.search(text) is None:
+                        continue
+
                     results[curr_date].append(
                         Message(
                             _datetime=_dt,
                             message=text,
                             message_type=MessageType.SENT,
                             provider=self.NAME,
-                            sender="Ritik"
+                            sender=configs.USER
                         )
                     )
 

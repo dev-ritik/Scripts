@@ -363,8 +363,6 @@
 
 <script async src="//www.instagram.com/embed.js"></script>
 <script>
-    // import {loadPeople} from "{{ url_for('static', filename='js/utils.js') }}";
-
     function getUrlParameter(name) {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get(name);
@@ -384,6 +382,7 @@
             return;
         }
 
+       const searchRegex = document.getElementById('searchRegex').value.trim();
         const group = document.getElementById('group').checked;
         const selectedProviders = Array.from(document.querySelectorAll('.provider-option.selected'))
             .map(el => el.textContent.trim());
@@ -394,6 +393,10 @@
         queryParams.set("group", group);
         queryParams.set("start_date", start_date);
         queryParams.set("end_date", end_date);
+
+        if (searchRegex) {
+            queryParams.set("search", encodeURIComponent(searchRegex));
+        }
 
         if (selectedProviders.length === 0) {
             container.innerHTML = '<p>Please select providers</p>';
@@ -746,6 +749,12 @@
                 </label>
             </div>
         </div>
+        <div class="select-wrapper">
+            <i class="fas fa-search"></i>
+            <label for="searchRegex">Search (Regex):</label>
+            <input type="text" id="searchRegex" placeholder="e.g. (?i)\britik\b"/>
+        </div>
+
         <div class="form-group">
             <div class="select-wrapper">
                 <i class="fas fa-user"></i>

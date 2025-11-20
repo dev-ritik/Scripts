@@ -2,6 +2,7 @@ import asyncio
 import json
 import mimetypes
 import os
+import re
 from datetime import datetime, date
 from pathlib import Path
 from typing import List, Tuple, Optional
@@ -30,7 +31,7 @@ class InstagramProvider(MemoryProvider):
         if not self._working:
             return
 
-        chat_path = Path('data/instagram')
+        chat_path = Path(self.INSTAGRAM_PATH)
         if not chat_path.exists():
             print("Instagram data folder not found")
             self._working = False
@@ -53,8 +54,14 @@ class InstagramProvider(MemoryProvider):
         return InstagramProvider.fix_mojibake(message).strip()
 
     @staticmethod
-    def parse_json(data, name_from_file, on_date=None, start_date: date = None, end_date: date = None,
-                   ignore_groups: bool = False, sender_regexes: List[str] = None) -> List[Message]:
+    def parse_json(data,
+                   name_from_file,
+                   on_date=None,
+                   start_date: date = None,
+                   end_date: date = None,
+                   ignore_groups: bool = False,
+                   sender_regexes: List[str] = None,
+                   pattern=None) -> List[Message]:
         messages = []
         chat_name = name_from_file
 
@@ -131,6 +138,9 @@ class InstagramProvider(MemoryProvider):
 
             message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED
 
+            if pattern and pattern.search(text) is None:
+                continue
+
             contexts = contexts if contexts else [None]
             for context in contexts:
                 messages.append(Message(_dt,
@@ -146,20 +156,22 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    async def fetch(self, on_date: Optional[date] = None,
-                     start_date: Optional[date] = None,
-                     end_date: Optional[date] = None,
+    async def fetch(self,
+                    on_date: Optional[date] = None,
+                    start_date: Optional[date] = None,
+                    end_date: Optional[date] = None,
                     ignore_groups: bool = False,
-                    senders: List[str] = None) -> List[Message]:
+                    senders: List[str] = None,
+                    search_regex: str = None) -> List[Message]:
         print(f"Starting to fetch from Instagram {on_date=} {start_date=} {end_date=}")
         sender_regexes = [await get_regex_from_name(sender) for sender in senders] if senders else None
 
-        chat_path = 'data/instagram'
+        pattern = re.compile(search_regex) if search_regex else None
 
         tasks = []
-        for found in os.listdir(chat_path):
+        for found in os.listdir(self.INSTAGRAM_PATH):
             friend = '_'.join(found.split('_')[:-1])
-            friend_path = Path(os.path.join(os.path.join(chat_path, found), 'message_1.json'))
+            friend_path = Path(os.path.join(os.path.join(self.INSTAGRAM_PATH, found), 'message_1.json'))
 
             if not friend_path.exists():
                 continue
@@ -168,8 +180,14 @@ class InstagramProvider(MemoryProvider):
                 friend = self.DELETED_USER
 
             tasks.append(
-                self._read_and_parse(friend_path, friend, on_date=on_date, start_date=start_date, end_date=end_date,
-                                     ignore_groups=ignore_groups, sender_regexes=sender_regexes))
+                self._read_and_parse(filepath=friend_path,
+                                     name_from_file=friend,
+                                     on_date=on_date,
+                                     start_date=start_date,
+                                     end_date=end_date,
+                                     ignore_groups=ignore_groups,
+                                     sender_regexes=sender_regexes,
+                                     pattern=pattern))
 
         memories_nested = await asyncio.gather(*tasks)
         memories = [item for sublist in memories_nested for item in sublist]
@@ -177,15 +195,12 @@ class InstagramProvider(MemoryProvider):
         print("Done fetching from Instagram")
         return memories
 
-    async def _read_and_parse(self, filepath: Path, friend: str, on_date: Optional[date] = None,
-                              start_date: Optional[date] = None, end_date: Optional[date] = None,
-                              ignore_groups: bool = False, sender_regexes: List[str] = None):
+    async def _read_and_parse(self, filepath: Path, **kwargs):
         try:
             async with aiofiles.open(filepath, mode='r', encoding='utf-8') as f:
                 raw = await f.read()
                 data = json.loads(raw)
-                return self.parse_json(data, friend, on_date=on_date, start_date=start_date, end_date=end_date,
-                                       ignore_groups=ignore_groups, sender_regexes=sender_regexes)
+                return self.parse_json(data, **kwargs)
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 

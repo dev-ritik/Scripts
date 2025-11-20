@@ -2,6 +2,7 @@ import asyncio
 import os
 import string
 from collections import defaultdict, Counter
+from urllib.parse import unquote
 
 import pandas as pd
 
@@ -30,40 +31,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 async def index():
-    start_date = request.args.get("start_date")
-    end_date = request.args.get("end_date")
-
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-    end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
-
-    if not start_date or not end_date:
-        return add_caching_to_response(render_template('index.html', events=[]))
-
-    if end_date < start_date:
-        return f"Invalid date format {start_date} {end_date}", 400
-
-    group = request.args.get('group', 'true') == 'true'
-    providers_param = request.args.get('providers')  # comma-separated list
-    peoples_param = request.args.get('peoples')  # comma-separated list
-
-    providers = [p.strip() for p in providers_param.split(",") if p.strip()] if providers_param else None
-    peoples = [p.strip() for p in peoples_param.split(",") if p.strip()] if peoples_param else []
-
-    for people in peoples:
-        user_profile = await get_user_profile_from_name(people)
-        if not user_profile:
-            return jsonify({"error": "User not found"}), 404
-
-    events = await MemoryAggregator.get_events_for_dates(start_date,
-                                                         end_date,
-                                                         ignore_groups=not group,
-                                                         providers=providers,
-                                                         senders=peoples)
-
-    events.sort(key=lambda x: x.datetime)
-
-    return add_caching_to_response(
-        render_template('index.html', events=[event.to_dict() for event in events]))
+    return add_caching_to_response(render_template('index.html', events=[]))
 
 @app.route('/chat_data')
 async def chat_data():
@@ -77,6 +45,7 @@ async def chat_data():
         return f"Invalid date format {start_date} {end_date}", 400
 
     group = request.args.get('group', 'true') == 'true'
+    search = unquote(request.args.get('search'))
     providers_param = request.args.get('providers')  # comma-separated list
     peoples_param = request.args.get('peoples')  # comma-separated list
 
@@ -92,7 +61,8 @@ async def chat_data():
                                                          end_date,
                                                          ignore_groups=not group,
                                                          providers=providers,
-                                                         senders=peoples)
+                                                         senders=peoples,
+                                                         search=search)
 
     events.sort(key=lambda x: x.datetime)
 
