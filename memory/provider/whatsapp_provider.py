@@ -163,10 +163,21 @@ class WhatsAppProvider(MemoryProvider):
                 text = '<Added media file>'
             elif text == 'null':
                 text = '<View once message>'
-            context['edited'] = '<This message was edited>' in text
+
+            if '<This message was edited>' in text:
+                context['edited'] = True
+                text = text.replace('<This message was edited>', '')
+
+            if 'This message was deleted' in text:
+                context['deleted'] = True
+                text = text.replace('This message was deleted', '')
+
+            if not text and not context:
+                return
 
             if pattern and pattern.search(text) is None:
                 return
+
             chat_entries.append(Message(
                 current_datetime,
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,

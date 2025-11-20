@@ -110,8 +110,8 @@ class InstagramProvider(MemoryProvider):
             if text and (text.startswith('Say hi to') or text.endswith('Say hi to')):
                 continue
             share_link = f"{message.get('share', {}).get('link', '')}"
-            share_caption = f"{message.get('share', {}).get('share_text', '')}"
-            share_text = f"{share_caption}{" " if share_link else ""}{share_link}"
+            # share_caption = f"{message.get('share', {}).get('share_text', '')}"
+            # share_text = f"{share_caption}{" " if share_link else ""}{share_link}"
             assets = message.get('photos', []) + message.get('videos', []) + message.get('audio_files', [])
             contexts = []
             for asset in assets:
@@ -127,7 +127,7 @@ class InstagramProvider(MemoryProvider):
                     "mime_type": mimetypes.guess_type(asset_path)[0],
                     "new_tab_url": f'/asset/{InstagramProvider.NAME}/{parsable_asset_id}'
                 })
-            text = f"{text if text else ""}{" " if text and share_text else ""}{share_text}"
+            text = f"{text if text else ""}{" " if text and share_link else ""}{share_link}"
             if not text and not contexts:
                 continue
 

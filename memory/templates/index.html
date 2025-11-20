@@ -115,6 +115,16 @@
             border-radius: 50%;
             object-fit: cover;
         }
+        .date-divider {
+            text-align: center;
+            font-size: 12px;
+            background-color: #e2e2e2;
+            color: #555;
+            padding: 4px 10px;
+            border-radius: 10px;
+            width: fit-content;
+            margin: 10px auto;
+        }
         .event {
             display: flex;
             align-items: flex-start;
@@ -160,6 +170,17 @@
             font-size: 11px;
             color: #667781;
             margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .message-edited {
+            font-size: 10px;
+            color: #9aa3ac;
+        }
+        .message-deleted {
+            color: #7d8488;
+            font-style: italic;
         }
         .sender-name {
             font-size: 13px;
@@ -481,6 +502,52 @@
         };
     }
 
+    function formatMessageDate(dateObj) {
+        const now = new Date();
+
+        // Remove time for comparison
+        const d1 = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        const d2 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        const diffDays = Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0)
+            return "Today";
+        if (diffDays === 1)
+            return "Yesterday";
+
+        // If same week
+        const currWeekDay = now.getDay();  // 0=Sun
+        if (diffDays <= currWeekDay)
+            return dateObj.toLocaleDateString([], { weekday: 'long' });
+
+        if (dateObj.getFullYear() === now.getFullYear())
+            return dateObj.toLocaleDateString([], {
+                weekday: 'short',   // Tue
+                day: 'numeric',     // 7
+                month: 'short'      // Oct
+            });
+
+        // Older
+        return dateObj.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }); // 15 Aug 2022
+    }
+
+    function insertDateDividerIfNeeded(container, ns, datetime) {
+        const messageDate = new Date(datetime);
+        const messageDateKey = messageDate.toDateString();
+
+        if (ns.lastRenderedDate !== messageDateKey) {
+            // New date – insert a divider
+            ns.lastRenderedDate = messageDateKey;
+
+            const divider = document.createElement("div");
+            divider.className = "date-divider";
+            divider.textContent = formatMessageDate(messageDate);
+
+            container.appendChild(divider);
+        }
+    }
+
     function renderChat(events) {
         const container = document.getElementById('chatContainer');
         container.innerHTML = '';
@@ -495,9 +562,12 @@
         header.innerHTML = '<h2 style="margin: 0;">Memory</h2>';
         container.appendChild(header);
 
-        let ns = {current_provider: null, previous_sender: null, previous_chat: null};
+        let ns = {current_provider: null, previous_sender: null, previous_chat: null, lastRenderedDate: null};
 
         events.forEach(event => {
+            // Add date header if needed
+            insertDateDividerIfNeeded(container, ns, event.datetime);
+
             if (event.provider !== ns.current_provider) {
                 ns.current_provider = event.provider;
                 const providerDiv = document.createElement('div');
@@ -602,14 +672,29 @@
                 });
             }
 
+            if (event.context && event.context.deleted === true) {
+                messageTextDiv.append("This message was deleted");
+                messageTextDiv.classList.add("message-deleted");
+            }
+
             messageDiv.appendChild(messageTextDiv);
 
             const messageTimeDiv = document.createElement('div');
             messageTimeDiv.className = 'message-time';
-            messageTimeDiv.textContent = new Date(event.datetime).toLocaleTimeString([], {
+            const timeSpan = document.createElement('span');
+            timeSpan.textContent = new Date(event.datetime).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit'
             });
+            messageTimeDiv.appendChild(timeSpan);
+
+            if (event.context && event.context.edited === true) {
+                const editedSpan = document.createElement('span');
+                editedSpan.className = 'message-edited';
+                editedSpan.textContent = "Edited";
+                messageTimeDiv.appendChild(editedSpan);
+            }
+
             messageDiv.appendChild(messageTimeDiv);
 
             eventDiv.appendChild(messageDiv);

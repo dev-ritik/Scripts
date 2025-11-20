@@ -45,7 +45,7 @@ async def chat_data():
         return f"Invalid date format {start_date} {end_date}", 400
 
     group = request.args.get('group', 'true') == 'true'
-    search = unquote(request.args.get('search'))
+    search = unquote(request.args.get('search')) if request.args.get('search') else None
     providers_param = request.args.get('providers')  # comma-separated list
     peoples_param = request.args.get('peoples')  # comma-separated list
 
@@ -234,7 +234,7 @@ async def get_user_stats(name):
         for word in words:
             # filter noise like punctuation or 1-character digits
             w = word.strip(string.punctuation).lower()
-            if len(w) <= 1 or w.isdigit():
+            if w.isdigit():
                 continue
             if w.lower() in COMMON_WORDS_FOR_USER_STATS:
                 continue

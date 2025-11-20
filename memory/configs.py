@@ -24,6 +24,12 @@ def get_available_providers() -> list:
 # Should be in lowercase
 COMMON_WORDS_FOR_USER_STATS = {
     'i',
+    'a',
+    'h',
+    'r',
+    'v',
+    'k',
+    'u',
     'added',
     'media',
     'file',

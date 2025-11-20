@@ -15,6 +15,7 @@ from provider.base_provider import MemoryProvider, MessageType, Message
 class DiaryProvider(MemoryProvider):
     NAME = "Diary"
     WORKING = True
+    HIDE_PERSONAL_ENTRY = True
 
     def __init__(self):
         super().__init__()
@@ -66,7 +67,7 @@ class DiaryProvider(MemoryProvider):
         if len(split) <= 1:
             return None, None
         date_str = split[0]
-        if date_str in ['~', '-']:
+        if DiaryProvider.HIDE_PERSONAL_ENTRY and date_str in ['~', '-']:
             return None, None
         memory = ','.join(split[1:])
         memory = memory.strip('"')
