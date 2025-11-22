@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# fix_exif_metadata.sh
+# run.sh
 # Recursively updates EXIF date and GPS data for images/videos.
 # Converts mislabeled HEIC→JPG if needed.
 # Skips files that already contain both DateTimeOriginal and GPSLatitude.
