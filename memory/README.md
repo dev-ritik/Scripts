@@ -102,6 +102,12 @@ We shall be using the unencrypted iMessage database (on mac) to get the messages
     - If `cp` fails with `Operation not permitted`, you may need to give full system access to the terminal
   - Copy the generated attachments folder to the `data/imessage/` folder
 
+
+#### Hinge
+Hinge has limited support even through backups. It only support getting user's own messages.
+- Open Hinge app and go to settings > Download my data > Download my data button
+- Once you receive the downloaded zip, copy the `matches.json` file to `data/hinge`
+
 ### Web app setup
 - Run `pip install -r requirements.txt`
 - `python app.py`

@@ -1,6 +1,7 @@
 # This file has all the customizations for setups
 
 USER = "Ritik"
+UNKNOWN = "Unknown"
 
 
 def get_available_providers() -> list:
@@ -10,6 +11,7 @@ def get_available_providers() -> list:
     from provider.instagram_provider import InstagramProvider
     from provider.whatsapp_provider import WhatsAppProvider
     from provider.imessage_provider import IMessageProvider
+    from provider.hinge_provider import HingeProvider
 
     return [
         WhatsAppProvider,
@@ -18,6 +20,7 @@ def get_available_providers() -> list:
         ImmichProvider,
         GooglePhotosProvider,
         IMessageProvider,
+        HingeProvider
     ]
 
 # These are the words that are removed from the most common words list
