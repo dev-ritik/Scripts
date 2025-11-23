@@ -92,6 +92,12 @@ class DiaryProvider(MemoryProvider):
         if not self.WORKING:
             return results
 
+        if senders:
+            if len(senders) != 1:
+                return results
+            if senders[0].lower() != configs.USER.lower():
+                return results
+
         print("Starting to fetch from Diary")
 
         if not on_date:
@@ -143,7 +149,10 @@ class DiaryProvider(MemoryProvider):
         print(f"Fetching diary entries from {start_date} to {end_date}")
 
         if senders:
-            return results
+            if len(senders) != 1:
+                return results
+            if senders[0].lower() != configs.USER.lower():
+                return results
 
         for year in range(start_date.year, end_date.year + 1):
             diary_filepath = self._get_diary_filepath_for_year(year)

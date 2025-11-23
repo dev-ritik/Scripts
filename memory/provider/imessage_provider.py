@@ -201,12 +201,13 @@ class IMessageProvider(MemoryProvider):
             _dt = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
             user_id = row["handle_identifier"] if row["handle_identifier"] and row["handle_identifier"] != 0 else row[
                 'chat_identifier']
+            chat_name = chat_identifier_sender[user_id]
             if row["is_from_me"] == 1:
                 message_type = MessageType.SENT
                 sender_name = self.USER
             else:
                 message_type = MessageType.RECEIVED
-                sender_name = chat_identifier_sender[user_id]
+                sender_name = chat_name
 
             if senders and sender_name not in senders:
                 continue
@@ -237,7 +238,7 @@ class IMessageProvider(MemoryProvider):
                     text,
                     sender=sender_name,
                     provider=IMessageProvider.NAME,
-                    chat_name=sender_name,
+                    chat_name=chat_name,
                     media_type=MediaType.TEXT if not context else MediaType.MIXED,
                     context=context,
                     is_group=False  # TODO: Fix
