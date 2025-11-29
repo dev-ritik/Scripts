@@ -71,6 +71,11 @@ async def chat_data():
 
 @app.route("/status")
 async def status():
+    return add_caching_to_response(render_template("status.html"))
+
+
+@app.route("/status_data")
+async def status_data():
     aggregator = MemoryAggregator.get_instance()
 
     async def gather_provider_info(provider, instance):
@@ -100,7 +105,7 @@ async def status():
     results = await asyncio.gather(*tasks)
     providers = dict(results)
 
-    return add_caching_to_response(make_response(render_template("status.html", providers=providers), 20))
+    return add_caching_to_response(jsonify(providers), 20)
 
 
 @app.route("/people")

@@ -1,10 +1,9 @@
 {% extends "base.html" %}
-
 {% block title %}Status | Memory Aggregator{% endblock %}
 
 {% block extra_style %}
 <style>
-    .status {
+    .status-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 20px;
@@ -36,6 +35,7 @@
         font-weight: bold;
         color: #008069;
         margin-bottom: 6px;
+        text-transform: capitalize;
     }
 
     .date-range {
@@ -44,7 +44,7 @@
         margin-bottom: 8px;
     }
 
-    .status {
+    .status-badge {
         display: inline-block;
         padding: 5px 10px;
         border-radius: 15px;
@@ -68,24 +68,67 @@
 <h2>📊 Provider Status</h2>
 <p>Here’s an overview of all connected data providers and their availability.</p>
 
-<div class="status-grid">
-    {% for name, info in providers.items() %}
-    <div class="provider-card">
-        <img src="{{ info.logo }}" alt="{{ name }} logo" class="provider-logo">
-        <div class="provider-name">{{ name | replace('_', ' ') | title }}</div>
+<div id="statusGrid" class="status-grid"></div>
 
-        {% if info.start_date and info.end_date %}
+<script>
+    /**
+     * Converts raw provider name → title case without underscores
+     */
+    function formatName(name) {
+        return name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Convert "Tue, 18 Nov 2025 00:00:00 GMT" → "Nov 18, 2025"
+    function formatDate(dateStr) {
+        if (!dateStr) return null;
+
+        const d = new Date(dateStr);
+        if (isNaN(d)) return dateStr;  // fallback if invalid
+
+        const options = {month: "short", day: "numeric", year: "numeric"};
+        return d.toLocaleDateString("en-US", options);
+    }
+
+    function createProviderCard(name, info) {
+        const card = document.createElement("div");
+        card.className = "provider-card";
+
+        const start = formatDate(info.start_date);
+        const end = formatDate(info.end_date);
+
+        const html = `
+            <img src="${info.logo}" alt="${name} logo" class="provider-logo">
+
+            <div class="provider-name">${formatName(name)}</div>
+
             <div class="date-range">
-                {{ info.start_date }} → {{ info.end_date }}
+                ${start && end ? `${start} → ${end}` : "No date range available"}
             </div>
-        {% else %}
-            <div class="date-range">No date range available</div>
-        {% endif %}
 
-        <div class="status {{ 'available' if info.available else 'unavailable' }}">
-            {{ "Available" if info.available else "Unavailable" }}
-        </div>
-    </div>
-    {% endfor %}
-</div>
+            <div class="status-badge ${info.available ? "available" : "unavailable"}">
+                ${info.available ? "Available" : "Unavailable"}
+            </div>
+        `;
+
+        card.innerHTML = html;
+        return card;
+    }
+
+    /**
+     * Render all provider cards
+     */
+    async function renderProviders() {
+        const container = document.getElementById("statusGrid");
+        container.innerHTML = "";
+
+        const res = await fetch("/status_data");
+        providers = await res.json();
+
+        Object.entries(providers).forEach(([name, info]) => {
+            container.appendChild(createProviderCard(name, info));
+        });
+    }
+
+    renderProviders();
+</script>
 {% endblock %}
