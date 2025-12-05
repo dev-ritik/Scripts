@@ -339,6 +339,12 @@
             border-radius: 5px;
         }
 
+        audio {
+            width: 100% !important;
+            min-width: 300px;
+            height: 40px; /* increases control bar height */
+        }
+
         .button-group {
             display: flex;
             gap: 10px;
@@ -630,6 +636,18 @@
                     source.type = event.context.mime_type;
                     video.appendChild(source);
                     mediaWrapper.appendChild(video);
+                } else if (event.context.mime_type === "audio/ogg") {
+                    const audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.preload = "metadata";
+                    audio.style.cssText = "width:100%;min-height:40px;border-radius:8px;";
+
+                    const source = document.createElement('source');
+                    source.src = `/asset/${event.provider}/${event.context.asset_id}`;
+                    source.type = "audio/webm; codecs=opus";
+                    audio.appendChild(source);
+
+                    mediaWrapper.appendChild(audio);
                 } else {
                     const p = document.createElement('p');
                     p.textContent = `Unsupported media type: ${event.context.mime_type}`;

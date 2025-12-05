@@ -42,6 +42,7 @@ WhatsApp doesn't allow downloading all the chat data at once. We can get individ
   - Select an individual chat.
   - Export the individual txt file with or without media.
   - Make a new `whatsapp` subdirectory in the data directory.
+  - Create folders here, `android` or `ios` depending on the platform. (WhatsApp for Android and iOS have different export formats)
   - Paste / extract those `WhatsApp Chat with <friend_name>.txt` / Folder with assets there.
 
 #### Immich
