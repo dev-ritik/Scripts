@@ -621,15 +621,20 @@
                 mediaWrapper.style.maxWidth = '300px';
                 mediaWrapper.style.margin = '5px 0';
 
+                const assetUrl = `/asset/${event.provider}/${event.context.asset_id}`;
+
                 if (event.context.mime_type.startsWith('image/')) {
                     const img = document.createElement('img');
-                    img.src = `/asset/${event.provider}/${event.context.asset_id}`;
+                    img.loading = "lazy";
+                    img.decoding = "async";
+                    img.src = assetUrl;
                     img.style.cssText = "width:100%;border-radius:8px;cursor:pointer;";
                     img.onclick = () => window.open(event.context.new_tab_url, '_blank');
                     mediaWrapper.appendChild(img);
                 } else if (event.context.mime_type.startsWith('video/')) {
                     const video = document.createElement('video');
                     video.controls = true;
+                    video.preload = "none";               // 🔑
                     video.style.cssText = "width:100%;border-radius:8px;";
                     const source = document.createElement('source');
                     source.src = `/asset/${event.provider}/${event.context.asset_id}`;
@@ -639,11 +644,11 @@
                 } else if (event.context.mime_type === "audio/ogg") {
                     const audio = document.createElement('audio');
                     audio.controls = true;
-                    audio.preload = "metadata";
+                    audio.preload = "none";
                     audio.style.cssText = "width:100%;min-height:40px;border-radius:8px;";
 
                     const source = document.createElement('source');
-                    source.src = `/asset/${event.provider}/${event.context.asset_id}`;
+                    source.src = assetUrl;
                     source.type = "audio/webm; codecs=opus";
                     audio.appendChild(source);
 
