@@ -634,11 +634,19 @@
                 } else if (event.context.mime_type.startsWith('video/')) {
                     const video = document.createElement('video');
                     video.controls = true;
-                    video.preload = "none";               // 🔑
+                    video.preload = "none";
                     video.style.cssText = "width:100%;border-radius:8px;";
                     const source = document.createElement('source');
-                    source.src = `/asset/${event.provider}/${event.context.asset_id}`;
-                    source.type = event.context.mime_type;
+                    source.src = assetUrl;
+                    const mime = event.context.mime_type;
+
+                    if (mime === "video/quicktime") {
+                        // Browsers does not support this mime type, so we need to use a different one
+                        source.type = "video/mp4";
+                    } else {
+                        source.type = mime;
+                    }
+
                     video.appendChild(source);
                     mediaWrapper.appendChild(video);
                 } else if (event.context.mime_type === "audio/ogg") {

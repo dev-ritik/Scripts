@@ -2,7 +2,7 @@ import asyncio
 import mimetypes
 import os
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Optional, Tuple
 
 import aiofiles
@@ -19,6 +19,15 @@ class WhatsAppProvider(MemoryProvider):
     WHATSAPP_ANDROID_FILE_NAME_PREFIX = 'WhatsApp Chat with '
     WHATSAPP_IOS_FOLDER_NAME_PREFIX = 'WhatsApp Chat - '
 
+    ANDROID = 'android'
+    IOS = 'ios'
+
+    # Check if the timestamps on backup are same as on the phone or have a timezone lag
+    BACKUP_TIMESTAMP_LOCAL = {
+        ANDROID: False,
+        IOS: True
+    }
+
     def is_working(self):
         return True
 
@@ -27,8 +36,8 @@ class WhatsAppProvider(MemoryProvider):
         return message.strip()
 
     SUPPORTED_OS = [
-        'android',
-        'ios'
+        ANDROID,
+        IOS
     ]
 
 
@@ -51,11 +60,16 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     def try_parse_date(date_str: str, _os: str) -> Optional[datetime]:
-        formats = WhatsAppProvider.DATE_FORMATS_IOS if _os == 'ios' else WhatsAppProvider.DATE_FORMATS_ANDROID
+        formats = WhatsAppProvider.DATE_FORMATS_IOS if _os == WhatsAppProvider.IOS else WhatsAppProvider.DATE_FORMATS_ANDROID
         for fmt in formats:
             try:
-                return datetime.strptime(date_str, fmt)
-            except ValueError:
+                dt = datetime.strptime(date_str, fmt)
+                if not WhatsAppProvider.BACKUP_TIMESTAMP_LOCAL[_os]:
+                    return dt
+                # If the timestamp is in local, we need to convert it in UTC so that it can be compared with other timestamps
+                return dt.astimezone(None).astimezone(timezone.utc).replace(tzinfo=None)
+
+            except ValueError as e:
                 continue
         return None
 
@@ -68,7 +82,7 @@ class WhatsAppProvider(MemoryProvider):
                                   sender_regexes: List[str] = None,
                                   pattern = None) -> List[Message]:
         chat_entries = []
-        _os = 'android'
+        _os = WhatsAppProvider.ANDROID
 
         media_included = not file_path.endswith('.txt')
         file_name_suffix = file_path.split(WhatsAppProvider.WHATSAPP_ANDROID_FILE_NAME_PREFIX)[1]
@@ -100,7 +114,7 @@ class WhatsAppProvider(MemoryProvider):
         for i, line in enumerate(lines):
             match = WhatsAppProvider.ANDROID_MSG_START_RE.match(line)
             if match:
-                dt = WhatsAppProvider.try_parse_date(match.group(1), "android")
+                dt = WhatsAppProvider.try_parse_date(match.group(1), _os)
                 if dt:
                     index_datetime_pairs.append((i, dt.date()))
 
@@ -228,7 +242,7 @@ class WhatsAppProvider(MemoryProvider):
             line = line.strip()
             match = WhatsAppProvider.ANDROID_MSG_START_RE.match(line)
             if match:
-                dt = WhatsAppProvider.try_parse_date(match.group(1), "android")
+                dt = WhatsAppProvider.try_parse_date(match.group(1), _os)
                 if on_date and dt.date() != on_date:
                     break
                 if start_date and dt.date() < start_date:
@@ -262,7 +276,7 @@ class WhatsAppProvider(MemoryProvider):
                              sender_regexes: List[str] = None,
                              pattern=None) -> List[Message]:
         chat_entries = []
-        _os = 'ios'
+        _os = WhatsAppProvider.IOS
 
         chat_name = folder_path.split(WhatsAppProvider.WHATSAPP_IOS_FOLDER_NAME_PREFIX)[1]
 
@@ -279,7 +293,7 @@ class WhatsAppProvider(MemoryProvider):
         for i, line in enumerate(lines):
             match = WhatsAppProvider.IOS_MSG_START_RE.match(line)
             if match:
-                dt = WhatsAppProvider.try_parse_date(match.group(1), _os="ios")
+                dt = WhatsAppProvider.try_parse_date(match.group(1), _os=_os)
                 if dt:
                     index_datetime_pairs.append((i, dt.date()))
 
@@ -359,6 +373,8 @@ class WhatsAppProvider(MemoryProvider):
                 return
             elif "You were added" in text:
                 return
+            elif "Disappearing messages now support keeping messages in the chat." in text:
+                return
             if '‎<attached: ' in text:
                 media_file_name = text.split('‎<attached: ')[1].strip()[:-1]
                 media_file_path = os.path.join(folder_path, media_file_name)
@@ -381,7 +397,6 @@ class WhatsAppProvider(MemoryProvider):
                 text = text.replace('‎<This message was edited>', '')
 
             if 'This message was deleted' in text:
-                # TODO: Verify
                 context['deleted'] = True
                 text = text.replace('This message was deleted', '')
 
@@ -457,7 +472,7 @@ class WhatsAppProvider(MemoryProvider):
 
             base_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, _folder)
             for found in os.listdir(base_path):
-                if _folder == 'android':
+                if _folder == self.ANDROID:
                     if not found.startswith(WhatsAppProvider.WHATSAPP_ANDROID_FILE_NAME_PREFIX):
                         continue
 
@@ -501,7 +516,7 @@ class WhatsAppProvider(MemoryProvider):
 
     async def get_asset(self, asset_id: str) -> Tuple[bytes, str]:
         _os, user_name, file_name = WhatsAppProvider.get_user_name_file_name(asset_id)
-        if _os == 'ios':
+        if _os == WhatsAppProvider.IOS:
             media_file_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, _os,
                                            f'{WhatsAppProvider.WHATSAPP_IOS_FOLDER_NAME_PREFIX}{user_name}', file_name)
         else:

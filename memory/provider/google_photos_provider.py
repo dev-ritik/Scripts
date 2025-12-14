@@ -243,7 +243,11 @@ class GooglePhotosProvider(MemoryProvider):
 
     def _save_index_file(self):
         for k, v in self.metadata_context_by_id.items():
-            v['createTime'] = v['createTime'].isoformat()
+            if isinstance(v['createTime'], datetime):
+                v['createTime'] = v['createTime'].isoformat()
+            else:
+                print(f"Invalid date format for {k}: {v}")
+                v['createTime'] = v['createTime'].strftime("%Y-%m-%dT%H:%M:%SZ")
 
         with open(os.path.join(self.GOOGLE_PHOTOS_PATH, "index.json"), "w") as f:
             json.dump({

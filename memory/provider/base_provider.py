@@ -1,9 +1,15 @@
 import asyncio
+import os
 import re
+import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, date
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
+
+import aiofiles
+
+from privacy import is_hidden
 
 
 class MessageType(Enum):
@@ -51,6 +57,9 @@ class Message:
             'is_group': self.is_group,
             'media_type': self.media_type.value,
         }
+
+    def is_hidden(self):
+        return is_hidden(self)
 
     def __str__(self):
         return f"{self.datetime} - {self.sender}: {self.message}"
@@ -164,3 +173,30 @@ class MemoryProvider(ABC):
 
     def get_logo(self):
         return f'/asset/{self.NAME}/logo.png'
+
+    @staticmethod
+    async def _convert_heic_to_jpeg(input_path: str):
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            output_path = tmp.name
+
+        try:
+            # Heic files might not be supported. Hence use this
+            # sudo apt install libheif-examples
+            proc = await asyncio.create_subprocess_exec(
+                "heif-convert",
+                input_path,
+                output_path,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await proc.wait()
+
+            if proc.returncode != 0:
+                raise RuntimeError("heif-convert failed")
+
+            async with aiofiles.open(output_path, "rb") as f:
+                return await f.read(), "image/jpeg"
+
+        finally:
+            if os.path.exists(output_path):
+                os.remove(output_path)

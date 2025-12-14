@@ -36,7 +36,7 @@ class MemoryAggregator:
         ]
         results = await asyncio.gather(*tasks)
 
-        events = [event for sublist in results for event in sublist]
+        events = [event for sublist in results for event in sublist if not event.is_hidden()]
         events.sort(key=lambda x: x.datetime)
         return events
 
@@ -50,9 +50,11 @@ class MemoryAggregator:
         ]
         providers_events_list = await asyncio.gather(*tasks)
 
-        all_events = []
+        all_events: List[Message] = []
         for events_by_provider in providers_events_list:
             all_events.extend(events_by_provider)
+
+        all_events = [event for event in all_events if not event.is_hidden()]
 
         all_events.sort(key=lambda x: x.datetime)
         return all_events

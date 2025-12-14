@@ -1,4 +1,5 @@
 # This file has all the customizations for setups
+import os
 
 USER = "Ritik"
 UNKNOWN = "Unknown"
@@ -13,7 +14,11 @@ def get_available_providers() -> list:
     from provider.imessage_provider import IMessageProvider
     from provider.hinge_provider import HingeProvider
 
-    return [
+    # Only get providers that are in .env
+    enabled_providers = os.environ.get('ENABLED_PROVIDERS', '').split(',')
+    enabled_providers = [provider.strip().lower() for provider in enabled_providers]
+
+    all_providers = [
         WhatsAppProvider,
         InstagramProvider,
         DiaryProvider,
@@ -22,6 +27,12 @@ def get_available_providers() -> list:
         IMessageProvider,
         HingeProvider
     ]
+
+    if not enabled_providers:
+        return all_providers
+
+    return [provider for provider in all_providers if provider.NAME.lower() in enabled_providers]
+
 
 # These are the words that are removed from the most common words list
 # Should be in lowercase

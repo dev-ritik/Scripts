@@ -3,10 +3,12 @@ import os
 import dotenv
 
 DEBUG=True
+MODE='public'
 
 def init():
     dotenv.load_dotenv()
-    global DEBUG
+    global DEBUG, MODE
     DEBUG = os.getenv("DEBUG") == "True"
+    MODE = os.getenv("MODE", 'public')
 
-    print("DEBUG mode:", DEBUG)
+    print(f"Init: {DEBUG=} {MODE=}")

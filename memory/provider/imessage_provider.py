@@ -392,6 +392,9 @@ class IMessageProvider(MemoryProvider):
         if mime_type is None:
             raise ValueError("Could not determine MIME type")
 
+        if mime_type in ("image/heic", "image/heif"):
+            return await self._convert_heic_to_jpeg(media_file_path)
+
         async with aiofiles.open(media_file_path, "rb") as media_file:
             media_data = await media_file.read()
         return media_data, mime_type

@@ -134,3 +134,24 @@ Wanna make the UI for the web app more elegant? Add `profile.json` to the data f
     }
   }
 ]
+```
+
+### Privacy
+We support bunch of privacy settings
+- You can hide the messages from certain providers.
+  - Set the env variable `ENABLED_PROVIDERS='Whatsapp,Instagram,Google Photos,Hinge,Diary,iMessage,immich'` to a string of comma separated providers.
+- You can hide the messages from certain providers for certain duration using `data/privacy.yaml`
+```yaml
+modes:
+  friends: # Common friends. Most public
+    extends: close_friends
+    hide:
+      - providers: Google Photos
+        from: 2025-12-10 23:59:59
+        to: 2025-12-10 20:00:00
+
+  close_friends: # Close friends
+    extends: personal
+    hide: []
+```
+The `MODE` variable can be set to `friends` or `close_friends` to use the respective privacy settings in .env file
