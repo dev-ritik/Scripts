@@ -143,7 +143,8 @@ def extract_date_from_filename(filename, expected_datetime: datetime):
     return None
 
 
-def apply_exif_updates(filepath, date: str = None, gps: str = None, rewrite: bool = False, guess_date: bool = False,
+def apply_exif_updates(filepath, date: str = None, gps: str = None, rewrite: bool = False, force: bool = False,
+                       guess_date: bool = False,
                        dry_run: bool = False) -> dict:
     """
     Apply EXIF updates using exiftool.
@@ -163,7 +164,8 @@ def apply_exif_updates(filepath, date: str = None, gps: str = None, rewrite: boo
     # print(f"has_exif_date = {has_exif_date(filepath)}, has_exif_gps= {has_exif_gps(filepath)}")
     # print(f"is_processed_by_us(filepath={filepath}, field='gps') = {is_processed_by_us(filepath=filepath, field='gps')}")
 
-    if date and (not has_exif_date(filepath) or (rewrite and is_processed_by_us(filepath=filepath, field="date"))):
+    if date and (not has_exif_date(filepath) or ((rewrite and force or (
+            rewrite and is_processed_by_us(filepath=filepath, field="date"))))):
         args.append(f"-AllDates={date}")
         changes["Date"] = date
 
@@ -241,6 +243,11 @@ def main():
         help="Rewrite Exif data even if already present. This will only do it if the last update was by us"
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Rewrite Exif data even if already present. Use together with --rewrite"
+    )
+    parser.add_argument(
         "--guess-date",
         action="store_true",
         help="Try to extract date from filename"
@@ -306,6 +313,7 @@ def main():
             date=args.date,
             gps=gps_tuple,
             rewrite=args.rewrite,
+            force=args.force,
             guess_date=args.guess_date,
             dry_run=args.dry_run
         )
