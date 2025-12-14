@@ -137,7 +137,7 @@ class ImmichProvider(MemoryProvider):
         return results
 
     async def get_timeline_bucket(self, size: str = 'DAY') -> Dict:
-        url = f"{self.IMMICH_BASE_URL}/api/timeline/buckets?isArchived=false&size={size}&withPartners=true&withStacked=true"
+        url = f"{self.IMMICH_BASE_URL}/api/timeline/buckets?visibility=timeline&withPartners=true&withStacked=true"
 
         headers = {
             'Authorization': f'Bearer {await self.get_bearer_token()}',
