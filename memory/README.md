@@ -103,6 +103,12 @@ We shall be using the unencrypted iMessage database (on mac) to get the messages
     - If `cp` fails with `Operation not permitted`, you may need to give full system access to the terminal
   - Copy the generated attachments folder to the `data/imessage/` folder
 
+#### Google Maps
+Google Maps timeline collects data on the device. We can export it using the following steps:
+- Google Maps → Profile photo
+- Your Timeline
+- Settings → Export Timeline
+- Save the file `location-history.json` in `data/google_maps`
 
 #### Hinge
 Hinge has limited support even through backups. It only support getting user's own messages.

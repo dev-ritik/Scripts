@@ -13,6 +13,7 @@ def get_available_providers() -> list:
     from provider.whatsapp_provider import WhatsAppProvider
     from provider.imessage_provider import IMessageProvider
     from provider.hinge_provider import HingeProvider
+    from provider.google_maps_provider import GoogleMapsProvider
 
     # Only get providers that are in .env
     enabled_providers = os.environ.get('ENABLED_PROVIDERS', '').split(',')
@@ -25,7 +26,8 @@ def get_available_providers() -> list:
         ImmichProvider,
         GooglePhotosProvider,
         IMessageProvider,
-        HingeProvider
+        HingeProvider,
+        GoogleMapsProvider,
     ]
 
     if not enabled_providers:
