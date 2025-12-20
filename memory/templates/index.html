@@ -387,8 +387,13 @@
 {% endblock %}
 
 {% block extra_head %}
-
+<link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet/dist/leaflet.css"
+/>
 <script async src="//www.instagram.com/embed.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
     function getUrlParameter(name) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -616,14 +621,17 @@
             const messageTextDiv = document.createElement('div');
             messageTextDiv.className = 'message-text';
 
-            if (['non_text', 'mixed'].includes(event.media_type) && event.context?.mime_type) {
+            if (['non_text', 'mixed'].includes(event.media_type) && event.context) {
                 const mediaWrapper = document.createElement('div');
                 mediaWrapper.style.maxWidth = '300px';
                 mediaWrapper.style.margin = '5px 0';
+                const mime_type = event.context.mime_type;
+                let assetUrl = "";
+                if (mime_type) {
+                    assetUrl = `/asset/${event.provider}/${event.context.asset_id}`;
+                }
 
-                const assetUrl = `/asset/${event.provider}/${event.context.asset_id}`;
-
-                if (event.context.mime_type.startsWith('image/')) {
+                if (mime_type && mime_type.startsWith('image/')) {
                     const img = document.createElement('img');
                     img.loading = "lazy";
                     img.decoding = "async";
@@ -631,25 +639,24 @@
                     img.style.cssText = "width:100%;border-radius:8px;cursor:pointer;";
                     img.onclick = () => window.open(event.context.new_tab_url, '_blank');
                     mediaWrapper.appendChild(img);
-                } else if (event.context.mime_type.startsWith('video/')) {
+                } else if (mime_type && mime_type.startsWith('video/')) {
                     const video = document.createElement('video');
                     video.controls = true;
                     video.preload = "none";
                     video.style.cssText = "width:100%;border-radius:8px;";
                     const source = document.createElement('source');
                     source.src = assetUrl;
-                    const mime = event.context.mime_type;
 
-                    if (mime === "video/quicktime") {
+                    if (mime_type === "video/quicktime") {
                         // Browsers does not support this mime type, so we need to use a different one
                         source.type = "video/mp4";
                     } else {
-                        source.type = mime;
+                        source.type = mime_type;
                     }
 
                     video.appendChild(source);
                     mediaWrapper.appendChild(video);
-                } else if (event.context.mime_type === "audio/ogg") {
+                } else if (mime_type && mime_type === "audio/ogg") {
                     const audio = document.createElement('audio');
                     audio.controls = true;
                     audio.preload = "none";
@@ -661,9 +668,52 @@
                     audio.appendChild(source);
 
                     mediaWrapper.appendChild(audio);
+                } else if (event.context.cordinates) {
+                    const cordinates = event.context.cordinates;
+                    const mapDiv = document.createElement('div');
+                    mapDiv.style.height = '300px';
+                    mapDiv.style.width = '100%';
+                    mapDiv.style.marginTop = '8px';
+
+                    messageTextDiv.appendChild(mapDiv);
+
+                    const map = L.map(mapDiv).setView(cordinates[0], 13);
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
+
+                    if (cordinates.length > 1) {
+                        L.marker(cordinates[0]).addTo(map).bindPopup(event.message);
+                        L.polyline(cordinates, {color: '#3388ff', weight: 4}).addTo(map);
+                        cordinates.forEach((point, i) => {
+                            if (i === 0) return;
+
+                            const prev = cordinates[i - 1];
+                            const angle = Math.atan2(
+                                point[0] - prev[0],
+                                point[1] - prev[1]
+                            ) * 180 / Math.PI;
+
+                            L.marker(point, {
+                                icon: L.divIcon({
+                                    className: 'arrow-icon',
+                                    html: '➤',
+                                    iconSize: [20, 20],
+                                    iconAnchor: [10, 10]
+                                }),
+                                rotationAngle: angle
+                            }).addTo(map);
+                        });
+                    } else {
+                        L.marker(cordinates[0]).addTo(map).bindPopup(event.message);
+                    }
+
+                    // IMPORTANT
+                    setTimeout(() => map.invalidateSize(), 0);
                 } else {
                     const p = document.createElement('p');
-                    p.textContent = `Unsupported media type: ${event.context.mime_type}`;
+                    p.textContent = `Unsupported media type: ${mime_type}`;
                     mediaWrapper.appendChild(p);
                 }
 

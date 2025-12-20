@@ -4,7 +4,7 @@ import os
 import pickle
 import webbrowser
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Dict, Optional
 
 import aiofiles
@@ -282,7 +282,7 @@ class GooglePhotosProvider(MemoryProvider):
                 if not item:
                     continue
                 _date = item.get('createTime')
-                results[current_date].append(Message(_datetime=_date.replace(tzinfo=None),
+                results[current_date].append(Message(_datetime=_date.astimezone(timezone.utc).replace(tzinfo=None),
                                                      media_type=MediaType.NON_TEXT,
                                                      provider=self.NAME,
                                                      context={

@@ -3,7 +3,7 @@ import json
 import mimetypes
 import os
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from pathlib import Path
 from typing import List, Tuple, Optional
 
@@ -143,7 +143,7 @@ class InstagramProvider(MemoryProvider):
 
             contexts = contexts if contexts else [None]
             for context in contexts:
-                messages.append(Message(_dt,
+                messages.append(Message(_dt.astimezone(timezone.utc).replace(tzinfo=None),
                                         message_type,
                                         text,
                                         sender=sender_name,
