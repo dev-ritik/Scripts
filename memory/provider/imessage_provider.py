@@ -216,10 +216,10 @@ class IMessageProvider(MemoryProvider):
             context = {}
             if row["attachment_id"]:
                 parsable_asset_id = IMessageProvider.get_serialized_asset_path(
-                    row["attachment_filename"].replace("~/Library/SMS/Attachments/", ""))
+                    row["attachment_filename"].replace("~/Library/SMS/Attachments/", "").replace("~/Library/SMS/StickerCache/", ""))
                 context = {
                     "asset_id": parsable_asset_id,
-                    "mime_type": row["attachment_mime"],
+                    "mime_type": row["attachment_mime"] or mimetypes.guess_type(parsable_asset_id)[0] or 'image/jpeg',
                     "new_tab_url": f'/asset/{IMessageProvider.NAME}/{parsable_asset_id}'
                 }
             if not text and not context:
@@ -375,10 +375,10 @@ class IMessageProvider(MemoryProvider):
                 subdir = fid[:2]
                 src = os.path.join(f"~/Library/Application\\ Support/MobileSync/Backup/{BACKUP_ROOT_FOLDER}", subdir,
                                    fid)
-                dst_rel = rel.replace("Library/SMS/Attachments/", "")
+                dst_rel = rel.replace("Library/SMS/Attachments/", "").replace("Library/SMS/StickerCache/", "")
                 dst_rel_serialized = IMessageProvider.get_serialized_asset_path(dst_rel)
                 dst = f"attachments/{dst_rel_serialized}"
-                f.write(f"cp {src} {dst}\n\n")
+                f.write(f'cp {src} "{dst}"\n\n')
 
         print(f"Generated {output_shell}")
         print(f"Found {len(mapping)} attachments")
@@ -390,7 +390,11 @@ class IMessageProvider(MemoryProvider):
 
         mime_type, _ = mimetypes.guess_type(media_file_path)
         if mime_type is None:
-            raise ValueError("Could not determine MIME type")
+            if asset_id.endswith(".pluginPayloadAttachment"):
+                # Cannot find mime type for pluginPayloadAttachment files so lets assume it to be jpeg
+                mime_type = "image/jpeg"
+            else:
+                raise ValueError("Could not determine MIME type")
 
         if mime_type in ("image/heic", "image/heif"):
             return await self._convert_heic_to_jpeg(media_file_path)
