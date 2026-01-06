@@ -60,14 +60,15 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     def try_parse_date(date_str: str, _os: str) -> Optional[datetime]:
+        # Returns datetime in local timezone
         formats = WhatsAppProvider.DATE_FORMATS_IOS if _os == WhatsAppProvider.IOS else WhatsAppProvider.DATE_FORMATS_ANDROID
         for fmt in formats:
             try:
                 dt = datetime.strptime(date_str, fmt)
-                if not WhatsAppProvider.BACKUP_TIMESTAMP_LOCAL[_os]:
+                if WhatsAppProvider.BACKUP_TIMESTAMP_LOCAL[_os]:
                     return dt
-                # If the timestamp is in local, we need to convert it in UTC so that it can be compared with other timestamps
-                return dt.astimezone(None).astimezone(timezone.utc).replace(tzinfo=None)
+                # If the timestamp is in UTC, we need to convert it to local so that it can be compared with other timestamps
+                return dt.astimezone(None)
 
             except ValueError as e:
                 continue
@@ -121,7 +122,7 @@ class WhatsAppProvider(MemoryProvider):
         if not index_datetime_pairs:
             return []  # No valid messages at all
 
-        is_group = len(lines) >= 2 and 'created group' in lines[1].lower()
+        is_group = len(lines) >= 2 and ('created group' in lines[1].lower() or 'created this group' in lines[1].lower())
         if is_group and ignore_groups:
             return []
 
@@ -221,7 +222,7 @@ class WhatsAppProvider(MemoryProvider):
                 return
 
             chat_entries.append(Message(
-                current_datetime,
+                current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
                 media_type=media_type,
                 message=text.strip(),
@@ -407,7 +408,7 @@ class WhatsAppProvider(MemoryProvider):
                 return
 
             chat_entries.append(Message(
-                current_datetime,
+                current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
                 media_type=media_type,
                 message=text.strip(),

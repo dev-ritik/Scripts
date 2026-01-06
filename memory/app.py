@@ -232,17 +232,19 @@ async def get_user_stats(name):
     user_messages = list(messages_by_sender.values())[0]
 
     words_counter = Counter()
+    punc = string.punctuation + '“”‘’'
     for msg in user_messages:
         if not msg.message:
             continue
         words = msg.message.split()
         for word in words:
             # filter noise like punctuation or 1-character digits
-            w = word.strip(string.punctuation).lower()
+            w = word.strip(punc).lower()
             if w.isdigit():
                 continue
             if w.lower() in COMMON_WORDS_FOR_USER_STATS:
                 continue
+            print(word, w)
             words_counter[w] += 1
 
     most_spoken_words = words_counter.most_common(30)
@@ -343,4 +345,7 @@ async def get_available_providers():
                                     instance.is_working()], 10)
 
 if __name__ == '__main__':
+    # from provider.imessage_provider import IMessageProvider
+    # asyncio.run(IMessageProvider.get_script_for_attachment())
     app.run(debug=True)
+    # app.run(host='0.0.0.0', debug=True)
