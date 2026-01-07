@@ -1,7 +1,7 @@
 import asyncio
 import os
 import re
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from pathlib import Path
 from typing import List, Optional, Dict
 
@@ -181,7 +181,7 @@ class DiaryProvider(MemoryProvider):
 
                     results[curr_date].append(
                         Message(
-                            _datetime=_dt,
+                            _datetime=_dt.astimezone(timezone.utc).replace(tzinfo=None),
                             message=text,
                             message_type=MessageType.SENT,
                             provider=self.NAME,

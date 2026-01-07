@@ -244,7 +244,6 @@ async def get_user_stats(name):
                 continue
             if w.lower() in COMMON_WORDS_FOR_USER_STATS:
                 continue
-            print(word, w)
             words_counter[w] += 1
 
     most_spoken_words = words_counter.most_common(30)
