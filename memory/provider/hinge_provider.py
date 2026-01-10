@@ -6,6 +6,7 @@ from typing import List, Optional
 import aiofiles
 
 import configs
+from profile import get_all_hinge_match_times
 from provider.base_provider import MemoryProvider, Message, MediaType, MessageType
 
 
@@ -41,10 +42,13 @@ class HingeProvider(MemoryProvider):
 
         matches_data = await HingeProvider._read_matches_file()
 
+        chat_name_match_time = await get_all_hinge_match_times()
+        match_time_chat_name = {v: k for k, v in chat_name_match_time.items()}
         match_count = 0
         for match in matches_data:
             match_messages = []
             match_count += 1
+            chat_name = None
 
             for like_data in match.get('like', []):
                 _dt = datetime.strptime(like_data.get('timestamp'), "%Y-%m-%d %H:%M:%S")
@@ -56,7 +60,10 @@ class HingeProvider(MemoryProvider):
                 match_messages.append((_dt, message))
 
             for match_data in match.get('match', []):
-                _dt = datetime.strptime(match_data.get('timestamp'), "%Y-%m-%d %H:%M:%S")
+                match_time = match_data.get('timestamp')
+                if match_time in match_time_chat_name:
+                    chat_name = match_time_chat_name[match_time]
+                _dt = datetime.strptime(match_time, "%Y-%m-%d %H:%M:%S")
                 match_messages.append((_dt, 'Matched'))
 
             for chat_data in match.get('chats', []):
@@ -89,7 +96,7 @@ class HingeProvider(MemoryProvider):
                         text,
                         sender=configs.USER,
                         provider=HingeProvider.NAME,
-                        chat_name=f'Match {match_count}',
+                        chat_name=chat_name or f'Match {match_count}',
                         media_type=MediaType.TEXT,
                         context={},
                         is_group=False  # TODO: Fix

@@ -114,6 +114,7 @@ Google Maps timeline collects data on the device. We can export it using the fol
 Hinge has limited support even through backups. It only support getting user's own messages.
 - Open Hinge app and go to settings > Download my data > Download my data button
 - Once you receive the downloaded zip, copy the `matches.json` file to `data/hinge`
+- Hinge doesn't provide the name of the chat. You can use `provider_details.hinge.match_time` to add a name to the chats (as in the example below). Any match time for the user from matches.json will work fine.
 
 ### Web app setup
 - Run `pip install -r requirements.txt`
@@ -136,6 +137,9 @@ Wanna make the UI for the web app more elegant? Add `profile.json` to the data f
       "imessage": {
         "chat_identifier": [
         ]
+      },
+      "hinge": {
+        "match_time": "2025-08-01 01:01:01"
       }
     }
   }
