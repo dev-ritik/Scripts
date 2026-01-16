@@ -162,6 +162,13 @@ def main(days, notiondb, split_items_limit):
         created = parser.parse(item['date'])
         deleted = item['deleted_at']
         name = item['description'].strip()
+        if not name:
+            continue
+
+        # Remove SW Automation prefix from name
+        name = name.removeprefix("SW Automation-").strip()
+        name = name.removeprefix("SW Automation:").strip()
+
         if deleted:
             name += "(Deleted)"
 
