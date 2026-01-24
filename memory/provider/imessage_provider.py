@@ -1,3 +1,4 @@
+import json
 import mimetypes
 import os
 import re
@@ -150,79 +151,142 @@ class IMessageProvider(MemoryProvider):
         chat_identifiers = IMessageProvider._list_to_query_string(chat_identifiers)
 
         query = f"""
-                SELECT m.ROWID          AS message_id,
-                       m.text           AS message_text,
-                       m.attributedBody AS attributed_body,
-                       m.handle_id,
-                       h.id             AS handle_identifier,
-                       m.date,
-                       m.guid,
-                       m.account,
-                       c.chat_identifier,
-                       datetime(m.date / 1000000000 + strftime('%s', '2001-01-01'), 'unixepoch') AS timestamp,
+WITH attachments AS (
+    SELECT
+        maj.message_id,
+        json_group_array(
+            json_object(
+                'attachment_id', a.ROWID,
+                'filename', a.filename,
+                'mime_type', a.mime_type,
+                'original_name', a.transfer_name
+            )
+        ) AS attachments
+    FROM message_attachment_join maj
+    JOIN attachment a
+        ON maj.attachment_id = a.ROWID
+    GROUP BY maj.message_id
+),
+
+participants AS (
+    SELECT
+        chj.chat_id,
+        json_group_array(
+            DISTINCT json_object(
+                'handle_id', h2.ROWID,
+                'identifier', h2.id
+            )
+        ) AS participants
+    FROM chat_handle_join chj
+    JOIN handle h2
+        ON chj.handle_id = h2.ROWID
+    GROUP BY chj.chat_id
+)
+
+SELECT
+    m.ROWID          AS message_id,
+    m.text           AS message_text,
+    m.attributedBody AS attributed_body,
+    m.handle_id,
+    h.id             AS handle_identifier,
+    m.date,
+    m.guid,
+    m.account,
+    c.chat_identifier,
+
+    (c.style = 43) AS is_group_chat,
+    c.display_name AS room_name,
+
+    datetime(
+        m.date / 1000000000 + strftime('%s','2001-01-01'),
+        'unixepoch'
+    ) AS timestamp,
+
     m.is_from_me,
     m.service,
     m.cache_has_attachments,
-    -- attachment data
-    a.ROWID AS attachment_id,
-    a.filename AS attachment_filename,
-    a.mime_type AS attachment_mime,
-    a.transfer_name AS attachment_original_name
-                FROM message m
-                    LEFT JOIN handle h
-                ON m.handle_id = h.ROWID
-                    LEFT JOIN message_attachment_join maj
-                    ON m.ROWID = maj.message_id
-                    LEFT JOIN attachment a
-                    ON maj.attachment_id = a.ROWID
 
--- REQUIRED: restrict to a specific chat
-                    JOIN chat_message_join cmj
-                    ON m.ROWID = cmj.message_id
-                    JOIN chat c
-                    ON cmj.chat_id = c.ROWID
+    COALESCE(att.attachments, '[]') AS attachments,
+    COALESCE(p.participants, '[]')  AS participants
 
-                WHERE
-                    c.chat_identifier IN {chat_identifiers}
-                  AND m.date BETWEEN {start_ns} AND {end_ns}
+FROM message m
 
-                ORDER BY
-                    m.date ASC;
+JOIN chat_message_join cmj
+    ON m.ROWID = cmj.message_id
+JOIN chat c
+    ON cmj.chat_id = c.ROWID
+
+LEFT JOIN handle h
+    ON m.handle_id = h.ROWID
+
+LEFT JOIN attachments att
+    ON m.ROWID = att.message_id
+
+LEFT JOIN participants p
+    ON c.ROWID = p.chat_id
+
+WHERE
+    c.chat_identifier IN {chat_identifiers}
+    AND m.date BETWEEN {start_ns} AND {end_ns}
+
+ORDER BY
+    m.date ASC;
                 """
 
         rows = IMessageProvider.query_sms_db(query, ())
 
         pattern = re.compile(search_regex) if search_regex else None
 
+        def _get_group_chat_name_from_participants(participants):
+            names = []
+
+            for participant in participants:
+                name = chat_identifier_sender.get(participant["identifier"]) or participant["identifier"]
+                if name != self.USER:
+                    names.append(name)
+
+            return " and ".join(names)
+
         for row in rows:
+            if row["is_group_chat"] == 1 and ignore_groups:
+                continue
             # print(row['guid'])
-            text = row["message_text"] or IMessageProvider._decode_attributed_body(row["attributed_body"])
+            text = row["message_text"]
+            if not text:
+                text = IMessageProvider._decode_attributed_body(row["attributed_body"])
+            elif text == '�':
+                # TODO: Verify if this mean anything other than location
+                text = 'Started Sharing Location'
             # print("Timestamp:", row["timestamp"])
             _dt = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
-            user_id = row["handle_identifier"] if row["handle_identifier"] and row["handle_identifier"] != 0 else row[
+            sender_id = row["handle_identifier"] if row["handle_identifier"] and row["handle_identifier"] != 0 else row[
                 'chat_identifier']
-            chat_name = chat_identifier_sender[user_id]
+            sender_name = chat_identifier_sender[sender_id]
+            chat_name = sender_name if row['is_group_chat'] == 0 else row["room_name"] or _get_group_chat_name_from_participants(json.loads(row["participants"]))
             if row["is_from_me"] == 1:
                 message_type = MessageType.SENT
                 sender_name = self.USER
             else:
                 message_type = MessageType.RECEIVED
-                sender_name = chat_name
+                sender_name = sender_name
 
             if senders and sender_name not in senders:
                 continue
             # print("Service:", row["service"])
             # print("Has Attachments:", row["cache_has_attachments"])
-            context = {}
-            if row["attachment_id"]:
+            # TODO: Add support for multiple images per message
+            contexts = []
+            for a in json.loads(row["attachments"]):
+                if not a:
+                    continue
                 parsable_asset_id = IMessageProvider.get_serialized_asset_path(
-                    row["attachment_filename"].replace("~/Library/SMS/Attachments/", "").replace("~/Library/SMS/StickerCache/", ""))
-                context = {
+                    a["filename"].replace("~/Library/SMS/Attachments/", "").replace("~/Library/SMS/StickerCache/", ""))
+                contexts.append({
                     "asset_id": parsable_asset_id,
-                    "mime_type": row["attachment_mime"] or mimetypes.guess_type(parsable_asset_id)[0] or 'image/jpeg',
+                    "mime_type": a["mime_type"] or mimetypes.guess_type(parsable_asset_id)[0] or 'image/jpeg',
                     "new_tab_url": f'/asset/{IMessageProvider.NAME}/{parsable_asset_id}'
-                }
-            if not text and not context:
+                })
+            if not text and not contexts:
                 # TODO: Add support for emoji reactions
                 continue
             if not sender_name:
@@ -231,19 +295,21 @@ class IMessageProvider(MemoryProvider):
             if pattern and pattern.search(text) is None:
                 continue
 
-            messages.append(
-                Message(
-                    _dt,
-                    message_type,
-                    text,
-                    sender=sender_name,
-                    provider=IMessageProvider.NAME,
-                    chat_name=chat_name,
-                    media_type=MediaType.TEXT if not context else MediaType.MIXED,
-                    context=context,
-                    is_group=False  # TODO: Fix
+            contexts = contexts if contexts else [None]
+            for context in contexts:
+                messages.append(
+                    Message(
+                        _dt,
+                        message_type,
+                        text,
+                        sender=sender_name,
+                        provider=IMessageProvider.NAME,
+                        chat_name=chat_name,
+                        media_type=MediaType.TEXT if not context else MediaType.MIXED,
+                        context=context,
+                        is_group=False  # TODO: Fix
+                    )
                 )
-            )
 
         messages.sort(key=lambda memory: memory.datetime)
         print("Done fetching from iMessage")

@@ -401,6 +401,11 @@ class WhatsAppProvider(MemoryProvider):
                 context['deleted'] = True
                 text = text.replace('This message was deleted', '')
 
+            if text.startswith('‎Voice call, ‎'):
+                context['voice_call'] = True
+                context['voice_call_duration'] = text.split(', ')[1].strip()
+                text = ''
+
             if not text and not context:
                 return
 
