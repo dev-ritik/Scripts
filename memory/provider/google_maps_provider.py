@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 import aiofiles
 
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
+from utils import human_duration
 
 
 class GoogleMapsProvider(MemoryProvider):
@@ -81,7 +82,7 @@ class GoogleMapsProvider(MemoryProvider):
             place_type = top.get("semanticType", "Unknown")
 
             text = (
-                f"{'Visited place' if hierarchy_level <= 1 else 'Was in'}{' ' + place_type if place_type != 'Unknown' else ''} for {int(duration_min)} minutes"
+                f"{'Visited place' if hierarchy_level <= 1 else 'Was in'}{' ' + place_type if place_type != 'Unknown' else ''} for {human_duration(minutes=duration_min)}"
             )
 
             # TODO: Add running messages in UI
@@ -100,7 +101,7 @@ class GoogleMapsProvider(MemoryProvider):
             start_lat, start_lng = GoogleMapsProvider.parse_geo(act["start"])
             end_lat, end_lng = GoogleMapsProvider.parse_geo(act["end"])
 
-            text = f"Was {activity_type} for {int(float(distance))} meters in {int(duration_min)} minutes"
+            text = f"Was {activity_type} for {int(float(distance))} meters in {human_duration(minutes=duration_min)}"
 
             return start, text, [(start_lat, start_lng), (end_lat, end_lng)]
 
@@ -113,7 +114,7 @@ class GoogleMapsProvider(MemoryProvider):
             # StartTime and EndTime may be irrelevant.
             start = start + timedelta(minutes=int(points[0]["durationMinutesOffsetFromStartTime"]))
 
-            text = f"Movement in {int(points[-1]['durationMinutesOffsetFromStartTime']) - int(points[0]['durationMinutesOffsetFromStartTime'])} min"
+            text = f"Movement in {human_duration(minutes=int(points[-1]['durationMinutesOffsetFromStartTime']) - int(points[0]['durationMinutesOffsetFromStartTime']))}"
 
             return start, text, [GoogleMapsProvider.parse_geo(p['point']) for p in points]
 
@@ -166,7 +167,7 @@ class GoogleMapsProvider(MemoryProvider):
                     provider=self.NAME,
                     media_type=MediaType.MIXED,
                     context={
-                        "cordinates": coords
+                        "coordinates": coords
                     }
                 )
             )

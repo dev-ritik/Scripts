@@ -116,6 +116,12 @@ Hinge has limited support even through backups. It only support getting user's o
 - Once you receive the downloaded zip, copy the `matches.json` file to `data/hinge`
 - Hinge doesn't provide the name of the chat. You can use `provider_details.hinge.match_time` to add a name to the chats (as in the example below). Any match time for the user from matches.json will work fine.
 
+#### Uber
+We use Personal data copy to get the ride history.
+- Go to https://privacy.uber.com/center?show_header=false or Manage Account > Privacy & Data > Privacy Center > `Would you like a copy of your personal data?` Hit `Request`
+- Wait a while and download the zip file
+- Copy the file `Rider` > `trips_data-0.json` to `data/uber`
+
 ### Web app setup
 - Run `pip install -r requirements.txt`
 - `python app.py`

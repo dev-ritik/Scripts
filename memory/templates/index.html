@@ -703,8 +703,8 @@
                     audio.appendChild(source);
 
                     mediaWrapper.appendChild(audio);
-                } else if (event.context.cordinates) {
-                    const cordinates = event.context.cordinates;
+                } else if (event.context.coordinates) {
+                    const coordinates = event.context.coordinates;
                     const mapDiv = document.createElement('div');
                     mapDiv.style.height = '300px';
                     mapDiv.style.width = '100%';
@@ -712,19 +712,19 @@
 
                     messageTextDiv.appendChild(mapDiv);
 
-                    const map = L.map(mapDiv).setView(cordinates[0], 13);
+                    const map = L.map(mapDiv).setView(coordinates[0], 13);
 
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '© OpenStreetMap'
                     }).addTo(map);
 
-                    if (cordinates.length > 1) {
-                        L.marker(cordinates[0]).addTo(map).bindPopup(event.message);
-                        L.polyline(cordinates, {color: '#3388ff', weight: 4}).addTo(map);
-                        cordinates.forEach((point, i) => {
+                    if (coordinates.length > 1) {
+                        L.marker(coordinates[0]).addTo(map).bindPopup(event.message);
+                        L.polyline(coordinates, {color: '#3388ff', weight: 4}).addTo(map);
+                        coordinates.forEach((point, i) => {
                             if (i === 0) return;
 
-                            const prev = cordinates[i - 1];
+                            const prev = coordinates[i - 1];
                             const angle = Math.atan2(
                                 point[0] - prev[0],
                                 point[1] - prev[1]
@@ -741,7 +741,7 @@
                             }).addTo(map);
                         });
                     } else {
-                        L.marker(cordinates[0]).addTo(map).bindPopup(event.message);
+                        L.marker(coordinates[0]).addTo(map).bindPopup(event.message);
                     }
 
                     // IMPORTANT

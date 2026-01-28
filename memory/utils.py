@@ -55,3 +55,24 @@ def add_caching_to_response(response: Any, ttl_prod: int = 3600, ttl_debug: int 
     else:
         response.headers["Cache-Control"] = f"public, max-age={ttl_prod}"
     return response
+
+def human_duration(seconds: int | float = None, minutes: int | float = None) -> str:
+    if seconds is None and minutes is None:
+        return ""
+
+    total_seconds = int(seconds if seconds is not None else minutes * 60)
+
+    units = [
+        ("day", 86400),
+        ("hour", 3600),
+        ("min", 60),
+        ("s", 1),
+    ]
+
+    parts = []
+    for name, unit_seconds in units:
+        value, total_seconds = divmod(total_seconds, unit_seconds)
+        if value:
+            parts.append(f"{value} {name}")
+
+    return " ".join(parts) if parts else "0 s"
