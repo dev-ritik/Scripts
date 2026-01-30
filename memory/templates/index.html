@@ -448,8 +448,9 @@
             return;
         }
 
-       const searchRegex = document.getElementById('searchRegex').value.trim();
+        const searchRegex = document.getElementById('searchRegex').value.trim();
         const group = document.getElementById('group').checked;
+        const exclude_system_messages = document.getElementById('exclude_system').checked;
         const selectedProviders = Array.from(document.querySelectorAll('.provider-option.selected'))
             .map(el => el.textContent.trim());
         const selectedPeoples = Array.from(document.getElementById('senders').selectedOptions).map(opt => opt.value);
@@ -457,6 +458,7 @@
 
         let queryParams = new URLSearchParams();
         queryParams.set("group", group);
+        queryParams.set("exclude_system_messages", exclude_system_messages);
         queryParams.set("start_date", start_date);
         queryParams.set("end_date", end_date);
 
@@ -975,6 +977,11 @@
                 <label for="group">
                     <i class="fas fa-users"></i>
                     Show Group Messages
+                </label>
+                <input type="checkbox" id="exclude_system" name="exclude_system" checked>
+                <label for="exclude_system">
+                    <i class="fas fa-users"></i>
+                    Exclude System Messages
                 </label>
             </div>
         </div>

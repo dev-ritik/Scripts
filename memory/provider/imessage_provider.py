@@ -116,6 +116,7 @@ class IMessageProvider(MemoryProvider):
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
+                    exclude_system_messages: bool = True,
                     senders: List[str] = None,
                     search_regex: str = None) -> List[Message]:
         print("Starting to fetch from iMessage")

@@ -85,12 +85,14 @@ class MemoryProvider(ABC):
 
     async def fetch_on_date(self, on_date: Optional[date],
                             ignore_groups: bool = False,
+                            exclude_system_messages: bool = True,
                             senders: List[str] = None,
                             search_regex: str = None) -> List[Message]:
         """
         Get all messages on the on_date. This is deprecated. Use fetch() instead.
         :param on_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
+        :param exclude_system_messages: Exclude system messages
         :param senders: Only fetch messages from these senders
         :param search_regex: Search for this string in message content
         :return: List of messages on the date
@@ -102,6 +104,7 @@ class MemoryProvider(ABC):
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
+                    exclude_system_messages: bool = True,
                     senders: List[str] = None,
                     search_regex: str = None) -> List[Message]:
         """
@@ -110,17 +113,21 @@ class MemoryProvider(ABC):
         :param end_date: Larger date (inclusive)
         :param on_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
+        :param exclude_system_messages: Exclude system messages
         :param senders: Only fetch messages from these senders
         :param search_regex: Search for this string in message content
         :return: List of messages on the date
         """
         if on_date:
-            return await self.fetch_on_date(on_date, ignore_groups=ignore_groups, senders=senders, search_regex=search_regex)
+            return await self.fetch_on_date(on_date, ignore_groups=ignore_groups,
+                                            exclude_system_messages=exclude_system_messages,
+                                            senders=senders, search_regex=search_regex)
         else:
             all_messages = await self.fetch_dates(
                 start_date=start_date,
                 end_date=end_date,
                 ignore_groups=ignore_groups,
+                exclude_system_messages=exclude_system_messages,
                 senders=senders,
                 search_regex=search_regex,
             )
@@ -134,6 +141,7 @@ class MemoryProvider(ABC):
     async def fetch_dates(self, start_date: date,
                           end_date: date,
                           ignore_groups: bool = False,
+                          exclude_system_messages: bool = True,
                           senders: List[str] = None,
                           search_regex: str = None) -> Dict[datetime.date, List[Message]]:
         """
@@ -141,6 +149,7 @@ class MemoryProvider(ABC):
         :param start_date: Smaller date (inclusive)
         :param end_date: Larger date (inclusive)
         :param ignore_groups: Ignore group chats
+        :param exclude_system_messages: Exclude system messages
         :param senders: Only fetch messages from these senders
         :param search_regex: search_regex for this string in message content
         :return: Dict of dates and messages for each date
@@ -150,7 +159,9 @@ class MemoryProvider(ABC):
 
         current = start_date
         while current <= end_date:
-            tasks.append(self.fetch(current, ignore_groups=ignore_groups, senders=senders, search_regex=search_regex))
+            tasks.append(self.fetch(current, ignore_groups=ignore_groups,
+                                    exclude_system_messages=exclude_system_messages,
+                                    senders=senders, search_regex=search_regex))
             dates.append(current)
             current += timedelta(days=1)
 
@@ -180,7 +191,7 @@ class MemoryProvider(ABC):
             output_path = tmp.name
 
         try:
-            # Heic files might not be supported. Hence use this
+            # Heic files might not be supported. Hence, use this
             # sudo apt install libheif-examples
             proc = await asyncio.create_subprocess_exec(
                 "heif-convert",

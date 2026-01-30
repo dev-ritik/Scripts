@@ -48,16 +48,16 @@ class ImmichProvider(MemoryProvider):
         self.bearer_token = response.json()["accessToken"]
         return self.bearer_token
 
-    async def fetch_on_date(self, on_date: date, ignore_groups: bool = False, senders: List[str] = None) -> List[
+    async def fetch_on_date(self, on_date: date, senders: List[str] = None, **kwargs) -> List[
         Message]:
         raise NotImplementedError
 
     async def fetch_dates(self,
                           start_date: date,
                           end_date: date,
-                          ignore_groups: bool = False,
                           senders: List[str] = None,
-                          search_regex: str = None) -> Dict[datetime.date, List[Message]]:
+                          search_regex: str = None,
+                          **kwargs) -> Dict[datetime.date, List[Message]]:
         results = defaultdict(list)
         if not self.WORKING:
             return results

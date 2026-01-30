@@ -45,6 +45,7 @@ async def chat_data():
         return f"Invalid date format {start_date} {end_date}", 400
 
     group = request.args.get('group', 'true') == 'true'
+    exclude_system_messages = request.args.get('exclude_system_messages', 'true') == 'true'
     search = unquote(request.args.get('search')) if request.args.get('search') else None
     providers_param = request.args.get('providers')  # comma-separated list
     peoples_param = request.args.get('peoples')  # comma-separated list
@@ -60,6 +61,7 @@ async def chat_data():
     events = await MemoryAggregator.get_events_for_dates(start_date,
                                                          end_date,
                                                          ignore_groups=not group,
+                                                         exclude_system_messages=exclude_system_messages,
                                                          providers=providers,
                                                          senders=peoples,
                                                          search=search)
@@ -346,5 +348,13 @@ async def get_available_providers():
 if __name__ == '__main__':
     # from provider.imessage_provider import IMessageProvider
     # asyncio.run(IMessageProvider.get_script_for_attachment())
+    # IMessageProvider._get_all_chats(imessage_only=True)
     app.run(debug=True)
     # app.run(host='0.0.0.0', debug=True)
+
+    # import init
+    # import asyncio
+    # from provider.google_photos_provider import GooglePhotosProvider
+    #
+    # provider = GooglePhotosProvider()
+    # print(asyncio.run(provider.setup(create_new_session=False)))

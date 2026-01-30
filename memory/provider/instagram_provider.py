@@ -161,6 +161,7 @@ class InstagramProvider(MemoryProvider):
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
+                    exclude_system_messages: bool = True,
                     senders: List[str] = None,
                     search_regex: str = None) -> List[Message]:
         print(f"Starting to fetch from Instagram {on_date=} {start_date=} {end_date=}")

@@ -85,9 +85,10 @@ class DiaryProvider(MemoryProvider):
 
     async def fetch_on_date(self,
                             on_date: Optional[date],
-                            ignore_groups: bool = False,
+                            exclude_system_messages: bool = True,
                             senders: List[str] = None,
-                            search_regex: str = None) -> List[Message]:
+                            search_regex: str = None,
+                            **kwargs) -> List[Message]:
         results = []
         if not self.WORKING:
             return results
@@ -138,9 +139,9 @@ class DiaryProvider(MemoryProvider):
     async def fetch_dates(self,
                           start_date: date,
                           end_date: date,
-                          ignore_groups: bool = False,
                           senders: List[str] = None,
-                          search_regex: str = None
+                          search_regex: str = None,
+                          **kwargs
                           ) -> Dict[date, List[Message]]:
         results: Dict[date, List[Message]] = defaultdict(list)
         if not self.WORKING:

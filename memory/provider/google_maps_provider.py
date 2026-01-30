@@ -129,9 +129,9 @@ class GoogleMapsProvider(MemoryProvider):
             on_date: Optional[date] = None,
             start_date: Optional[date] = None,
             end_date: Optional[date] = None,
-            ignore_groups: bool = False,
             senders: List[str] = None,
             search_regex: str = None,
+            **kwargs
     ):
         messages = []
         if not self.WORKING:

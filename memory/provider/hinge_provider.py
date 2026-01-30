@@ -26,9 +26,9 @@ class HingeProvider(MemoryProvider):
     async def fetch(self, on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
                     senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
+                    search_regex: str = None,
+                    **kwargs) -> List[Message]:
         print("Starting to fetch from Hinge")
         messages = []
 

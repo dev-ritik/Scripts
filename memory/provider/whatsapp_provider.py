@@ -76,12 +76,13 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     async def parse_android_chat(file_path: str,
-                                  on_date: Optional[date] = None,
-                                  start_date: Optional[date] = None,
-                                  end_date: Optional[date] = None,
-                                  ignore_groups: bool = False,
-                                  sender_regexes: List[str] = None,
-                                  pattern = None) -> List[Message]:
+                                 on_date: Optional[date] = None,
+                                 start_date: Optional[date] = None,
+                                 end_date: Optional[date] = None,
+                                 ignore_groups: bool = False,
+                                 exclude_system_messages: bool = True,
+                                 sender_regexes: List[str] = None,
+                                 pattern=None) -> List[Message]:
         chat_entries = []
         _os = WhatsAppProvider.ANDROID
 
@@ -211,9 +212,9 @@ class WhatsAppProvider(MemoryProvider):
                 context['edited'] = True
                 text = text.replace('<This message was edited>', '')
 
-            if 'This message was deleted' in text:
+            if 'This message was deleted' in text or 'You deleted this message' in text:
                 context['deleted'] = True
-                text = text.replace('This message was deleted', '')
+                text = ''
 
             if not text and not context:
                 return
@@ -221,12 +222,16 @@ class WhatsAppProvider(MemoryProvider):
             if pattern and pattern.search(text) is None:
                 return
 
+            sender = current_sender or MemoryProvider.SYSTEM
+            if sender == MemoryProvider.SYSTEM and exclude_system_messages:
+                return
+
             chat_entries.append(Message(
                 current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
                 media_type=media_type,
                 message=text.strip(),
-                sender=current_sender or MemoryProvider.SYSTEM,
+                sender=sender,
                 provider=WhatsAppProvider.NAME,
                 chat_name=chat_name,
                 is_group=is_group,
@@ -274,6 +279,7 @@ class WhatsAppProvider(MemoryProvider):
                              start_date: Optional[date] = None,
                              end_date: Optional[date] = None,
                              ignore_groups: bool = False,
+                             exclude_system_messages: bool = True,
                              sender_regexes: List[str] = None,
                              pattern=None) -> List[Message]:
         chat_entries = []
@@ -412,12 +418,16 @@ class WhatsAppProvider(MemoryProvider):
             if pattern and pattern.search(text) is None:
                 return
 
+            sender = current_sender or MemoryProvider.SYSTEM
+            if sender == MemoryProvider.SYSTEM and exclude_system_messages:
+                return
+
             chat_entries.append(Message(
                 current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
                 message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
                 media_type=media_type,
                 message=text.strip(),
-                sender=current_sender or MemoryProvider.SYSTEM,
+                sender=sender,
                 provider=WhatsAppProvider.NAME,
                 chat_name=chat_name,
                 is_group=is_group,
@@ -464,6 +474,7 @@ class WhatsAppProvider(MemoryProvider):
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
+                    exclude_system_messages: bool = False,
                     senders: List[str] = None,
                     search_regex: str = None) -> List[Message]:
         print(f"Starting to fetch from WhatsApp {on_date=} {start_date=} {end_date=}")
@@ -487,6 +498,7 @@ class WhatsAppProvider(MemoryProvider):
                                                          start_date=start_date,
                                                          end_date=end_date,
                                                          ignore_groups=ignore_groups,
+                                                         exclude_system_messages=exclude_system_messages,
                                                          sender_regexes=sender_regexes,
                                                          pattern=pattern))
                 else:
@@ -498,6 +510,7 @@ class WhatsAppProvider(MemoryProvider):
                                                      start_date=start_date,
                                                      end_date=end_date,
                                                      ignore_groups=ignore_groups,
+                                                     exclude_system_messages=exclude_system_messages,
                                                      sender_regexes=sender_regexes,
                                                      pattern=pattern))
 
