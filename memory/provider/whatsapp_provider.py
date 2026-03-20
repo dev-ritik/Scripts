@@ -307,7 +307,7 @@ class WhatsAppProvider(MemoryProvider):
         if not index_datetime_pairs:
             return []  # No valid messages at all
 
-        is_group = len(lines) >= 2 and 'created this' in lines[1].lower()
+        is_group = len(lines) >= 2 and ('created this' in lines[1].lower() or 'created group' in lines[1].lower())
         if is_group and ignore_groups:
             return []
 
