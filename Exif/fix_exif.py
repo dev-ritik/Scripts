@@ -18,181 +18,12 @@ Requires:
 """
 
 import argparse
-import os
-import re
-import subprocess
 import sys
-from datetime import datetime
-from glob import glob
 from pathlib import Path
 
 from tqdm import tqdm
 
-# ------------------------------------------
-# Supported extensions
-# ------------------------------------------
-SUPPORTED_EXTS = {
-    "jpg", "jpeg", "png",
-    "heic", "mp4", "mov", "avi", "mkv", "webp", "gif"
-}
-
-OVERWRITE_ORIGINAL = True  # Exiftool will overwrite original file
-
-
-# ------------------------------------------
-# Helpers
-# ------------------------------------------
-def get_script_name() -> str:
-    return Path(__file__).name
-
-
-def get_git_commit() -> str:
-    return run(["git", "rev-parse", "--short", "HEAD"])
-
-
-def get_current_date() -> str:
-    return datetime.now().strftime("%Y:%m:%d")
-
-
-def get_script_tag(fields) -> str:
-    return f"UpdatedBy={get_script_name()}@{get_git_commit()};Modified={get_current_date()};Fields={fields}"
-
-def extract_tag(filepath) -> str:
-    return run(
-        ["exiftool", "-s3", "-UserComment", filepath]
-    )
-
-def is_processed_by_us(filepath=None, field: str = None) -> bool:
-    script_tag = extract_tag(filepath)
-    if not script_tag:
-        return False
-    if not field:
-        return True
-    if field not in script_tag:
-        return False
-    return True
-
-
-def run(cmd):
-    """Run a subprocess and return stdout as text."""
-    result = subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    return result.stdout.strip()
-
-
-def detect_real_file_type(filepath):
-    """
-    Return `file` command mime description, e.g.:
-        "JPEG image data"
-        "ISO Media, HEIC image"
-    """
-    return run(["file", "-b", filepath])
-
-
-def has_exif_date(filepath):
-    return run(["exiftool", "-s3", "-DateTimeOriginal", filepath])
-
-
-def has_exif_gps(filepath):
-    return run(["exiftool", "-s3", "-GPSLatitude", filepath])
-
-
-def extract_date_from_filename(filename, expected_datetime: datetime):
-    """
-    Try to extract datetime from filename.
-    Returns EXIF-style: 'YYYY:MM:DD HH:MM:SS'
-    or None if no pattern matches.
-    """
-
-    name = Path(filename).stem
-
-    patterns = [
-        # IMG_20250110_153245
-        r"(\d{4})(\d{2})(\d{2})[_\- ]?(\d{2})(\d{2})(\d{2})",
-        # 2022-08-19 14-20-00
-        r"(\d{4})[.\-_/ ](\d{2})[.\-_/ ](\d{2})[ _\-]?(\d{2})[.\-_:]?(\d{2})[.\-_:]?(\d{2})",
-        # Screenshot from 2024-06-11 23-02-24
-        r"\b(\d{4})-(\d{2})-(\d{2})[ _-](\d{2})-(\d{2})-(\d{2})\b",
-        # 20240708   (date only)
-        r"(\d{4})(\d{2})(\d{2})"
-    ]
-
-    for p in patterns:
-        m = re.search(p, name)
-        if m:
-            parts = m.groups()
-            try:
-                if len(parts) == 6:
-                    dt = datetime(
-                        int(parts[0]), int(parts[1]), int(parts[2]),
-                        int(parts[3]), int(parts[4]), int(parts[5])
-                    )
-                else:
-                    dt = datetime(
-                        int(parts[0]), int(parts[1]), int(parts[2]), expected_datetime.hour, expected_datetime.minute,
-                        expected_datetime.second
-                    )
-                return dt.strftime("%Y:%m:%d %H:%M:%S")
-            except Exception as e:
-                print(f"Error parsing date from {filename=}: {e}")
-
-    return None
-
-
-def apply_exif_updates(filepath, date: str = None, gps: str = None, rewrite: bool = False, force: bool = False,
-                       guess_date: bool = False,
-                       dry_run: bool = False) -> dict:
-    """
-    Apply EXIF updates using exiftool.
-    date: "YYYY:MM:DD HH:MM:SS"
-    gps: tuple (lat, lon)
-    rewrite: If True, overwrite existing EXIF data even if it was written by us.
-    dry_run: If True, don't actually modify files.
-    """
-    args = []
-    changes = {}
-
-    parsed_datetime = extract_date_from_filename(filepath,
-                                                 datetime.strptime(date, "%Y:%m:%d %H:%M:%S")) if guess_date else None
-    if parsed_datetime:
-        date = parsed_datetime
-
-    # print(f"has_exif_date = {has_exif_date(filepath)}, has_exif_gps= {has_exif_gps(filepath)}")
-    # print(f"is_processed_by_us(filepath={filepath}, field='gps') = {is_processed_by_us(filepath=filepath, field='gps')}")
-
-    if date and (not has_exif_date(filepath) or ((rewrite and force or (
-            rewrite and is_processed_by_us(filepath=filepath, field="date"))))):
-        args.append(f"-AllDates={date}")
-        changes["Date"] = date
-
-    # if gps and (not has_exif_gps(filepath) or (rewrite and is_processed_by_us(filepath=filepath, field="gps"))):
-    if gps:
-        lat, lon = gps
-        args.append(f"-GPSLatitude={lat}")
-        args.append(f"-GPSLongitude={lon}")
-        changes["GPS"] = f"{lat},{lon}"
-
-    script_tag = get_script_tag(",".join(changes.keys()))
-    # print(f"script_tag = {script_tag}")
-
-    if not args or dry_run:
-        return changes
-
-    command = ["exiftool"]
-    if OVERWRITE_ORIGINAL:
-        command.append("-overwrite_original")
-    command.append(f"-UserComment={script_tag}")
-    command.extend(args + [filepath])
-    subprocess.run(
-        command,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    return changes
+from utils import detect_real_file_type, apply_exif_updates, scan_files
 
 
 def convert_mislabeled_heic(filepath, dry_run=False):
@@ -271,24 +102,7 @@ def main():
             sys.exit(1)
         gps_tuple = (parts[0].strip(), parts[1].strip())
 
-    all_files = []
-    for target_arg in args.targets:
-        # expand glob
-        files = [Path(f).resolve() for f in glob(target_arg, recursive=True) if
-                 Path(f).suffix.lower().lstrip(".") in SUPPORTED_EXTS]
-
-        if not files:
-            p = Path(target_arg).expanduser().resolve()
-            if p.is_file() and p.suffix.lower().lstrip(".") in SUPPORTED_EXTS:
-                files = [p]
-            elif p.is_dir():
-                files = [
-                    Path(root) / fn
-                    for root, dirs, filenames in os.walk(p)
-                    for fn in filenames
-                    if fn.lower().split(".")[-1] in SUPPORTED_EXTS
-                ]
-        all_files.extend(files)
+    all_files = scan_files(args.targets)
 
     if not all_files:
         print(f"No supported media files found in '{args.targets}'.")

@@ -20,6 +20,9 @@ Python version [PREFERRED] (`fix_exif.py`):
 - Support for **multiple directories** and `*` paths
 - Intelligent date detection based on filename
 - Save edit details in exif metadata
+
+Web version:
+
 ---
 
 ## Supported file formats

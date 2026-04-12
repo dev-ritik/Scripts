@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EXIF Editor</title>
+    <link rel="stylesheet" href="/static/style.css">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+<div id="top-bar">
+    <h2>EXIF Editor</h2>
+
+    <input id="folder" placeholder="Enter folder path">
+    <button onclick="load()">Load</button>
+
+    <br><br>
+
+    <label><input type="checkbox" id="dry-run"> Dry Run</label>
+    <label><input type="checkbox" id="rewrite"> Rewrite</label>
+    <label><input type="checkbox" id="force"> Force</label>
+    <label><input type="checkbox" id="skip-existing"> Skip Existing Fields</label>
+
+    <br><br>
+
+    <div id="filters">
+        <label><input type="checkbox" id="filter-no-gps"> No GPS</label>
+        <label><input type="checkbox" id="filter-no-date"> No Date</label>
+        <label><input type="checkbox" id="filter-not-processed"> Not Processed</label>
+    </div>
+
+    <span id="filter-count"></span>
+
+    <button onclick="selectAll()">Select All</button>
+    <button onclick="clearSelection()">Clear Selection</button>
+    <span id="selection-count">0 selected</span>
+
+    <div id="bulk-controls">
+        Date:
+        <input type="datetime-local" step="1" id="bulk-date">
+
+        GPS:
+        <input id="bulk-gps" placeholder="lat,lon">
+
+        <button onclick="openGlobalMapEditor()">📍 Edit Map</button>
+        <label>
+            <input type="checkbox" id="guess-date-toggle">
+            <span>Guess Date</span>
+        </label>
+
+        <button onclick="applyChanges()">Apply Changes</button>
+    </div>
+
+    <div id="load-progress-bar">
+        <div id="load-progress-fill"></div>
+    </div>
+</div>
+
+<div id="map-modal" class="hidden">
+    <div id="map-container"></div>
+    <button onclick="closeMapEditor()">Close</button>
+</div>
+<hr>
+
+<div id="list"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

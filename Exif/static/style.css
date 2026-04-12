@@ -1,0 +1,313 @@
+/* Global */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", sans-serif;
+    background: #f2f2f7;
+    margin: 0;
+    color: #1c1c1e;
+}
+
+/* Smooth feel */
+* {
+    box-sizing: border-box;
+}
+
+#top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+
+    background: rgba(255, 255, 255, 0.75);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+    padding: 12px;
+}
+
+#top-bar > * {
+    margin-bottom: 8px;
+}
+
+#top-bar label {
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+#list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+}
+
+.row {
+    display: flex;
+    gap: 14px; /* slightly more breathing space */
+    align-items: flex-start; /* better alignment for multi-line meta */
+
+    background: white;
+    border-radius: 16px;
+    padding: 14px;
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.row.selected {
+    background: rgba(0, 122, 255, 0.08);
+    border: 1px solid rgba(0, 122, 255, 0.35);
+}
+
+.preview {
+    width: 100px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.meta {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.meta b {
+    font-size: 15px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.meta > div,
+.meta > .input-wrapper {
+    margin-bottom: 6px;
+}
+
+.map {
+    width: 140px;
+    height: 90px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e5e5ea;
+    flex-shrink: 0;
+}
+
+.input-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin: 4px 0;
+}
+
+.input-wrapper input {
+    padding-right: 28px;
+    transition: border 0.2s, background 0.2s;
+}
+
+/* subtle processed state (less loud than before) */
+input.processed {
+    border-color: #34c759;
+    background-color: #f4fff6;
+}
+
+input.edited {
+    border-color: #ff9f0a;
+    background: #fff8e6;
+}
+
+/* hover clarity */
+input:hover {
+    border-color: #a1a1a6;
+}
+
+/* Checkmark badge */
+.badge {
+    position: absolute;
+    right: 8px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #34c759;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+    pointer-events: none;
+}
+
+.badge.type {
+    background: #e5e5ea;
+}
+
+.badge.processed {
+    background: #d1f7d6;
+}
+
+.badge.unprocessed {
+    background: #ffd6d6;
+}
+
+.card {
+    border: 1px solid #ccc;
+    padding: 5px;
+}
+
+.selected {
+    border: 2px solid blue;
+}
+
+/*img {*/
+/*    width: 100%;*/
+/*    height: 120px;*/
+/*    object-fit: cover;*/
+/*}*/
+
+#map {
+    height: 300px;
+    margin: 10px 0;
+}
+
+#progress-bar,
+#load-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e5e5ea;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#progress-fill,
+#load-progress-fill {
+    height: 100%;
+    background: #007aff;
+    transition: width 0.3s ease;
+}
+
+button {
+    background: #007aff;
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+button:hover {
+    background: #0066d6;
+}
+
+button:active {
+    transform: scale(0.96);
+}
+
+input {
+    border: 1px solid #d1d1d6;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+    background: #fff;
+}
+
+input:focus {
+    border-color: #007aff;
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
+input[type="datetime-local"] {
+    border: 1px solid #d1d1d6;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 14px;
+    background: white;
+}
+
+#filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#filters label {
+    background: #e5e5ea;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+#filters input {
+    display: none;
+}
+
+#filters input:checked + span,
+#filters label:has(input:checked) {
+    background: #007aff;
+    color: white;
+}
+
+#map-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+#map-modal.hidden {
+    display: none;
+}
+
+#map-container {
+    width: 90%;
+    height: 80%;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+#map-modal button {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+#bulk-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* hide default */
+#guess-date-toggle {
+    display: none;
+}
+
+#guess-date-toggle + span {
+    background: #e5e5ea;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+/* checked state */
+#guess-date-toggle:checked + span {
+    background: #34c759;
+    color: white;
+}
