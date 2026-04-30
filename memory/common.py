@@ -109,6 +109,18 @@ class MemoryAggregator:
                                      exclude_system_messages: bool = True,
                                      providers: List[str] = None,
                                      senders=None) -> Dict[str, List[Message]]:
+        """
+        Aggregates messages by sender in GMT time zone.
+        :param start_date:
+        :param end_date:
+        :param include_media_type:
+        :param ignore_media_type:
+        :param ignore_groups:
+        :param exclude_system_messages:
+        :param providers:
+        :param senders:
+        :return:
+        """
         messages_by_sender = defaultdict(list)
         messages = await MemoryAggregator.get_events_for_dates(start_date=start_date,
                                                                end_date=end_date,

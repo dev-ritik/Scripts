@@ -9,7 +9,7 @@ import pandas as pd
 import configs
 import init
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
-from provider.base_provider import MediaType
+from provider.base_provider import MediaType, MemoryProvider
 from utils import add_caching_to_response
 
 # This should be the first line in the file. It initializes the app.
@@ -19,7 +19,7 @@ import mimetypes
 
 import aiofiles
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from flask import Flask, render_template, request, send_file, make_response, jsonify
 
@@ -145,6 +145,7 @@ async def circle_data():
         ignore_groups=True)
 
     messages_by_sender.pop(configs.USER, None)
+    messages_by_sender.pop(MemoryProvider.UNKNOWN, None)
 
     message_count_by_sender = {}
     sender_weekly_counts = {}
@@ -231,7 +232,19 @@ async def get_user_stats(name):
         return jsonify({"error": "User has no data in the period"}), 404
 
     assert len(messages_by_sender) == 1, f"Expected only one sender got {messages_by_sender.keys()} {name}"
+
+    # Define IST offset
+    IST = timezone(timedelta(hours=5, minutes=30))
     user_messages = list(messages_by_sender.values())[0]
+
+    for msg in user_messages:
+        if hasattr(msg, "datetime") and msg.datetime:
+            # Ensure the original is treated as UTC if it's naive, then convert
+            if msg.datetime.tzinfo is None:
+                msg.datetime = msg.datetime.replace(tzinfo=timezone.utc)
+
+            # Attach a new localized attribute to avoid overwriting original data
+            msg.local_dt = msg.datetime.astimezone(IST)
 
     words_counter = Counter()
     punc = string.punctuation + '“”‘’'
@@ -256,7 +269,7 @@ async def get_user_stats(name):
     hour_counts = [0] * 24
     for msg in user_messages:
         if hasattr(msg, "datetime") and msg.datetime:
-            hour_counts[msg.datetime.hour] += 1
+            hour_counts[msg.local_dt.hour] += 1
     per_hour = {
         "labels": [f"{h % 12 or 12}{'a' if h < 12 else 'p'}" for h in range(24)],
         "values": hour_counts
@@ -268,7 +281,7 @@ async def get_user_stats(name):
     weekday_counts = [0] * 7  # Mon=0
     for msg in user_messages:
         if hasattr(msg, "datetime") and msg.datetime:
-            weekday_counts[msg.datetime.weekday()] += 1
+            weekday_counts[msg.local_dt.weekday()] += 1
     per_weekday = {
         "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
         "values": weekday_counts
@@ -280,7 +293,7 @@ async def get_user_stats(name):
     week_counts = defaultdict(int)
     for msg in user_messages:
         if hasattr(msg, "datetime") and msg.datetime:
-            week_key = msg.datetime.isocalendar()[1]  # week number
+            week_key = msg.local_dt.isocalendar()[1]  # week number
             week_counts[week_key] += 1
 
     sorted_weeks = sorted(week_counts.items())

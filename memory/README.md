@@ -36,7 +36,7 @@ Add `DIARY_PATH` to the `.env` file and set it to the folder path
     - Media quality: Lower quality (for smaller storage usage)
   - Make a new `data/instagram` subdirectory in the data directory. Extract the `messages/inbox` from the downloaded zip here.
 
-#### Whatsapp
+#### WhatsApp
 WhatsApp doesn't allow downloading all the chat data at once. We can get individual chats at once. To get that:
   - Go to `settings > Chats > Chat history > Export chat` in the app.
   - Select an individual chat.
