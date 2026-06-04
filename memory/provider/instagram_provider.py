@@ -19,6 +19,8 @@ class InstagramProvider(MemoryProvider):
     USER = 'Ritik Kumar'
     DELETED_USER = 'deleted_user'
     INSTAGRAM_PATH = 'data/instagram'
+    INSTAGRAM_MESSAGE_PATH = 'data/instagram/messages'
+    INSTAGRAM_FOLLOWER_FOLLOWING_PATH = 'data/instagram/followers_and_following'
     _working = True
 
     # Instagram adds these in regional language sometimes
@@ -31,15 +33,59 @@ class InstagramProvider(MemoryProvider):
         if not self._working:
             return
 
-        chat_path = Path(self.INSTAGRAM_PATH)
+        chat_path = Path(self.INSTAGRAM_MESSAGE_PATH)
         if not chat_path.exists():
             print("Instagram data folder not found")
             self._working = False
             return
 
-
-    def is_working(self):
+    def is_working(self) -> bool:
         return self._working
+
+    def get_allowed_exposed_functions(self) -> List[str]:
+        return ['get_followers', 'get_following', 'get_close_friends']
+
+    def supports_home(self) -> bool:
+        return self._working and self.supports_followers() and self.supports_following() and self.supports_close_friends()
+
+    def supports_followers(self) -> bool:
+        if not self._working:
+            return False
+
+        return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/followers_1.json').exists()
+
+    def supports_following(self) -> bool:
+        if not self._working:
+            return False
+
+        return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/following.json').exists()
+
+    def supports_close_friends(self) -> bool:
+        if not self._working:
+            return False
+        return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/close_friends.json').exists()
+
+    def get_followers(self):
+        if not self.supports_followers():
+            return {}
+        follower_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/followers_1.json')
+        with open(follower_path, 'r', encoding='utf-8') as f:
+            return [follower['string_list_data'] for follower in json.load(f)]
+
+    def get_following(self):
+        if not self.supports_following():
+            return {}
+        following_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/following.json')
+        with open(following_path, 'r', encoding='utf-8') as f:
+            return json.load(f)['relationships_following']
+
+    def get_close_friends(self):
+        if not self.supports_close_friends():
+            return {}
+
+        close_friends_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/close_friends.json')
+        with open(close_friends_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
 
     @staticmethod
     def fix_mojibake(text: str) -> str:
@@ -170,9 +216,9 @@ class InstagramProvider(MemoryProvider):
         pattern = re.compile(search_regex) if search_regex else None
 
         tasks = []
-        for found in os.listdir(self.INSTAGRAM_PATH):
+        for found in os.listdir(self.INSTAGRAM_MESSAGE_PATH):
             friend = '_'.join(found.split('_')[:-1])
-            friend_path = Path(os.path.join(os.path.join(self.INSTAGRAM_PATH, found), 'message_1.json'))
+            friend_path = Path(os.path.join(os.path.join(self.INSTAGRAM_MESSAGE_PATH, found), 'message_1.json'))
 
             if not friend_path.exists():
                 continue
@@ -219,7 +265,7 @@ class InstagramProvider(MemoryProvider):
             raise ValueError("Either asset_id or file_id must be provided")
 
         file_id = InstagramProvider.get_file_id_from_asset_id(asset_id) if asset_id else file_id
-        media_file_path = os.path.join(InstagramProvider.INSTAGRAM_PATH, file_id)
+        media_file_path = os.path.join(InstagramProvider.INSTAGRAM_MESSAGE_PATH, file_id)
         return media_file_path
 
     async def get_asset(self, asset_id: str) -> Tuple[bytes, str]:

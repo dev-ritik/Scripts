@@ -1,9 +1,10 @@
 import json
 import re
-from datetime import datetime, date
+from datetime import date
 from typing import List, Optional
 
 import aiofiles
+from dateutil import parser
 
 import configs
 from profile import get_all_hinge_match_times
@@ -51,7 +52,7 @@ class HingeProvider(MemoryProvider):
             chat_name = None
 
             for like_data in match.get('like', []):
-                _dt = datetime.strptime(like_data.get('timestamp'), "%Y-%m-%d %H:%M:%S")
+                _dt = parser.parse(like_data.get('timestamp'))
                 likes = like_data.get('like', [])
                 message = None
                 if likes:
@@ -63,11 +64,11 @@ class HingeProvider(MemoryProvider):
                 match_time = match_data.get('timestamp')
                 if match_time in match_time_chat_name:
                     chat_name = match_time_chat_name[match_time]
-                _dt = datetime.strptime(match_time, "%Y-%m-%d %H:%M:%S")
+                _dt = parser.parse(match_time)
                 match_messages.append((_dt, 'Matched'))
 
             for chat_data in match.get('chats', []):
-                _dt = datetime.strptime(chat_data.get('timestamp'), "%Y-%m-%d %H:%M:%S")
+                _dt = parser.parse(chat_data.get('timestamp'))
                 match_messages.append((_dt, chat_data.get('body')))
 
             for row in match_messages:

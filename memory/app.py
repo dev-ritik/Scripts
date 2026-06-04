@@ -358,6 +358,31 @@ async def get_available_providers():
             MemoryAggregator.get_instance().providers.items() if
                                     instance.is_working()], 10)
 
+
+@app.route('/supports_home')
+def supports_home():
+    return add_caching_to_response({provider_name: instance.supports_home() for provider_name, instance in
+                                    MemoryAggregator.get_instance().providers.items()})
+
+
+@app.route('/<provider>/home')
+def get_home(provider):
+    provider_instance = MemoryAggregator.get_instance().providers.get(provider)
+    if not provider_instance:
+        return jsonify({"error": "Provider not found"}), 404
+    if not provider_instance.supports_home():
+        return jsonify({"error": "Provider does not support home page"}), 400
+    return add_caching_to_response(render_template(f'{provider}_home.html'))
+
+@app.route('/<provider>/<function>')
+def call_provider_function(provider, function):
+    provider_instance = MemoryAggregator.get_instance().providers.get(provider)
+    if not provider_instance:
+        return jsonify({"error": "Provider not found"}), 404
+    if not function in provider_instance.get_allowed_exposed_functions():
+        return jsonify({"error": "Provider does not support this function"}), 400
+    return add_caching_to_response(getattr(provider_instance, function)())
+
 if __name__ == '__main__':
     # from provider.imessage_provider import IMessageProvider
     # asyncio.run(IMessageProvider.get_script_for_attachment())

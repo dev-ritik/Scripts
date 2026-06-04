@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+{% block title %}Home | Instagram Insights{% endblock %}
+
+{% block extra_style %}
+<style>
+    body {
+        background-color: #fafafa;
+        color: #262626;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Container overhaul to match IG profile layout dimensions */
+    .ig-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 28px;
+        margin-top: 24px;
+    }
+
+    @media (max-width: 768px) {
+        .ig-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Tab switcher headers mimicking Instagram's profile tab bars */
+    .ig-tabs-header {
+        display: flex;
+        justify-content: center;
+        border-top: 1px solid #dbdbdb;
+        gap: 60px;
+        margin-bottom: 16px;
+    }
+
+    .ig-tab-btn {
+        background: none;
+        border: none;
+        color: #8e8e8e;
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 1px;
+        padding: 12px 0;
+        cursor: pointer;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-top: 1px solid transparent;
+        margin-top: -1px;
+    }
+
+    .ig-tab-btn.active {
+        color: #262626;
+        border-top: 1px solid #262626;
+    }
+
+    /* Sub-filters inside a view */
+    .filter-pill-container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .filter-pill {
+        background-color: #efefef;
+        border: none;
+        border-radius: 8px;
+        padding: 6px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #262626;
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+    }
+
+    .filter-pill:hover {
+        background-color: #dbdbdb;
+    }
+
+    .filter-pill.active {
+        background-color: #262626;
+        color: #fff;
+    }
+
+    /* Control board bar for filtering/sorting lists */
+    .control-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        gap: 12px;
+    }
+
+    .search-input {
+        background: #efefef;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 12px 8px 36px;
+        font-size: 14px;
+        width: 100%;
+        max-width: 240px;
+    }
+
+    .search-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .search-wrapper i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #8e8e8e;
+        font-size: 14px;
+    }
+
+    .sort-select {
+        border: none;
+        background: transparent;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0095f6; /* IG Blue link action color */
+        cursor: pointer;
+        outline: none;
+    }
+
+    /* Instagram Styled User Items List */
+    .user-list {
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border: 1px solid #dbdbdb;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .user-item:last-child {
+        border-bottom: none;
+    }
+
+    .user-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 12px;
+        border: 1px solid #dbdbdb;
+    }
+
+    .user-info {
+        flex: 1;
+    }
+
+    .username {
+        font-size: 14px;
+        font-weight: 600;
+        color: #262626;
+    }
+
+    .full-name {
+        font-size: 14px;
+        color: #8e8e8e;
+    }
+
+    .timestamp-badge {
+        font-size: 12px;
+        color: #8e8e8e;
+        margin-right: 12px;
+    }
+
+    /* Action Labels mimicking IG primary tags */
+    .ig-action-btn {
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 6px 16px;
+        border: 1px solid #dbdbdb;
+        background: white;
+        color: #262626;
+        cursor: pointer;
+    }
+
+    .ig-action-btn.cf-badge {
+        background-color: #e8f9ee;
+        color: #00bf56; /* Green close friends color */
+        border-color: #c7f2d6;
+    }
+
+    /* Sidebar quick overview metrics panel */
+    .ig-sidebar-panel {
+        background: white;
+        border: 1px solid #dbdbdb;
+        border-radius: 12px;
+        padding: 20px;
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+    }
+
+    .sidebar-header {
+        font-size: 16px;
+        font-weight: 600;
+        color: #8e8e8e;
+        margin-bottom: 16px;
+    }
+
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #fafafa;
+        font-size: 14px;
+    }
+
+    .metric-val {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ig-layout">
+
+    <div>
+        <div class="ig-tabs-header">
+            <button class="ig-tab-btn active" onclick="switchMainTab('network')">
+                <i class="fas fa-users"></i> Network Lists
+            </button>
+            <button class="ig-tab-btn" onclick="switchMainTab('reciprocity')">
+                <i class="fas fa-sync-alt"></i> Reciprocity Insights
+            </button>
+        </div>
+
+        <div id="filterPillsContainer" class="filter-pill-container"></div>
+
+        <div class="control-bar">
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="userSearch" class="search-input" placeholder="Search account details..."
+                       oninput="processFiltersAndSort()">
+            </div>
+            <div>
+                <select id="timeSorter" class="sort-select" onchange="processFiltersAndSort()">
+                    <option value="newest">Sort by: Newest Joined</option>
+                    <option value="oldest">Sort by: Oldest Joined</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="instagramUserContainer" class="user-list"></div>
+    </div>
+
+    <div class="ig-sidebar-panel">
+        <div class="sidebar-header">Account Overview</div>
+        <div id="overviewMetrics">
+            <div class="metric-row"><span>Total Followers</span><span class="metric-val" id="m-followers">-</span></div>
+            <div class="metric-row"><span>Total Following</span><span class="metric-val" id="m-following">-</span></div>
+            <div class="metric-row"><span>Close Friends</span><span class="metric-val" id="m-cf">-</span></div>
+            <div class="metric-row"><span>Not Following You Back</span><span class="metric-val" style="color: #ed4956;"
+                                                                             id="m-not-back">-</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State management storage
+    let localDataCache = {users: []};
+    let activeMainTab = 'network'; // network | reciprocity
+    let activeSubFilter = 'followers'; // followers | following | close_friends || not_following_back | non_reciprocal_following
+
+    const pillsConfig = {
+        network: [
+            {id: 'followers', label: 'Followers'},
+            {id: 'following', label: 'Following'},
+            {id: 'close_friends', label: '★ Close Friends'}
+        ],
+        reciprocity: [
+            {id: 'not_following_back', label: 'Not Following Back'},
+            {id: 'non_reciprocal_following', label: "Accounts You Don't Follow"}
+        ]
+    };
+
+    function renderFilterPills() {
+        const wrapper = document.getElementById('filterPillsContainer');
+        wrapper.innerHTML = '';
+
+        pillsConfig[activeMainTab].forEach(pill => {
+            const btn = document.createElement('button');
+            btn.className = `filter-pill ${activeSubFilter === pill.id ? 'active' : ''}`;
+            btn.innerText = pill.label;
+            btn.onclick = () => {
+                activeSubFilter = pill.id;
+                renderFilterPills();
+                processFiltersAndSort();
+            };
+            wrapper.appendChild(btn);
+        });
+    }
+
+    function switchMainTab(tabName) {
+        activeMainTab = tabName;
+        activeSubFilter = pillsConfig[tabName][0].id; // auto-select first option
+
+        // Toggle Active header styling
+        document.querySelectorAll('.ig-tab-btn').forEach((btn, index) => {
+            btn.classList.toggle('active', (index === 0 && tabName === 'network') || (index === 1 && tabName === 'reciprocity'));
+        });
+
+        renderFilterPills();
+        processFiltersAndSort();
+    }
+
+    function processFiltersAndSort() {
+        const container = document.getElementById('instagramUserContainer');
+        const query = document.getElementById('userSearch').value.toLowerCase();
+        const sortDirection = document.getElementById('timeSorter').value;
+
+        container.innerHTML = '';
+
+        // Filter operations based on dataset conditions
+        let filteredList = localDataCache.users.filter(u => {
+            if (activeSubFilter === 'followers') return u.is_follower;
+            if (activeSubFilter === 'following') return u.is_following;
+            if (activeSubFilter === 'close_friends') return u.is_close_friend;
+            if (activeSubFilter === 'not_following_back') return u.is_following && !u.is_follower;
+            if (activeSubFilter === 'non_reciprocal_following') return u.is_follower && !u.is_following;
+            return true;
+        });
+
+        // Query Search filter
+        if (query) {
+            filteredList = filteredList.filter(u =>
+                u.username.toLowerCase().includes(query) ||
+                (u.full_name && u.full_name.toLowerCase().includes(query))
+            );
+        }
+
+        // Operational Sorting execution by UNIX times
+        filteredList.sort((a, b) => {
+            return sortDirection === 'newest' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp;
+        });
+
+        if (filteredList.length === 0) {
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #8e8e8e; font-size: 14px;">No accounts found match this window.</div>`;
+            return;
+        }
+
+        // Render generation loop
+        filteredList.forEach(u => {
+            const row = document.createElement('div');
+            row.className = 'user-item';
+
+            const formattedTime = new Date(u.timestamp * 1000).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+            });
+
+            // Extract the first letter of the username safely
+            const initial = u.username ? u.username.charAt(0).toUpperCase() : '';
+
+            // Your custom backend route or scraping endpoint (or completely fake source to trigger fallback immediately)
+            const imgSource = u.avatar || `/user/dp/${encodeURIComponent(u.username)}`;
+
+            row.innerHTML = `
+                <div style="width: 44px; height: 44px; margin-right: 12px; flex-shrink: 0; position: relative;">
+                    <img src="${imgSource}"
+                         alt="${u.username} photo"
+                         style="width:100%; height:100%; border-radius:50%; object-fit:cover;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+
+                    <div style="display:none; width:100%; height:100%; align-items:center; justify-content:center; border-radius:50%; background-color:#efefef; color:#262626; font-weight:600; font-size:14px; border:1px solid #dbdbdb;">
+                        ${initial}
+                    </div>
+                </div>
+
+                <div class="user-info">
+                    <div class="username">${u.username}</div>
+                    <div class="full-name">${u.full_name || ''}</div>
+                </div>
+                <div class="timestamp-badge">Connected: ${formattedTime}</div>
+                <div>
+                    ${u.is_close_friend
+                ? `<span class="ig-action-btn cf-badge">★ Close Friend</span>`
+                : `<button class="ig-action-btn" onclick="window.open('${u.href || '#'}', '_blank')">Profile</button>`
+            }
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function processSidebarMetrics(users) {
+        document.getElementById('m-followers').innerText = users.filter(u => u.is_follower).length;
+        document.getElementById('m-following').innerText = users.filter(u => u.is_following).length;
+        document.getElementById('m-cf').innerText = users.filter(u => u.is_close_friend).length;
+        document.getElementById('m-not-back').innerText = users.filter(u => u.is_following && !u.is_follower).length;
+    }
+
+    async function loadInstagramData() {
+        const container = document.getElementById('instagramUserContainer');
+        container.innerHTML = `<div style="padding: 40px; text-align: center; color: #8e8e8e; font-size: 14px;">Loading data from Instagram API...</div>`;
+
+        try {
+            // Run all 3 API requests in parallel
+            const [resFollowers, resFollowing, resCloseFriends] = await Promise.all([
+                fetch("/Instagram/get_followers").then(r => r.ok ? r.json() : []),
+                fetch("/Instagram/get_following").then(r => r.ok ? r.json() : []),
+                fetch("/Instagram/get_close_friends").then(r => r.ok ? r.json() : [])
+            ]);
+
+            // Dictionary to map username string to normalizer metrics
+            const userMap = {};
+
+            const getOrCreateUser = (username) => {
+                if (!userMap[username]) {
+                    userMap[username] = {
+                        username: username,
+                        full_name: "",
+                        is_follower: false,
+                        is_following: false,
+                        is_close_friend: false,
+                        timestamp: 0,
+                        avatar: "",
+                        href: ""
+                    };
+                }
+                return userMap[username];
+            };
+
+            // 1. Process Followers Schema (Nested array item context)
+            if (Array.isArray(resFollowers)) {
+                resFollowers.forEach(subArray => {
+                    if (Array.isArray(subArray)) {
+                        subArray.forEach(item => {
+                            if (item && item.value) {
+                                const user = getOrCreateUser(item.value);
+                                user.is_follower = true;
+                                user.href = item.href || user.href;
+                                user.timestamp = item.timestamp || user.timestamp;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 2. Process Following Schema (string_list_data nested pattern)
+            if (Array.isArray(resFollowing)) {
+                resFollowing.forEach(item => {
+                    if (item && item.title) {
+                        const user = getOrCreateUser(item.title);
+                        user.is_following = true;
+
+                        if (item.string_list_data && item.string_list_data[0]) {
+                            const data = item.string_list_data[0];
+                            user.href = data.href || user.href;
+                            // Only overwrite timestamp if not set, or prefer older/newer as needed
+                            if (!user.timestamp) user.timestamp = data.timestamp;
+                        }
+                    }
+                });
+            }
+
+            // 3. Process Close Friends Schema (label_values nested array context)
+            if (Array.isArray(resCloseFriends)) {
+                resCloseFriends.forEach(item => {
+                    let targetUsername = null;
+                    let targetFullName = "";
+
+                    if (item && item.label_values) {
+                        item.label_values.forEach(lbl => {
+                            if (lbl.label === "Username") targetUsername = lbl.value;
+                            if (lbl.label === "Name") targetFullName = lbl.value;
+                        });
+                    }
+
+                    if (targetUsername) {
+                        const user = getOrCreateUser(targetUsername);
+                        user.is_close_friend = true;
+                        if (targetFullName) user.full_name = targetFullName;
+                        if (item.timestamp && !user.timestamp) user.timestamp = item.timestamp;
+                    }
+                });
+            }
+
+            // Convert map to local array cache mapping
+            localDataCache.users = Object.values(userMap);
+
+        } catch (e) {
+            console.error("API Processing Error:", e);
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ed4956; font-size: 14px;">Error communicating with endpoints. Please check server responses.</div>`;
+            return;
+        }
+
+        // Initialize display loop UI configurations
+        processSidebarMetrics(localDataCache.users);
+        renderFilterPills();
+        processFiltersAndSort();
+    }
+
+    // Initialize UI Component loops
+    loadInstagramData();
+</script>
+{% endblock %}

@@ -4,52 +4,73 @@
 {% block extra_style %}
 <style>
     .status-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 20px;
     }
 
+    /* WhatsApp Chat style card */
     .provider-card {
         background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        padding: 20px;
-        text-align: center;
-        transition: transform 0.2s, box-shadow 0.2s;
+        border-radius: 0; /* Boxy like chat rows or slightly rounded if contained */
+        border-bottom: 1px solid #f0f2f5;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.2s;
+        position: relative;
     }
 
     .provider-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        background-color: #f8f9fa;
     }
 
     .provider-logo {
-        width: 60px;
-        height: 60px;
-        object-fit: contain;
-        margin-bottom: 10px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%; /* Rounded profile picture style */
+        object-fit: cover;
+        margin-right: 15px;
+        background-color: #ece5dd;
+    }
+
+    /* Middle section holding text details */
+    .provider-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     .provider-name {
-        font-size: 18px;
-        font-weight: bold;
-        color: #008069;
-        margin-bottom: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #111b21; /* WhatsApp dark text */
+        margin-bottom: 4px;
         text-transform: capitalize;
     }
 
     .date-range {
         font-size: 13px;
-        color: #555;
-        margin-bottom: 8px;
+        color: #667781; /* WhatsApp secondary text color */
+    }
+
+    /* Right section holding status and action link */
+    .provider-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
     }
 
     .status-badge {
         display: inline-block;
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 12px;
-        font-weight: bold;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .available {
@@ -62,18 +83,35 @@
         color: #c62828;
     }
 
-    /* Timeline container */
+    /* WhatsApp Styled Navigation Arrow Button */
+    .provider-nav-link {
+        color: #8696a0; /* Subdued gray arrow */
+        font-size: 16px;
+        padding: 8px;
+        border-radius: 50%;
+        transition: color 0.2s, background-color 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .provider-nav-link:hover {
+        color: #008069; /* Turns WhatsApp Green on hover */
+        background-color: rgba(0, 128, 105, 0.08);
+    }
+
+    /* Timeline container tweaks for matching background styling */
     .timeline-container {
         position: relative;
-        margin: 30px 0 30px;
-        padding-top: 26px; /* space for ticks / top margin */
+        margin: 20px 0;
+        padding-top: 26px;
         background: white;
         border: 1px solid #e6e6e6;
         border-radius: 8px;
         overflow: hidden;
     }
 
-    /* Base line */
     .timeline-bar {
         position: absolute;
         left: 12px;
@@ -81,11 +119,10 @@
         height: 4px;
         background: #e0e0e0;
         border-radius: 3px;
-        top: 48px; /* ticks and labels above */
+        top: 48px;
         z-index: 1;
     }
 
-    /* Year ticks container (absolute over the bar) */
     .timeline-ticks {
         position: absolute;
         left: 12px;
@@ -102,7 +139,6 @@
         width: 1px;
         background: #c8c8c8;
         top: 36px;
-        transform-origin: center;
     }
 
     .timeline-tick-label {
@@ -112,10 +148,8 @@
         font-size: 12px;
         color: #666;
         white-space: nowrap;
-        pointer-events: none;
     }
 
-    /* Provider bars */
     .timeline-segment {
         position: absolute;
         height: 18px;
@@ -124,17 +158,13 @@
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         top: 0;
         z-index: 3;
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
         cursor: pointer;
     }
 
-    /* Hover/active */
     .timeline-segment:hover {
-        transform: translateY(-4px) scaleY(1.02);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
     }
 
-    /* Labels for providers */
     .timeline-label {
         position: absolute;
         left: 0;
@@ -143,14 +173,11 @@
         transform: translateY(-22px);
         white-space: nowrap;
         z-index: 4;
-        pointer-events: none;
         background: rgba(255, 255, 255, 0.9);
         padding: 1px 6px;
         border-radius: 4px;
-        border: 1px solid rgba(0, 0, 0, 0.04);
     }
 
-    /* Tooltip (hidden by default; shown on hover) */
     .timeline-tooltip {
         position: absolute;
         display: none;
@@ -162,32 +189,13 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         font-size: 13px;
         color: #111;
-        max-width: 320px;
     }
-
-    .timeline-segment:focus + .timeline-tooltip,
-    .timeline-segment:hover + .timeline-tooltip {
-        display: block;
-    }
-
-    /* Responsive tweaks */
-    @media (max-width: 480px) {
-        .timeline-label {
-            font-size: 11px;
-            padding: 1px 4px;
-        }
-
-        .timeline-tooltip {
-            font-size: 12px;
-        }
-    }
-
 </style>
 {% endblock %}
 
 {% block content %}
 <h2>📊 Provider Status</h2>
-<p>Here’s an overview of all connected data providers and their availability.</p>
+<p style="color: #667781;">Here’s an overview of all connected data providers and their availability.</p>
 <div id="timelineContainer" class="timeline-container" role="region" aria-label="Provider timeline">
     <div id="timelineBar" class="timeline-bar" aria-hidden="true"></div>
     <div id="timelineTicks" class="timeline-ticks" aria-hidden="true"></div>
@@ -200,13 +208,8 @@
         const tickInterval = options.tickInterval || 'year';
 
         const container = document.getElementById(containerId);
-        if (!container) {
-            console.warn('Timeline container not found:', containerId);
-            return;
-        }
+        if (!container) return;
 
-        // Clear previous content except the base bar and ticks (we will re-create ticks and segments)
-        // Keep the timelineBar and timelineTicks elements that are inside container but clear others
         const preserveIds = new Set(['timelineBar', 'timelineTicks']);
         Array.from(container.children).forEach(child => {
             if (!preserveIds.has(child.id)) child.remove();
@@ -214,21 +217,15 @@
 
         const timelineBar = document.getElementById('timelineBar');
         const ticksContainer = document.getElementById('timelineTicks');
-
-        // Build provider list with parsed dates
         const now = new Date();
 
         const providerList = Object.entries(providers).map(([name, info]) => {
-            // if (!info.available) return;
-
             const start = info && info.start_date ? parseDate(info.start_date) : null;
             const end = info && info.end_date ? parseDate(info.end_date) : now;
             return {name, info, start, end};
-        }).filter(p => p.start); // drop entries with no start (can't place them)
+        }).filter(p => p.start);
 
-        // If no providers or no start dates, create a fallback single-day range
         if (providerList.length === 0) {
-            // Nothing to show — keep minimal bar
             const fallback = document.createElement('div');
             fallback.className = 'timeline-label';
             fallback.innerText = 'No providers with start dates';
@@ -239,27 +236,22 @@
             return;
         }
 
-        // Sort providers by start date to make packing deterministic and visually sensible
         providerList.sort((a, b) => a.start - b.start || (a.end - b.end));
 
-        // Compute min and max
         let minDateMs = Math.min(...providerList.map(p => p.start.getTime()));
         let maxDateMs = Math.max(...providerList.map(p => (p.end || now).getTime()));
 
-        // Ensure range covers at least to today (user wanted axis end to be today)
         if (now.getTime() > maxDateMs) maxDateMs = now.getTime();
 
-        // Provide a little padding at ends so labels and ticks don't sit flush at edges
-        const padMs = Math.max(24 * 3600 * 1000, (maxDateMs - minDateMs) * 0.02); // min 1 day or 2% of range
+        const padMs = Math.max(24 * 3600 * 1000, (maxDateMs - minDateMs) * 0.02);
         minDateMs -= padMs;
         maxDateMs += padMs;
 
         let range = maxDateMs - minDateMs;
-        if (range <= 0) range = 24 * 3600 * 1000; // fallback to 1 day
+        if (range <= 0) range = 24 * 3600 * 1000;
 
-        // Row packing: reuse rows where intervals don't overlap
-        const rows = []; // each entry = lastEndMs of that row
-        const placements = []; // store placement info per provider
+        const rows = [];
+        const placements = [];
 
         providerList.forEach(p => {
             const startMs = p.start.getTime();
@@ -267,49 +259,41 @@
 
             let rowIndex = rows.findIndex(lastEnd => startMs >= lastEnd);
             if (rowIndex === -1) {
-                // create new row
                 rowIndex = rows.length;
                 rows.push(endMs);
             } else {
-                // reuse row
-                rows[rowIndex] = endMs; // update last end
+                rows[rowIndex] = endMs;
             }
             placements.push({...p, startMs, endMs, row: rowIndex});
         });
 
-        // Layout constants
         const rowHeight = 36;
-        const topOffset = 80; // distance from top to first row's top (accounts for ticks + baseline)
+        const topOffset = 80;
         const leftPadding = 12;
         const rightPadding = 12;
 
-        // Set container height
         const containerHeight = topOffset + rows.length * rowHeight;
         container.style.height = containerHeight + 'px';
-        container.style.position = 'relative';
 
-        // Position the base bar relative to the layout (keep consistent)
         if (timelineBar) {
             timelineBar.style.left = leftPadding + 'px';
             timelineBar.style.right = rightPadding + 'px';
             timelineBar.style.top = (topOffset - 30) + 'px';
         }
 
-        // Remove and re-create ticks
         if (ticksContainer) {
             ticksContainer.innerHTML = '';
             ticksContainer.style.left = leftPadding + 'px';
             ticksContainer.style.right = rightPadding + 'px';
         }
 
-        // Create ticks based on years between min and max (inclusive)
         if (tickInterval === 'year') {
             const minYear = new Date(minDateMs).getFullYear();
             const maxYear = new Date(maxDateMs).getFullYear();
             for (let y = minYear; y <= maxYear; y++) {
                 const tickDate = new Date(y, 0, 1).getTime();
                 const pct = ((tickDate - minDateMs) / range) * 100;
-                if (pct < -5 || pct > 105) continue; // skip extreme outliers
+                if (pct < -5 || pct > 105) continue;
                 const tick = document.createElement('div');
                 tick.className = 'timeline-tick';
                 tick.style.left = pct + '%';
@@ -321,103 +305,58 @@
                 lbl.innerText = String(y);
                 ticksContainer.appendChild(lbl);
             }
-        } else if (tickInterval === 'month') {
-            // Optional: month ticks implementation (not enabled by default)
         }
 
-        // Helper: deterministic color by name (HSL hashed)
         function colorForName(name) {
-            // simple hash
             let h = 0;
             for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-            const hue = h % 360;
-            const sat = 60 + (h % 20); // 60-79%
-            const light = 48;
-            return `hsl(${hue} ${sat}% ${light}%)`;
+            return `hsl(${h % 360} 65% 48%)`;
         }
 
-        // Create segments and labels
         placements.forEach(p => {
             const startPct = ((p.startMs - minDateMs) / range) * 100;
             const endPct = ((p.endMs - minDateMs) / range) * 100;
-            const widthPct = Math.max(0.3, endPct - startPct); // minimal visible width in percent
+            const widthPct = Math.max(0.3, endPct - startPct);
 
-            // segment
             const seg = document.createElement('div');
             seg.className = 'timeline-segment';
             seg.setAttribute('tabindex', '0');
             seg.setAttribute('role', 'img');
-            seg.setAttribute('aria-label', `${p.name.replace(/_/g, ' ')} from ${formatDate(new Date(p.startMs))} to ${formatDate(new Date(p.endMs))}`);
             seg.style.left = startPct + '%';
             seg.style.width = widthPct + '%';
             seg.style.background = colorForName(p.name);
             const top = topOffset + p.row * rowHeight - 10;
             seg.style.top = top + 'px';
 
-            // tooltip
             const tooltip = document.createElement('div');
             tooltip.className = 'timeline-tooltip';
-            tooltip.innerHTML = `<strong>${p.name.replace(/_/g, ' ')}</strong><div style="margin-top:6px">${formatDate(new Date(p.startMs))} — ${formatDate(new Date(p.endMs))}</div>`;
+            tooltip.innerHTML = `<strong>${p.name.replace(/_/g, ' ')}</strong><div style="margin-top:6px">${formatDateLabel(new Date(p.startMs))} — ${formatDateLabel(new Date(p.endMs))}</div>`;
 
-            // label (placed at segment start but clipped to container)
             const label = document.createElement('div');
             label.className = 'timeline-label';
             label.innerText = p.name.replace(/_/g, ' ');
-            // position label at start; then measure and clamp
             label.style.left = startPct + '%';
             label.style.top = (top + 18) + 'px';
 
-            // Append elements (order important for stacking of hover/tooltip selectors)
             container.appendChild(seg);
             container.appendChild(tooltip);
             container.appendChild(label);
 
-            // Simple mouse movement to keep tooltip near mouse but within container bounds
             seg.addEventListener('mousemove', (ev) => {
                 const rect = container.getBoundingClientRect();
                 const tRect = tooltip.getBoundingClientRect();
-                // prefer showing tooltip above the segment
                 const x = Math.min(rect.width - tRect.width - 8, Math.max(8, ev.clientX - rect.left + 8));
                 const y = Math.max(8, ev.clientY - rect.top - tRect.height - 12);
                 tooltip.style.left = x + 'px';
                 tooltip.style.top = y + 'px';
                 tooltip.style.display = 'block';
             });
-            seg.addEventListener('mouseleave', () => {
-                tooltip.style.display = 'none';
-            });
-
-            // On focus show tooltip
-            seg.addEventListener('focus', (ev) => {
-                const rect = container.getBoundingClientRect();
-                tooltip.style.left = Math.min(rect.width - 320, (seg.offsetLeft + seg.offsetWidth + 6)) + 'px';
-                tooltip.style.top = (seg.offsetTop - 60) + 'px';
-                tooltip.style.display = 'block';
-            });
-            seg.addEventListener('blur', () => {
-                tooltip.style.display = 'none';
-            });
-
-            // Post-render clamp label to container width to avoid overflow
-            requestAnimationFrame(() => {
-                const cRect = container.getBoundingClientRect();
-                const lblRect = label.getBoundingClientRect();
-                // compute label left in px relative to container
-                let leftPx = (startPct / 100) * (cRect.width - leftPadding - rightPadding) + leftPadding;
-                // clamp so label fully visible
-                const maxLeft = cRect.width - rightPadding - lblRect.width - 6;
-                if (leftPx > maxLeft) leftPx = maxLeft;
-                if (leftPx < leftPadding + 6) leftPx = leftPadding + 6;
-                label.style.left = leftPx + 'px';
-            });
+            seg.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
         });
 
-        // Utility functions
         function parseDate(s) {
-            // Accept YYYY-MM-DD, or ISO strings
             const d = new Date(s);
             if (isNaN(d.getTime())) {
-                // try YYYY-MM-DD manually
                 const parts = String(s).split('-').map(Number);
                 if (parts.length >= 3) return new Date(parts[0], parts[1] - 1, parts[2]);
                 return null;
@@ -425,69 +364,77 @@
             return d;
         }
 
-        function formatDate(d) {
+        function formatDateLabel(d) {
             if (!d || !(d instanceof Date)) return '';
             return d.toLocaleDateString(undefined, {year: 'numeric', month: 'short', day: 'numeric'});
         }
     }
 
-    /**
-     * Converts raw provider name → title case without underscores
-     */
     function formatName(name) {
         return name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     }
 
-    // Convert "Tue, 18 Nov 2025 00:00:00 GMT" → "Nov 18, 2025"
-    function formatDate(dateStr) {
+    function formatDateLabel(dateStr) {
         if (!dateStr) return null;
-
         const d = new Date(dateStr);
-        if (isNaN(d)) return dateStr;  // fallback if invalid
-
-        const options = {month: "short", day: "numeric", year: "numeric"};
-        return d.toLocaleDateString("en-US", options);
+        if (isNaN(d)) return dateStr;
+        return d.toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric"});
     }
 
-    function createProviderCard(name, info) {
+    function createProviderCard(name, info, supportsPage) {
         const card = document.createElement("div");
         card.className = "provider-card";
 
-        const start = formatDate(info.start_date);
-        const end = formatDate(info.end_date);
+        const start = formatDateLabel(info.start_date);
+        const end = formatDateLabel(info.end_date);
 
-        const html = `
-            <img src="${info.logo}" alt="${name} logo" class="provider-logo">
-
-            <div class="provider-name">${formatName(name)}</div>
-
-            <div class="date-range">
-                ${start && end ? `${start} → ${end}` : "No date range available"}
+        // Standard Left Profile and Center Details
+        let innerHTML = `
+            <img src="${info.logo || ''}" alt="${name} logo" class="provider-logo">
+            <div class="provider-details">
+                <div class="provider-name">${formatName(name)}</div>
+                <div class="date-range">
+                    ${start && end ? `${start} → ${end}` : "No date range available"}
+                </div>
             </div>
-
-            <div class="status-badge ${info.available ? "available" : "unavailable"}">
-                ${info.available ? "Available" : "Unavailable"}
-            </div>
+            <div class="provider-actions">
+                <div class="status-badge ${info.available ? "available" : "unavailable"}">
+                    ${info.available ? "Available" : "Unavailable"}
+                </div>
         `;
 
-        card.innerHTML = html;
+        // Append conditional arrow on the right if API states true
+        if (supportsPage === true) {
+            innerHTML += `
+                <a href="/${encodeURIComponent(name)}/home" class="provider-nav-link" title="View details">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            `;
+        }
+
+        innerHTML += `</div>`;
+        card.innerHTML = innerHTML;
         return card;
     }
 
-    /**
-     * Render all provider cards
-     */
     async function renderProviders() {
         const container = document.getElementById("statusGrid");
         container.innerHTML = "";
 
-        const res = await fetch("/status_data");
-        const providers = await res.json();
+        // Fetch both endpoints concurrently
+        const [statusRes, supportsPageRes] = await Promise.all([
+            fetch("/status_data"),
+            fetch("/supports_home")
+        ]);
+
+        const providers = await statusRes.json();
+        const supportsPageData = await supportsPageRes.json();
 
         renderTimeline(providers);
 
         Object.entries(providers).forEach(([name, info]) => {
-            container.appendChild(createProviderCard(name, info));
+            const supportsPage = supportsPageData && supportsPageData[name];
+            container.appendChild(createProviderCard(name, info, supportsPage));
         });
     }
 

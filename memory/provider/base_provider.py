@@ -172,8 +172,15 @@ class MemoryProvider(ABC):
         pass
 
     @abstractmethod
-    def is_working(self):
+    def is_working(self) -> bool:
         return True
+
+    def supports_home(self) -> bool:
+        return False
+
+    def get_allowed_exposed_functions(self) -> List[str]:
+        # Override this method to allow specific functions to be exposed to the user. By default, no functions are exposed.
+        return []
 
     async def get_start_end_date(self) -> Tuple[date | None, date | None]:
         # This is not the most efficient way to do this, but it's the easiest for now.

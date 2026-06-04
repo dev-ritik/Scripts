@@ -30,11 +30,15 @@ Add `DIARY_PATH` to the `.env` file and set it to the folder path
 #### Instagram
   - Go to this [link](https://accountscenter.instagram.com/info_and_permissions/dyi/?entry_point=deeplink_screen)
   - Select the 
-    - Customize information >> Select messages
+    - Customize information >> Select
+      - `Messages` for basic chats
+      - (Optional) `Followers and following`: For meta data on followers and following
     - Date Range: All time
     - Format: JSON
     - Media quality: Lower quality (for smaller storage usage)
-  - Make a new `data/instagram` subdirectory in the data directory. Extract the `messages/inbox` from the downloaded zip here.
+  - Make a new `data/instagram` subdirectory in the data directory.
+  - Make a sub folder `messages` and extract the contents of `messages/inbox` from the downloaded zip here.
+    - (Optional) Make a sub folder `followers_and_following` and extract the contents of `connections/followers_and_following` folder from the downloaded zip here.
 
 #### WhatsApp
 WhatsApp doesn't allow downloading all the chat data at once. We can get individual chats at once. To get that:
