@@ -375,13 +375,20 @@ def get_home(provider):
     return add_caching_to_response(render_template(f'{provider}_home.html'))
 
 @app.route('/<provider>/<function>')
-def call_provider_function(provider, function):
+async def call_provider_function(provider, function):
     provider_instance = MemoryAggregator.get_instance().providers.get(provider)
     if not provider_instance:
         return jsonify({"error": "Provider not found"}), 404
     if not function in provider_instance.get_allowed_exposed_functions():
         return jsonify({"error": "Provider does not support this function"}), 400
-    return add_caching_to_response(getattr(provider_instance, function)())
+    kwargs = request.args.to_dict()
+
+    try:
+        response = await getattr(provider_instance, function)(**kwargs)
+    except TypeError as e:
+        return jsonify({"error": f"Invalid arguments provided: {str(e)}"}), 400
+
+    return add_caching_to_response(response)
 
 if __name__ == '__main__':
     # from provider.imessage_provider import IMessageProvider

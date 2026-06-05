@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% block title %}Home | Diary Insights{% endblock %}
+
+{% block extra_style %}
+<style>
+    /* Clean, Modern Dark Mode Instagram Aesthetic */
+    :root {
+        --bg-color: #000000;
+        --card-bg: #121212;
+        --border-color: #262626;
+        --text-primary: #f5f5f5;
+        --text-secondary: #a8a8a8;
+        --accent-color: #0095f6;
+        --fallback-bg: #efefef;
+        --fallback-text: #262626;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        padding: 0;
+    }
+
+    .ig-layout {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px 10px;
+    }
+
+    /* Top Branding Bar */
+    .diary-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 0;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 15px;
+    }
+
+    .diary-header h1 {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        margin: 0;
+    }
+
+    /* Instagram-inspired Interactive Filter Tool Tray */
+    .filter-tray {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .filter-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+    }
+
+    .filter-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        font-weight: 700;
+    }
+
+    /* Sleek Native Dropdowns and Selects */
+    .filter-select, .filter-input {
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+        border-color: var(--text-secondary);
+    }
+
+    /* Toggle switches for boolean flags */
+    .toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .toggle-input {
+        appearance: none;
+        width: 36px;
+        height: 20px;
+        background-color: #363636;
+        border-radius: 10px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        outline: none;
+    }
+
+    .toggle-input::before {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.2s;
+    }
+
+    .toggle-input:checked::before {
+        transform: translateX(16px);
+    }
+
+    /* Main Word Stream Output */
+    .word-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .word-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 4px;
+        border-radius: 4px;
+    }
+
+    .word-left-block {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    /* Grid Layout Avatar Element */
+    .avatar-wrapper {
+        width: 44px;
+        height: 44px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        padding: 2px; /* Ring glow */
+    }
+
+    .avatar-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background-color: var(--bg-color);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-inner img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .avatar-fallback {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background-color: var(--fallback-bg);
+        color: var(--fallback-text);
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-transform: uppercase;
+    }
+
+    .meta-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .word-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .word-subtitle {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .count-badge {
+        background-color: var(--accent-color);
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 16px;
+        border-radius: 8px;
+        text-align: center;
+        min-width: 65px;
+    }
+
+    .loading-state {
+        text-align: center;
+        color: var(--text-secondary);
+        padding: 40px 0;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ig-layout">
+    <div class="diary-header">
+        <h1>Cool Diary</h1>
+    </div>
+
+    <div class="filter-tray">
+        <div class="filter-row">
+            <div class="filter-group" style="flex: 1.5;">
+                <label class="filter-label">Vocabulary Filter</label>
+                <select id="dict-filter" class="filter-select">
+                    <option value="all">All Words Covered</option>
+                    <option value="only_dict">Dictionary Words Only</option>
+                    <option value="only_non_dict">Non-Dictionary Only</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">Min Length</label>
+                <input type="number" id="min-length" class="filter-input" value="1" min="1">
+            </div>
+        </div>
+
+        <div class="filter-row" style="padding-top: 4px; border-top: 1px solid #1c1c1c;">
+            <label class="toggle-container">
+                <input type="checkbox" id="ignore-case" class="toggle-input" checked>
+                <span>Ignore Case</span>
+            </label>
+
+            <label class="toggle-container">
+                <input type="checkbox" id="include-hidden" class="toggle-input">
+                <span>Include Hidden</span>
+            </label>
+        </div>
+    </div>
+
+    <div id="word-container" class="word-list">
+        <div class="loading-state">Fetching your most written words...</div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Elements from UI control panel
+        const dictFilter = document.getElementById('dict-filter');
+        const minLengthInput = document.getElementById('min-length');
+        const ignoreCaseToggle = document.getElementById('ignore-case');
+        const includeHiddenToggle = document.getElementById('include-hidden');
+        const container = document.getElementById('word-container');
+
+        // Master fetch function reading active UI states
+        function fetchDiaryData() {
+            container.innerHTML = '<div class="loading-state">Updating stream...</div>';
+
+            const minWordLength = minLengthInput.value || '1';
+            const ignoreCase = ignoreCaseToggle.checked ? 'True' : 'False';
+            const includeHidden = includeHiddenToggle.checked ? 'True' : 'False';
+
+            // Derive reciprocal true/false mappings from our clean dropdown choice
+            let onlyDict = 'False';
+            let onlyNonDict = 'False';
+
+            if (dictFilter.value === 'only_dict') {
+                onlyDict = 'True';
+            } else if (dictFilter.value === 'only_non_dict') {
+                onlyNonDict = 'True';
+            }
+
+            // Constructing structural API Target url
+            const apiUrl = `http://127.0.0.1:5000/Diary/get_most_word_written?min_word_length=${minWordLength}&only_non_dict=${onlyNonDict}&only_dict=${onlyDict}&ignore_case=${ignoreCase}&include_hidden=${includeHidden}`;
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response failure');
+                    return response.json();
+                })
+                .then(data => {
+                    container.innerHTML = '';
+
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<div class="loading-state">No recorded entries match your active parameters.</div>';
+                        return;
+                    }
+
+                    // Render list of pairs dynamically
+                    data.forEach(entry => {
+                        const word = entry[0];
+                        const count = entry[1];
+                        const initialLetter = word.charAt(0).toUpperCase() || '?';
+
+                        const itemRow = document.createElement('div');
+                        itemRow.className = 'word-item';
+
+                        itemRow.innerHTML = `
+                            <div class="word-left-block">
+                                <div class="avatar-wrapper">
+                                    <div class="avatar-inner">
+                                        <img src="/user/dp/${encodeURIComponent(word)}"
+                                             alt="${word}"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div class="avatar-fallback" style="display:none;">${initialLetter}</div>
+                                    </div>
+                                </div>
+                                <div class="meta-details">
+                                    <span class="word-title">${word}</span>
+                                    <span class="word-subtitle">Written ${count} times</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="count-badge">${count}</div>
+                            </div>
+                        `;
+                        container.appendChild(itemRow);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching data from local server engine:', error);
+                    container.innerHTML = '<div class="loading-state" style="color: #ed4956;">Failed to connect to local API engine. Ensure backend server is running.</div>';
+                });
+        }
+
+        // Bind interactive event listeners for instant engine state triggers
+        dictFilter.addEventListener('change', fetchDiaryData);
+        minLengthInput.addEventListener('input', fetchDiaryData);
+        ignoreCaseToggle.addEventListener('change', fetchDiaryData);
+        includeHiddenToggle.addEventListener('change', fetchDiaryData);
+
+        // Initial paint execution on layout render load
+        fetchDiaryData();
+    });
+</script>
+{% endblock %}

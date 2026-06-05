@@ -65,21 +65,21 @@ class InstagramProvider(MemoryProvider):
             return False
         return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/close_friends.json').exists()
 
-    def get_followers(self):
+    async def get_followers(self, **kwargs):
         if not self.supports_followers():
             return {}
         follower_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/followers_1.json')
         with open(follower_path, 'r', encoding='utf-8') as f:
             return [follower['string_list_data'] for follower in json.load(f)]
 
-    def get_following(self):
+    async def get_following(self, **kwargs):
         if not self.supports_following():
             return {}
         following_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/following.json')
         with open(following_path, 'r', encoding='utf-8') as f:
             return json.load(f)['relationships_following']
 
-    def get_close_friends(self):
+    async def get_close_friends(self, **kwargs):
         if not self.supports_close_friends():
             return {}
 

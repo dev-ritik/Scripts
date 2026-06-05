@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import List, Coroutine, Any
 
 import httpx
@@ -76,3 +77,33 @@ def human_duration(seconds: int | float = None, minutes: int | float = None) -> 
             parts.append(f"{value} {name}")
 
     return " ".join(parts) if parts else "0 s"
+
+
+def load_dictionary():
+    if os.path.exists('/usr/share/dict/words'):
+        file_path = '/usr/share/dict/words'
+    else:
+        raise FileNotFoundError("Dictionary file not found")
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            # strip() removes newlines; lower() ensures case-insensitivity
+            return {line.strip().lower() for line in f}
+    except FileNotFoundError:
+        print(f"Error: Dictionary file not found at {file_path}")
+        return set()
+
+
+def is_valid_word(dictionary=None, word: str = None) -> bool:
+    if not word:
+        return False
+
+    dictionary = dictionary or load_dictionary()
+
+    return word.strip().lower() in dictionary
+
+
+def str_to_bool(value: str) -> bool:
+    if not value:
+        return False
+    return value.lower() in ("true", "1", "yes", "on")
