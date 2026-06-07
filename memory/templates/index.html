@@ -385,6 +385,12 @@
             font-size: 16px;
         }
 
+        /* WhatsApp themed soft red background mask for a missed call icon container */
+        .voice-call-icon.missed {
+            background-color: #ffebee;
+            font-size: 14px;
+        }
+
         .voice-call-details {
             display: flex;
             flex-direction: column;
@@ -394,6 +400,11 @@
             font-size: 14px;
             font-weight: 500;
             color: #111b21;
+        }
+
+        /* Specific native WhatsApp red color accent for missed text elements */
+        .voice-call-title.missed {
+            color: #f15c6d;
         }
 
         .voice-call-duration {
@@ -533,9 +544,16 @@
             default:
                 if (range.endsWith("yearago") || range.endsWith("yearsago")) {
                     const num = parseInt(range);
-                    start = new Date(today);
-                    start.setFullYear(today.getFullYear() - num);
-                    end = new Date(start);
+
+                    const targetDate = new Date(today);
+                    targetDate.setFullYear(today.getFullYear() - num);
+
+                    start = new Date(targetDate);
+                    start.setDate(targetDate.getDate() - 1);
+
+                    end = new Date(targetDate);
+                    end.setDate(targetDate.getDate() + 1);
+
                     return {
                         start_date: formatDate(start),
                         end_date: formatDate(end)
@@ -794,27 +812,33 @@
                 const callContainer = document.createElement('div');
                 callContainer.className = 'voice-call-container';
 
+                // Check if the call was missed
+                const isMissed = event.context.voice_call_status === 'Missed';
+
                 const iconDiv = document.createElement('div');
-                iconDiv.className = 'voice-call-icon';
-                iconDiv.innerHTML = '📞';
+                iconDiv.className = `voice-call-icon ${isMissed ? 'missed' : ''}`;
+                // Optionally change the telephone icon to a missed symbol or color-code it
+                iconDiv.innerHTML = isMissed ? '🚫' : '📞';
 
                 const detailsDiv = document.createElement('div');
                 detailsDiv.className = 'voice-call-details';
 
                 const titleDiv = document.createElement('div');
-                titleDiv.className = 'voice-call-title';
-                titleDiv.textContent = 'Voice call';
-
-                const durationDiv = document.createElement('div');
-                durationDiv.className = 'voice-call-duration';
-                durationDiv.textContent = event.context.voice_call_duration || '';
+                titleDiv.className = `voice-call-title ${isMissed ? 'missed' : ''}`;
+                titleDiv.textContent = isMissed ? 'Missed voice call' : 'Voice call';
 
                 detailsDiv.appendChild(titleDiv);
-                detailsDiv.appendChild(durationDiv);
+
+                // Only show duration if the call wasn't missed
+                if (!isMissed && event.context.voice_call_duration) {
+                    const durationDiv = document.createElement('div');
+                    durationDiv.className = 'voice-call-duration';
+                    durationDiv.textContent = event.context.voice_call_duration;
+                    detailsDiv.appendChild(durationDiv);
+                }
 
                 callContainer.appendChild(iconDiv);
                 callContainer.appendChild(detailsDiv);
-
                 messageDiv.appendChild(callContainer);
             } else {
                 if (event.context && event.context.deleted === true) {

@@ -100,6 +100,13 @@ class InstagramProvider(MemoryProvider):
         return InstagramProvider.fix_mojibake(message).strip()
 
     @staticmethod
+    def _add_to_contexts(existing_contexts: Optional[list], new_context: dict):
+        if len(existing_contexts) == 0:
+            existing_contexts.append({})
+        for context in existing_contexts:
+            context.update(new_context)
+
+    @staticmethod
     def parse_json(data,
                    name_from_file,
                    on_date=None,
@@ -173,6 +180,8 @@ class InstagramProvider(MemoryProvider):
                     "mime_type": mimetypes.guess_type(asset_path)[0],
                     "new_tab_url": f'/asset/{InstagramProvider.NAME}/{parsable_asset_id}'
                 })
+
+            media_type = MediaType.NON_TEXT if contexts else MediaType.TEXT
             text = f"{text if text else ""}{" " if text and share_link else ""}{share_link}"
             if not text and not contexts:
                 continue
@@ -180,7 +189,20 @@ class InstagramProvider(MemoryProvider):
             text = InstagramProvider.clean_message(text) if text else ''
             if text in InstagramProvider.REGIONAL_LANGUAGE_LIKED_MESSAGE:
                 text = 'Liked the message'
-            media_type = MediaType.NON_TEXT if contexts else MediaType.TEXT
+            if text.endswith('(edited)'):
+                # TODO: Find a way to handle the original message currently both will show up in the UI
+                text = text.replace('(edited)', '').strip()
+                InstagramProvider._add_to_contexts(contexts, {'edited': True})
+
+            elif text.endswith(' started an audio call'):
+                InstagramProvider._add_to_contexts(contexts, {'voice_call': True})
+                text = ''
+            elif text == 'You missed an audio call':
+                text = ''
+                InstagramProvider._add_to_contexts(contexts, {
+                    'voice_call': True,
+                    'voice_call_status': 'Missed'
+                })
 
             message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED
 
