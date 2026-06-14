@@ -235,14 +235,143 @@
             margin-right: 5px;
         }
 
+        /* Container Spacing Adjustment to stop the crowded look */
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px; /* Gives breathability between columns */
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        /* Base structural footprint for columns */
+        .select-wrapper {
+            flex: 1;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Clean unified font weight and icon treatment */
+        .select-wrapper label {
+            font-weight: 600;
+            color: #111b21;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .select-wrapper label i {
+            color: #008069; /* Consistent core theme color */
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+        }
+
+        /* --- SENDERS MULTISELECT SPECIFIC STYLES --- */
+        .custom-multiselect-container {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #e9edef; /* Clean WhatsApp border tint */
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        /* Senders Row */
+        .user-select-row {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            user-select: none;
+        }
+
+        .user-select-row:hover {
+            background-color: #f5f6f6; /* WA light grey row hover state */
+        }
+
+        .user-select-row input[type="checkbox"] {
+            margin-right: 12px;
+            accent-color: #008069;
+            width: 16px;
+            height: 16px;
+        }
+
+        .user-avatar-frame {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin-right: 12px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-avatar-fallback {
+            width: 100%;
+            height: 100%;
+            background-color: #efefef;
+            color: #54656f;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .user-display-name {
+            font-size: 14px;
+            color: #111b21;
+            font-weight: 500;
+        }
+
+        /* --- WHATSAPP PILL BUTTONS (High Contrast) --- */
         .select-buttons {
             display: flex;
-            gap: 5px;
+            gap: 8px;
+            margin-top: 4px;
         }
 
         .select-buttons button {
-            padding: 4px 8px;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px; /* High fidelity WhatsApp UI rounded pill styling */
             font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        /* Primary Color Token - Dark Teal Accent */
+        .select-buttons .btn-select-all {
+            background-color: #008069;
+            color: #ffffff;
+        }
+
+        .select-buttons .btn-select-all:hover {
+            background-color: #006653;
+        }
+
+        /* Secondary Color Token - Visible Muted Gray Contrast (Stands out from white page bg) */
+        .select-buttons .btn-clear-all {
+            background-color: #f0f2f5;
+            color: #54656f;
+            border: 1px solid #d1d7db; /* Clear separation boundary line */
+        }
+
+        .select-buttons .btn-clear-all:hover {
+            background-color: #e1e3e6;
         }
 
         /* Make the form elements stack better on mobile */
@@ -271,13 +400,6 @@
 
         .message-content.consecutive {
             margin-left: 50px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: flex-start;
         }
 
         .input-wrapper {
@@ -319,13 +441,6 @@
             cursor: pointer;
         }
 
-        .select-wrapper {
-            flex: 1;
-            min-width: 250px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
 
         .select-wrapper i {
             color: #008069;
@@ -464,7 +579,8 @@
         const exclude_system_messages = document.getElementById('exclude_system').checked;
         const selectedProviders = Array.from(document.querySelectorAll('.provider-option.selected'))
             .map(el => el.textContent.trim());
-        const selectedPeoples = Array.from(document.getElementById('senders').selectedOptions).map(opt => opt.value);
+
+        const selectedPeoples = Array.from(document.querySelectorAll('.sender-checkbox:checked')).map(cb => cb.value);
         const container = document.getElementById('chatContainer');
 
         let queryParams = new URLSearchParams();
@@ -878,6 +994,58 @@
         }
     }
 
+    async function renderSenders() {
+        const container = document.getElementById('senders-container');
+        container.innerHTML = ''; // Sanitize framework loop
+
+        // Initialize the WhatsApp Themed Command Buttons bar
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'select-buttons';
+
+        const selectAllBtn = document.createElement('button');
+        selectAllBtn.type = 'button';
+        selectAllBtn.className = 'btn-select-all'; // Teal primary setup
+        selectAllBtn.textContent = 'Select All';
+        selectAllBtn.onclick = function () {
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+        };
+
+        const clearAllBtn = document.createElement('button');
+        clearAllBtn.type = 'button';
+        clearAllBtn.className = 'btn-clear-all'; // Balanced bordered contrast setup
+        clearAllBtn.textContent = 'Clear All';
+        clearAllBtn.onclick = function () {
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        };
+
+        buttonContainer.appendChild(selectAllBtn);
+        buttonContainer.appendChild(clearAllBtn);
+        container.parentNode.insertBefore(buttonContainer, container.nextSibling);
+
+        // Dynamic user loop injection
+        const peoples = await loadPeople();
+        peoples.forEach(people => {
+            const name = people.display_name;
+            const initial = name[0]?.toUpperCase() || '';
+            const encodedName = encodeURIComponent(name);
+
+            const row = document.createElement('label');
+            row.className = 'user-select-row';
+            row.innerHTML = `
+                <input type="checkbox" value="${name}" class="sender-checkbox">
+                <div class="user-avatar-frame">
+                    <img src="/user/dp/${encodedName}"
+                         style="width:100%; height:100%; object-fit:cover; border-radius:50%;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="user-avatar-fallback" style="display:none;">
+                        ${initial}
+                    </div>
+                </div>
+                <span class="user-display-name">${name}</span>
+            `;
+            container.appendChild(row);
+        });
+    }
     document.addEventListener('DOMContentLoaded', async function () {
         const rangeSelect = document.getElementById('range');
         const customDateInputs = document.getElementById('customDateInputs');
@@ -890,30 +1058,10 @@
             }
         });
 
-        const selectElement = document.getElementById('senders');
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'select-buttons';
-
-        const selectAllBtn = document.createElement('button');
-        selectAllBtn.type = 'button';
-        selectAllBtn.textContent = 'Select All';
-        selectAllBtn.onclick = function () {
-            Array.from(selectElement.options).forEach(option => option.selected = true);
-        };
-
-        const clearAllBtn = document.createElement('button');
-        clearAllBtn.type = 'button';
-        clearAllBtn.textContent = 'Clear All';
-        clearAllBtn.onclick = function () {
-            Array.from(selectElement.options).forEach(option => option.selected = false);
-        };
-
-        buttonContainer.appendChild(selectAllBtn);
-        buttonContainer.appendChild(clearAllBtn);
-        selectElement.parentNode.insertBefore(buttonContainer, selectElement.nextSibling);
-
         const groupParam = getUrlParameter('group');
         document.getElementById('group').checked = groupParam === null || groupParam === 'true';
+
+        await renderSenders();
 
         fetch("/available_providers")
             .then(r => r.json())
@@ -945,15 +1093,6 @@
                     container.appendChild(optionDiv);
                 });
             });
-
-        const peoples = await loadPeople()
-        const sendersSelect = document.getElementById("senders");
-        peoples.forEach(people => {
-            const option = document.createElement("option");
-            option.value = people.display_name;
-            option.textContent = people.display_name;
-            sendersSelect.appendChild(option);
-        });
     });
 </script>
 {% endblock %}
@@ -1017,13 +1156,12 @@
 
         <div class="form-group">
             <div class="select-wrapper">
-                <i class="fas fa-user"></i>
-                <label for="senders">Select Senders:</label>
-                <select id="senders" name="senders" multiple></select>
+                <label><i class="fas fa-user"></i>Select Senders:</label>
+                <div id="senders-container" class="custom-multiselect-container"></div>
             </div>
+
             <div class="select-wrapper">
-                <i class="fas fa-database"></i>
-                <label for="providers">Select Providers:</label>
+                <label for="providers"><i class="fas fa-database"></i>Select Providers:</label>
                 <div id="providersContainer" class="providers-container"></div>
             </div>
         </div>
