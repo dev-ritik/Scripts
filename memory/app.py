@@ -21,7 +21,7 @@ import aiofiles
 
 from datetime import datetime, timezone, timedelta
 
-from flask import Flask, render_template, request, send_file, make_response, jsonify
+from flask import Flask, render_template, request, send_file, make_response, jsonify, abort
 
 from common import MemoryAggregator
 from profile import get_user_dp, get_profile_json, get_user_profile_from_name
@@ -121,6 +121,27 @@ async def people_data():
     data.sort(key=lambda x: x['display_name'])
     return add_caching_to_response(jsonify(data))
 
+
+@app.route('/user/profile/<display_name>')
+async def user_profile(display_name):
+    """
+    Renders the custom WhatsApp Contact Info template for a given friend.
+    """
+    person = await get_user_profile_from_name(display_name)
+
+    if not person:
+        abort(404, description="Contact not found in Memory Aggregator database.")
+
+    provider_details = person.get("provider_details", {})
+    return render_template(
+        'user_profile.html',
+        display_name=person["display_name"],
+        dp=person["dp"],
+        name_regex=person.get("name_regex", ""),
+        immich_details=provider_details.get("immich", {}),
+        imessage_details=provider_details.get("imessage", {}),
+        hinge_details=provider_details.get("hinge", {})
+    )
 
 @app.route("/circles")
 def circles_page():

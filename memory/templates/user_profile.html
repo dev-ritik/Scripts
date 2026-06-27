@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}{{ display_name }} | Contact Info{% endblock %}
+
+{% block content %}
+<div class="whatsapp-profile-container">
+    <div class="profile-header">
+        <a href="javascript:history.back()" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <span>Contact info</span>
+    </div>
+
+    <div class="profile-main-card">
+        <div class="avatar-wrapper">
+            <img id="user-dp" src="/user/dp/{{ dp }}" alt="{{ display_name }}" onerror="this.src='https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';">
+        </div>
+        <h2 class="profile-display-name">{{ display_name }}</h2>
+    </div>
+
+    <div class="profile-details-section">
+        <div class="section-title">Name Matching Pattern</div>
+        <div class="regex-box">
+            <i class="fas fa-code-branch regex-icon"></i>
+            <div class="regex-content">
+                <span class="regex-code" id="user-regex">{{ name_regex or 'No pattern assigned' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-details-section">
+        <div class="section-title">Connected Ingestion Streams</div>
+        <ul class="provider-stream-list">
+
+            <li>
+                <div class="provider-item-layout">
+                    <i class="fas fa-images provider-icon immich-color"></i>
+                    <div class="provider-meta">
+                        <span class="provider-label">Immich Facial ID Lookup</span>
+                        <span class="provider-value font-mono">
+                            {{ immich_details.get('person_id') or 'Not Linked' }}
+                        </span>
+                    </div>
+                </div>
+            </li>
+
+            <li>
+                <div class="provider-item-layout">
+                    <i class="fab fa-apple provider-icon imessage-color"></i>
+                    <div class="provider-meta">
+                        <span class="provider-label">iMessage Handles / Envelopes</span>
+                        <div class="imessage-identifiers">
+                            {% for identifier in imessage_details.get('chat_identifier', []) %}
+                                <span class="identifier-pill">{{ identifier }}</span>
+                            {% else %}
+                                <span class="provider-value italic text-muted">No explicit chat channels connected.</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </li>
+
+            <li>
+                <div class="provider-item-layout">
+                    <i class="fas fa-heart provider-icon hinge-color"></i>
+                    <div class="provider-meta">
+                        <span class="provider-label">Hinge Match Timeline</span>
+                        <span class="provider-value">
+                            {% if hinge_details.get('match_time') %}
+                                <i class="far fa-calendar-alt text-muted" style="font-size: 11px;"></i> Connected since {{ hinge_details.get('match_time') }}
+                            {% else %}
+                                No connected matching activity logs.
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </li>
+
+        </ul>
+    </div>
+</div>
+
+<style>
+/* WhatsApp Web Structural Framework Styles */
+.whatsapp-profile-container {
+    max-width: 500px;
+    margin: 20px auto;
+    background-color: #f0f2f5;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Header Navbar Styling */
+.profile-header {
+    background-color: #008069; /* WhatsApp Teal */
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.profile-header .back-btn {
+    color: white;
+    text-decoration: none;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.2s;
+}
+
+.profile-header .back-btn:hover {
+    opacity: 0.8;
+}
+
+/* Profile Photo Card Setup */
+.profile-main-card {
+    background: white;
+    padding: 28px 20px;
+    text-align: center;
+    border-bottom: 1px solid #e9edef;
+    margin-bottom: 10px;
+}
+
+.avatar-wrapper {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto 16px auto;
+}
+
+.avatar-wrapper img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e9edef;
+}
+
+.profile-display-name {
+    font-size: 22px;
+    color: #111b21;
+    font-weight: 500;
+    margin: 0 0 4px 0;
+}
+
+/* Section Group Base Elements */
+.profile-details-section {
+    background: white;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e9edef;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 13px;
+    color: #008069;
+    font-weight: 500;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Match Pattern Group Layout */
+.regex-box {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+.regex-icon {
+    color: #667781;
+    font-size: 18px;
+    margin-top: 3px;
+}
+
+.regex-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.regex-code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 14px;
+    color: #111b21;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #e9edef;
+    word-break: break-all;
+    display: inline-block;
+}
+
+/* Provider Integrations Layout Elements */
+.provider-stream-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.provider-stream-list li {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.provider-stream-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.provider-item-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.provider-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    margin-top: 2px;
+}
+
+/* Custom platform colors following layout specifications */
+.immich-color { color: #ff5722; }
+.imessage-color { color: #22c55e; }
+.hinge-color { color: #8b5cf6; }
+
+.provider-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.provider-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #111b21;
+}
+
+.provider-value {
+    font-size: 13px;
+    color: #54656f;
+}
+
+.font-mono {
+    font-family: monospace;
+    background: #f8f9fa;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+/* iMessage Identifier Array Tag Wrappers */
+.imessage-identifiers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.identifier-pill {
+    background-color: #f0f2f5;
+    color: #111b21;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #e9edef;
+    font-family: monospace;
+}
+
+.text-muted { color: #8696a0; }
+.italic { font-style: italic; }
+</style>
+{% endblock %}

@@ -145,7 +145,7 @@ Wanna make the UI for the web app more elegant? Add `profile.json` to the data f
         "person_id": "" // Used to filter immich message by people. Use /api/people to get the person_id
       },
       "imessage": {
-        "chat_identifier": [
+        "chat_identifier": [  // Used to filter imessage message by chat_identifier on imessage provider
         ]
       },
       "hinge": {

@@ -16,49 +16,58 @@
     margin-top: 20px;
 }
 
-/* Card styles */
+/* Card styles turned into clickable WhatsApp-style cards */
 .fav-card {
     background: white;
-    border-radius: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 20px 15px;
     text-align: center;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer; /* Indicates clickability */
+    border: 1px solid #e9edef;
 }
 
 .fav-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    background-color: #f0f2f5; /* Subtle WhatsApp background tint on hover */
 }
 
 .fav-card img {
-    width: 100px;
-    height: 100px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
     object-fit: cover;
+    border: 1px solid #e9edef;
 }
 
 .fav-name {
-    font-weight: bold;
-    color: #008069;
-    margin: 10px 0 3px 0;
+    font-weight: 600;
+    color: #111b21; /* WhatsApp dark primary text */
+    margin: 12px 0 4px 0;
     font-size: 16px;
 }
 
 .regex-text {
-    font-size: 12px;
-    color: #888;
+    font-size: 11px;
+    color: #667781; /* WhatsApp secondary text */
     font-family: monospace;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     word-break: break-all;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
 }
 
 .phone-list {
     font-size: 13px;
-    color: #555;
+    color: #008069; /* WhatsApp Green for actionable contact info */
     list-style: none;
     padding: 0;
     margin: 5px 0;
+    font-weight: 500;
 }
 
 .people-grid {
@@ -71,21 +80,27 @@
         let people = await loadPeople();
 
         const container = document.getElementById("people-container");
-        container.innerHTML = ""; // clear any previous content
+        container.innerHTML = "";
+
         people.forEach(fav => {
-                const card = document.createElement("div");
-                card.className = "fav-card";
-                card.innerHTML = `
-                <img src="/user/dp/${fav.dp}" alt="${fav.display_name}">
+            const card = document.createElement("div");
+            card.className = "fav-card";
+
+            // Navigate to the individual profile page on click
+            card.onclick = () => {
+                window.location.href = `/user/profile/${encodeURIComponent(fav.display_name)}`;
+            };
+
+            card.innerHTML = `
+                <img src="/user/dp/${fav.dp}" alt="${fav.display_name}" onerror="this.src='https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';">
                 <div class="fav-name">${fav.display_name}</div>
-                <div class="regex-text">${fav.name_regex || ''}</div>
+                <div class="regex-text">${fav.name_regex || 'No pattern set'}</div>
                 <ul class="phone-list">
-                    ${fav.phone_numbers.map(num => `<li>${num}</li>`).join("")}
+                    ${fav.phone_numbers.map(num => `<li><i class="fas fa-phone-alt" style="font-size:10px; margin-right:4px;"></i>${num}</li>`).join("")}
                 </ul>
             `;
-                container.appendChild(card);
-            }
-        );
-});
+            container.appendChild(card);
+        });
+    });
 </script>
 {% endblock %}
