@@ -3,12 +3,12 @@ import mimetypes
 import os
 import re
 from datetime import datetime, date, timezone
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import aiofiles
 
 from profile import get_regex_from_name
-from provider.base_provider import MemoryProvider, MessageType, MediaType, Message
+from provider.base_provider import MemoryProvider, MessageType, MediaType, Message, FormattingType
 
 
 class WhatsAppProvider(MemoryProvider):
@@ -57,6 +57,166 @@ class WhatsAppProvider(MemoryProvider):
     IOS_MSG_START_RE = re.compile(
         r'^‎?\[(\d{1,2}/\d{1,2}/\d{2,4},\s+\d{1,2}:\d{2}:\d{2}\s*[APMapm]{2})\] (.+)$')
     SENDER_RE = re.compile(r"^([^:]+):\s*(.*)$")
+
+    # Bidi controls pattern: supports LEFT-TO-RIGHT ISOLATE (\u2068) and POP DIRECTIONAL ISOLATE (\u2069)
+    # as well as other bidi markers (\u2066, \u2067, \u2068, \u2069, \u200e, \u200f)
+    BIDI_CHARS_CLASS = r'\u2066-\u2069\u200e\u200f'
+
+    # Regex to capture syntax and entities in a raw string (used in compile)
+    # Group 1 captures standard mentions or unicode-wrapped bidi mentions: e.g. @\u2068Ritik Surname\u2069 or @John
+    TOKEN_RE = re.compile(
+        rf'(@[{BIDI_CHARS_CLASS}][^{BIDI_CHARS_CLASS}@*~_`\n]+[{BIDI_CHARS_CLASS}]|@\w+)|'  # Group 1: Mentions
+        r'\*(.*?)\*|'  # Group 2: Bold
+        r'_(.*?)_|'  # Group 3: Italic
+        r'~(.*?)~|'  # Group 4: Strikethrough
+        r'`(.*?)`|'  # Group 5: Inline Code
+        r'\[(.*?)\]\((.*?)\)'  # Group 6 & 7: Explicit markdown link text and URL
+    )
+
+    @staticmethod
+    def detect_formatting(text: str) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Takes a raw WhatsApp message (which has formatting special chars like *, _, ~, ` and mentions)
+        and gives back unformatted text and formatting info with correct offsets and lengths.
+
+        Natively supports Unicode bidi mentions (e.g. @\u2068Ritik\u2069) by stripping the hidden
+        bidi controls and calculating the clean index shifts seamlessly.
+        """
+        if not text:
+            return "", []
+
+        # Supported WhatsApp delimiters and their entity types
+        delimiters = {
+            '_': FormattingType.ITALIC.value,
+            '*': FormattingType.BOLD.value,
+            '~': FormattingType.STRIKETHROUGH.value,
+            '`': FormattingType.CODE.value,
+        }
+
+        if not any(char in text for char in delimiters) and not '@' in text:
+            return text, []
+
+        # Keep track of active formatting spans we are building
+        raw_spans = []
+
+        # A stack to match delimiters
+        stacks = {char: [] for char in delimiters}
+
+        # Track which characters are formatting delimiters to be stripped
+        chars_to_strip = set()
+
+        # 1. Identify Mentions (Bidi-wrapped and normal) in the raw string first
+        mention_pattern = re.compile(
+            rf'@([{WhatsAppProvider.BIDI_CHARS_CLASS}])[^{WhatsAppProvider.BIDI_CHARS_CLASS}@*~_`\n]+([{WhatsAppProvider.BIDI_CHARS_CLASS}])|@\w+'
+        )
+
+        for m in mention_pattern.finditer(text):
+            start_idx, end_idx = m.span()
+            # matched_str = m.group(0)
+
+            # Record bidi override chars inside this mention for removal
+            for char_pos in range(start_idx, end_idx):
+                if text[char_pos] in '\u2066\u2067\u2068\u2069\u200e\u200f':
+                    chars_to_strip.add(char_pos)
+
+            # Extract username for resolving if needed
+            # clean_mention_str = re.sub(rf'[{WhatsAppProvider.BIDI_CHARS_CLASS}]', '', matched_str)
+            # username = clean_mention_str[1:]  # Strip '@'
+
+            # Add raw span entry
+            span_entry = {
+                "type": "mention",
+                "start_raw": start_idx,
+                "end_raw": end_idx
+            }
+
+            raw_spans.append(span_entry)
+
+        # 2. Match standard typography decorators while avoiding formatting characters
+        i = 0
+        n = len(text)
+        while i < n:
+            char = text[i]
+            if char in delimiters:
+                # Check WhatsApp's spacing & word boundary rules:
+                # Can close if there's an open matching tag, preceding char is not space,
+                # and succeeding char is a boundary (space, punctuation, or end of string).
+                can_close = (
+                        len(stacks[char]) > 0 and
+                        i > 0 and
+                        not text[i - 1].isspace() and
+                        (i + 1 == n or text[i + 1].isspace() or text[i + 1] in ".,!?;:()[]{}<>\"'/\\")
+                )
+
+                # Can open if succeeding char is not space, and preceding char is a boundary
+                can_open = (
+                        i + 1 < n and
+                        not text[i + 1].isspace() and
+                        (i == 0 or text[i - 1].isspace() or text[i - 1] in ".,!?;:()[]{}<>\"'/\\")
+                )
+
+                if can_close:
+                    start_idx = stacks[char].pop()
+                    raw_spans.append({
+                        "type": delimiters[char],
+                        "start_raw": start_idx,
+                        "end_raw": i
+                    })
+                    # Mark both delimiters for removal
+                    chars_to_strip.add(start_idx)
+                    chars_to_strip.add(i)
+                elif can_open:
+                    stacks[char].append(i)
+
+            i += 1
+
+        # 3. Construct the clean string and map raw positions to clean positions
+        clean_chars = []
+        raw_to_clean = {}
+
+        clean_idx = 0
+        for raw_idx in range(n):
+            if raw_idx in chars_to_strip:
+                # This char is stripped, so it maps to the current clean position
+                raw_to_clean[raw_idx] = clean_idx
+            else:
+                clean_chars.append(text[raw_idx])
+                raw_to_clean[raw_idx] = clean_idx
+                clean_idx += 1
+
+        # Mapping edge case for trailing bounds mapping
+        raw_to_clean[n] = clean_idx
+
+        clean_text = "".join(clean_chars)
+
+        # 4. Translate raw offsets to clean offsets
+        entities = []
+        for span in raw_spans:
+            is_mention = span["type"] == FormattingType.MENTION.value
+
+            # If it's a mention, we preserve the "@" prefix (start_raw is preserved)
+            # If it's standard formatting, bounds are exclusive of delimiters (start_raw + 1)
+            start_raw = span["start_raw"] if is_mention else span["start_raw"] + 1
+            end_raw = span["end_raw"]
+
+            clean_start = raw_to_clean.get(start_raw, 0)
+            clean_end = raw_to_clean.get(end_raw, 0)
+
+            length = clean_end - clean_start
+            if length > 0:
+                entity = {
+                    "type": span["type"],
+                    "offset": clean_start,
+                    "length": length
+                }
+                if "userId" in span:
+                    entity["userId"] = span["userId"]
+                entities.append(entity)
+
+        # Sort entities by offset for consistency
+        entities.sort(key=lambda x: (x["offset"], -x["length"]))
+
+        return clean_text, entities
 
     @staticmethod
     def try_parse_date(date_str: str, _os: str) -> Optional[datetime]:
@@ -226,16 +386,21 @@ class WhatsAppProvider(MemoryProvider):
             if sender == MemoryProvider.SYSTEM and exclude_system_messages:
                 return
 
-            chat_entries.append(Message(
-                current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
-                message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
-                media_type=media_type,
-                message=text.strip(),
-                sender=sender,
-                provider=WhatsAppProvider.NAME,
-                chat_name=chat_name,
-                is_group=is_group,
-                context=context)
+            text, formatting = WhatsAppProvider.detect_formatting(text)
+
+            chat_entries.append(
+                Message(
+                    current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
+                    message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                    media_type=media_type,
+                    message=text.strip(),
+                    sender=sender,
+                    provider=WhatsAppProvider.NAME,
+                    chat_name=chat_name,
+                    is_group=is_group,
+                    context=context,
+                    formatting=formatting,
+                )
             )
 
         start_line = index_datetime_pairs[first_index][0]
@@ -422,16 +587,21 @@ class WhatsAppProvider(MemoryProvider):
             if sender == MemoryProvider.SYSTEM and exclude_system_messages:
                 return
 
-            chat_entries.append(Message(
-                current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
-                message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
-                media_type=media_type,
-                message=text.strip(),
-                sender=sender,
-                provider=WhatsAppProvider.NAME,
-                chat_name=chat_name,
-                is_group=is_group,
-                context=context)
+            text, formatting = WhatsAppProvider.detect_formatting(text)
+
+            chat_entries.append(
+                Message(
+                    current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
+                    message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                    media_type=media_type,
+                    message=text.strip(),
+                    sender=sender,
+                    provider=WhatsAppProvider.NAME,
+                    chat_name=chat_name,
+                    is_group=is_group,
+                    context=context,
+                    formatting=formatting
+                )
             )
 
         start_line = index_datetime_pairs[first_index][0]

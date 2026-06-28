@@ -8,12 +8,13 @@ import pandas as pd
 
 import configs
 import init
-from configs import COMMON_WORDS_FOR_USER_STATS, USER
-from provider.base_provider import MediaType, MemoryProvider
-from utils import add_caching_to_response
 
 # This should be the first line in the file. It initializes the app.
 init.init()
+
+from configs import COMMON_WORDS_FOR_USER_STATS, USER
+from provider.base_provider import MediaType, MemoryProvider
+from utils import add_caching_to_response
 
 import mimetypes
 
@@ -24,7 +25,7 @@ from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, send_file, make_response, jsonify, abort
 
 from common import MemoryAggregator
-from profile import get_user_dp, get_profile_json, get_user_profile_from_name
+from profile import get_user_dp, get_profile_json, get_user_profile_from_name, get_all_display_name_regexes_mapping
 
 app = Flask(__name__)
 
@@ -67,6 +68,11 @@ async def chat_data():
                                                          search=search)
 
     events.sort(key=lambda x: x.datetime)
+
+    display_name_regexes = await get_all_display_name_regexes_mapping()
+    for event in events:
+        if event.formatting:
+            event.update_display_name_in_formatted_message(display_name_regexes)
 
     return add_caching_to_response(jsonify([event.to_dict() for event in events]))
 

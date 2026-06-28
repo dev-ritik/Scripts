@@ -25,6 +25,14 @@ class MediaType(Enum):
     NON_TEXT = 'non_text'
 
 
+class FormattingType(Enum):
+    BOLD = 'bold'
+    ITALIC = 'italic'
+    UNDERLINE = 'mention'
+    STRIKETHROUGH = 'strikethrough'
+    CODE = 'code'
+    MENTION = 'mention'
+
 class Compressions(Enum):
     NO_VIDEO = "NO_VIDEO"
 
@@ -32,7 +40,7 @@ class Compressions(Enum):
 class Message:
     def __init__(self, _datetime: datetime, message_type: MessageType = None, message: str = '', sender='',
                  provider=None, context: dict = None, chat_name=None, is_group: bool = False,
-                 media_type: MediaType = MediaType.TEXT,
+                 media_type: MediaType = MediaType.TEXT, formatting: List[dict] = None
                  ):
 
         self.datetime = _datetime
@@ -44,6 +52,7 @@ class Message:
         self.chat_name = chat_name
         self.is_group = is_group
         self.media_type = media_type
+        self.formatting = formatting or []
 
     def to_dict(self):
         return {
@@ -56,10 +65,18 @@ class Message:
             'chat_name': self.chat_name,
             'is_group': self.is_group,
             'media_type': self.media_type.value,
+            'formatting': self.formatting
         }
 
     def is_hidden(self):
         return is_hidden(self)
+
+    def update_display_name_in_formatted_message(self, name_regexes: Dict[str, str]):
+        for formatting in self.formatting:
+            if formatting['type'] == FormattingType.MENTION.value:
+                raw_text = self.message[formatting['offset']:formatting['offset'] + formatting['length']]
+                if display_name := MemoryProvider.get_display_name_from_text(raw_text, name_regexes):
+                    formatting['display_name'] = display_name
 
     def __str__(self):
         return f"{self.datetime} - {self.sender}: {self.message}"
@@ -75,6 +92,14 @@ class MemoryProvider(ABC):
             if re.search(pattern, sender, re.IGNORECASE):
                 return True
         return False
+
+    @staticmethod
+    def get_display_name_from_text(text: str, name_regexes: Dict[str, str]):
+        for display_name, regex in name_regexes.items():
+            match = re.search(regex, text)
+            if match:
+                return display_name
+        return None
 
     async def setup(self, compressions: List[Compressions] = None):
         """

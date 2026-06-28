@@ -892,36 +892,126 @@
             }
 
             if (['text', 'mixed'].includes(event.media_type) && event.message) {
-                const words = event.message.replace(/\n/g, ' NEWLINE ').split(' ');
-                words.forEach(word => {
-                    if (word === 'NEWLINE') {
-                        messageTextDiv.appendChild(document.createElement('br'));
-                    } else if (word.startsWith('http://') || word.startsWith('https://')) {
-                        if (word.includes('instagram.com')) {
+                // Get clean unformatted text and formatting entities list
+                const text = event.message || ''
+                const entities = event.formatting ? [...event.formatting] : [];
+
+                // Fallback: Auto-detect URLs inside the message to retain backward compatibility with raw text links
+                const urlRegex = /https?:\/\/[^\s]+/g;
+                let match;
+                while ((match = urlRegex.exec(text)) !== null) {
+                    const start = match.index;
+                    const end = start + match[0].length;
+                    const isCovered = entities.some(ent => ent.offset <= start && (ent.offset + ent.length) >= end);
+                    if (!isCovered) {
+                        entities.push({
+                            type: 'link',
+                            offset: start,
+                            length: match[0].length,
+                            url: match[0]
+                        });
+                    }
+                }
+
+                // 1. Gather all unique formatting start/end coordinate boundaries
+                const boundaries = new Set([0, text.length]);
+                entities.forEach(ent => {
+                    const start = Math.max(0, Math.min(ent.offset, text.length));
+                    const end = Math.max(0, Math.min(ent.offset + ent.length, text.length));
+                    boundaries.add(start);
+                    boundaries.add(end);
+                });
+
+                // Sort boundaries in ascending order
+                const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b);
+
+                // 2. Slice the clean text into discrete segments and apply attributes
+                for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+                    const startIdx = sortedBoundaries[i];
+                    const endIdx = sortedBoundaries[i + 1];
+                    const sliceText = text.substring(startIdx, endIdx);
+                    if (!sliceText) continue;
+
+                    // Find which formatting rules apply to this coordinate slice
+                    const activeEntities = entities.filter(ent => ent.offset <= startIdx && (ent.offset + ent.length) >= endIdx);
+
+                    // Consistent ordering of rendering tags
+                    activeEntities.sort((a, b) => a.type.localeCompare(b.type));
+
+                    let currentElement = null;
+
+                    // Check if there is an active mention or link wrapping this coordinate slice
+                    const mentionEntity = activeEntities.find(ent => ent.type === 'mention');
+                    const linkEntity = activeEntities.find(ent => ent.type === 'link');
+
+                    if (mentionEntity && mentionEntity.display_name) {
+                        // Clickable mention opening user profile in a new tab
+                        const a = document.createElement('a');
+                        a.href = `/user/profile/${encodeURIComponent(mentionEntity.display_name)}`;
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        a.className = 'mention-link';
+                        currentElement = a;
+                    } else if (linkEntity) {
+                        const url = linkEntity.url || sliceText;
+                        if (url.includes('instagram.com')) {
+                            // Keep the elegant native Instagram embed card
                             const blockquote = document.createElement('blockquote');
                             blockquote.className = 'instagram-media';
                             blockquote.dataset.instgrmCaptioned = '';
-                            blockquote.dataset.instgrmPermalink = `${word}?utm_source=ig_embed&utm_campaign=loading`;
+                            blockquote.dataset.instgrmPermalink = `${url}?utm_source=ig_embed&utm_campaign=loading`;
                             blockquote.dataset.instgrmVersion = '14';
-                            blockquote.style.cssText = 'background:#FFF;border:0;border-radius:3px;box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15);margin:1px;max-width:540px;min-width:326px;padding:0;width:calc(100% - 2px);';
+                            blockquote.style.cssText = 'background:#FFF;border:0;border-radius:3px;box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15);margin:1px;max-width:540px;min-width:326px;padding:0;width:calc(100% - 2px);display:block;';
+
                             const innerDiv = document.createElement('div');
                             innerDiv.style.padding = '16px';
-                            innerDiv.innerHTML = `<a href="${word}?utm_source=ig_embed&utm_campaign=loading" style="background:#FFFFFF;line-height:0;text-align:center;text-decoration:none;width:100%;" target="_blank">View this post on Instagram</a>`;
+                            innerDiv.innerHTML = `<a href="${url}?utm_source=ig_embed&utm_campaign=loading" style="background:#FFFFFF;line-height:0;text-align:center;text-decoration:none;width:100%;" target="_blank">View this post on Instagram</a>`;
+
                             blockquote.appendChild(innerDiv);
                             messageTextDiv.appendChild(blockquote);
+                            continue; // Skip further formatting wrappers for this block
                         } else {
+                            // Standard plain text link anchor
                             const a = document.createElement('a');
-                            a.href = word;
+                            a.href = url;
                             a.target = '_blank';
                             a.rel = 'noopener noreferrer';
-                            a.textContent = word;
-                            messageTextDiv.appendChild(a);
-                            messageTextDiv.append(' ');
+                            currentElement = a;
                         }
                     } else {
-                        messageTextDiv.append(word + ' ');
+                        // Default span container if no interactive wrapper matches
+                        currentElement = document.createElement('span');
                     }
-                });
+
+                    // Apply visual CSS stylings based on text format attributes
+                    activeEntities.forEach(ent => {
+                        if (ent.type === 'bold') {
+                            currentElement.style.fontWeight = 'bold';
+                        } else if (ent.type === 'italic') {
+                            currentElement.style.fontStyle = 'italic';
+                        } else if (ent.type === 'strike') {
+                            currentElement.style.textDecoration = 'line-through';
+                        } else if (ent.type === 'code') {
+                            currentElement.style.fontFamily = 'monospace';
+                            currentElement.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                            currentElement.style.padding = '2px 4px';
+                            currentElement.style.borderRadius = '3px';
+                        }
+                    });
+
+                    // Split slice contents on newlines and render correct break elements
+                    const lines = sliceText.split('\n');
+                    lines.forEach((line, lineIdx) => {
+                        if (lineIdx > 0) {
+                            currentElement.appendChild(document.createElement('br'));
+                        }
+                        if (line) {
+                            currentElement.appendChild(document.createTextNode(line));
+                        }
+                    });
+
+                    messageTextDiv.appendChild(currentElement);
+                }
             }
 
             if (event.context && event.context.voice_call === true) {

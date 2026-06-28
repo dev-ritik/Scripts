@@ -9,7 +9,7 @@ NAME_TO_DISPLAY_NAME = {}
 NON_IDENTIFIED_NAMES = set()
 
 
-async def get_profile_json():
+async def get_profile_json() -> dict:
     global PROFILE_DATA
     if PROFILE_DATA:
         return PROFILE_DATA
@@ -83,6 +83,11 @@ async def get_regex_from_name(_name):
     if not user_profile:
         raise ValueError("User not found")
     return user_profile.get('name_regex')
+
+
+async def get_all_display_name_regexes_mapping() -> Dict[str, str]:
+    profile_json = await get_profile_json()
+    return {sender: user_profile.get('name_regex', '') for sender, user_profile in profile_json.items()}
 
 
 async def get_immich_ids_from_senders(senders: List[str]) -> List[str]:
