@@ -26,6 +26,71 @@ class GoogleMapsProvider(MemoryProvider):
     def is_working(self):
         return self.WORKING
 
+    def get_allowed_exposed_functions(self) -> List[str]:
+        return ['get_location_clustering']
+
+    def supports_home(self) -> bool:
+        return self.is_working()
+
+    async def get_location_clustering(self, **kwargs):
+        all_memories = await self.fetch(start_date=MemoryProvider.MINIMUM_DATE.date(),
+                                        end_date=MemoryProvider.MAXIMUM_DATE.date(),
+                                        )
+
+        import numpy as np
+        from sklearn.cluster import DBSCAN
+
+        # 1. Sample Data: List of (latitude, longitude) coordinates
+        coordinates = [
+        ]
+
+        for memory in all_memories:
+            if memory.context and memory.context.get('coordinates') and len(memory.context['coordinates']) == 1:
+                coordinates.extend(memory.context['coordinates'])
+
+        # 2. Parameters
+        distance_meters = 100
+        EARTH_RADIUS_METERS = 6371008
+
+        # Convert distance to radians for the Haversine formula
+        eps_in_radians = distance_meters / EARTH_RADIUS_METERS
+        coords_radians = np.radians(coordinates)
+
+        # 3. Configure and Run DBSCAN
+        db = DBSCAN(eps=eps_in_radians, min_samples=1, metric='haversine').fit(coords_radians)
+        labels = db.labels_
+
+        # 4. Group the original coordinates into their respective buckets
+        buckets = {}
+        for idx, label in enumerate(labels):
+            if label not in buckets:
+                buckets[label] = []
+            buckets[label].append(coordinates[idx])
+
+        # 5. Sort buckets by the number of coordinates inside them (descending order)
+        sorted_buckets = sorted(buckets.items(), key=lambda x: len(x[1]), reverse=True)
+
+        # 6. Map the sorted buckets to the desired format
+        output_data = []
+        for index, (bucket_id, coords) in enumerate(sorted_buckets):
+            # Determine the representative coordinate for this bucket (using the first point here)
+            rep_lat, rep_lng = coords[0]
+
+            # Or alternatively, you could calculate the average/mean center:
+            # rep_lat = sum(c[0] for c in coords) / len(coords)
+            # rep_lng = sum(c[1] for c in coords) / len(coords)
+
+            output_data.append({
+                "name": f"Location {index + 1}",
+                "visits": len(coords),
+                "latitude": round(rep_lat, 4),
+                "longitude": round(rep_lng, 4)
+            })
+
+        # 7. Return or print the formatted list
+        return output_data[:20]
+
+
     @staticmethod
     def lat_lng_to_dms(lat: float, lng: float):
         lat_d, lat_m, lat_s = GoogleMapsProvider.decimal_to_dms(abs(lat))

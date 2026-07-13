@@ -85,6 +85,8 @@ class MemoryProvider(ABC):
     NAME = None
     SYSTEM = 'system'
     UNKNOWN = 'unknown'
+    MINIMUM_DATE = datetime(2000, 1, 1)
+    MAXIMUM_DATE = datetime(2050, 1, 1)
 
     @staticmethod
     def _sender_matched(sender, allowed_senders: List[str]):

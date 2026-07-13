@@ -246,8 +246,14 @@ class GooglePhotosProvider(MemoryProvider):
             if isinstance(v['createTime'], datetime):
                 v['createTime'] = v['createTime'].isoformat()
             else:
-                print(f"Invalid date format for {k}: {v}")
-                v['createTime'] = v['createTime'].strptime("%Y-%m-%dT%H:%M:%SZ")
+                print(f"Invalid date format type (String) for {k}, converting to ISO string format...")
+                try:
+                    # Use datetime.fromisoformat() since your string already matches the standard ISO format perfectly
+                    dt_obj = datetime.fromisoformat(v['createTime'])
+                    v['createTime'] = dt_obj.isoformat()
+                except ValueError:
+                    # Fallback if it's a completely different or broken string format
+                    print(f"Could not parse string format for {k}: {v['createTime']}")
 
         with open(os.path.join(self.GOOGLE_PHOTOS_PATH, "index.json"), "w") as f:
             json.dump({

@@ -43,7 +43,9 @@ class DiaryProvider(MemoryProvider):
         return self.is_working()
 
     async def _get_all_diary_words(self, pre_transform_fn, filter_fn, hide_personal_entry: bool = True):
-        all_memories = self.fetch_dates(date(1900, 1, 1), date(2100, 1, 1), hide_personal_entry=hide_personal_entry)
+        all_memories = self.fetch_dates(MemoryProvider.MINIMUM_DATE.date(),
+                                        MemoryProvider.MAXIMUM_DATE.date(),
+                                        hide_personal_entry=hide_personal_entry)
         word_count = defaultdict(int)
         for memories in (await all_memories).values():
             for memory in memories:
