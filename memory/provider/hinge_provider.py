@@ -1,6 +1,7 @@
 import json
 import re
-from datetime import date
+import statistics
+from datetime import date, timezone
 from typing import List, Optional
 
 import aiofiles
@@ -23,6 +24,89 @@ class HingeProvider(MemoryProvider):
 
     def is_working(self):
         return self.WORKING
+
+    def get_allowed_exposed_functions(self) -> List[str]:
+        return ['get_stats']
+
+    def supports_home(self) -> bool:
+        return self.is_working()
+
+    async def get_stats(self, **kwargs) -> dict:
+        all_data = await HingeProvider._read_matches_file()
+
+        match_count = 0
+        likes_with_message_sent_count = 0
+        likes_without_message_sent_count = 0
+        match_without_like_count = 0
+        likes_that_matched = 0
+        total_chats = 0
+        match_times = []
+        match_messages = []
+        highest_conversation_length = 0
+        likes_by_weekday_hour = [[0 for _ in range(24)] for _ in range(7)]
+
+        for data in all_data:
+            like_dts = []
+            for like_data in data.get('like', []):
+                _dt = parser.parse(like_data.get('timestamp'))
+                if _dt:
+                    like_dts.append(_dt)
+                    _dt_local = _dt.replace(tzinfo=timezone.utc).astimezone()
+                    weekday = _dt_local.weekday()  # Monday = 0
+                    hour = _dt_local.hour  # 0-23
+                    likes_by_weekday_hour[weekday][hour] += 1
+
+                likes = like_data.get('like', [])
+                for like in likes:
+                    if like.get('comment', ''):
+                        likes_with_message_sent_count += 1
+                    else:
+                        likes_without_message_sent_count += 1
+
+            match_dt = None
+            for match_data in data.get('match', []):
+                match_time = match_data.get('timestamp')
+                match_dt = parser.parse(match_time) if match_dt is None else match_dt
+                match_count += len(match_data)
+
+            if match_dt and like_dts:
+                # Calculate all positive differences in seconds
+                pos_diffs = [(match_dt - l_dt).total_seconds() for l_dt in like_dts if match_dt > l_dt]
+
+                if pos_diffs:
+                    match_times.append(min(pos_diffs))
+                first_comment = next(
+                    (like.get('comment') for ld in data.get('like', []) for like in ld.get('like', []) if
+                     like.get('comment')), None)
+                if first_comment:
+                    match_messages.append(first_comment)  # Get the first comment if exists
+
+            if data.get('match', []):
+                if len(data.get('like', [])) > 0:
+                    likes_that_matched += 1
+                else:
+                    match_without_like_count += 1
+
+            for chat_data in data.get('chats', []):
+                _dt = parser.parse(chat_data.get('timestamp'))
+            total_chats += len(data.get('chats', []))
+            highest_conversation_length = max(highest_conversation_length, len(data.get('chats', [])))
+
+        # print(sorted(match_times))
+        return {
+            "total_likes_sent": likes_with_message_sent_count + likes_without_message_sent_count,
+            "likes_with_message_sent": likes_with_message_sent_count,
+            "likes_that_matched": likes_that_matched,
+            "match_without_like": match_without_like_count,
+            "median_match_time": int(statistics.median(match_times) if match_times else 0),
+            "fastest_match_time": int(min(match_times) if match_times else 0),
+            "average_chat_message_sent": 0 if match_count == 0 else total_chats / match_count,
+            "total_matches": match_count,
+            "like_message_that_matched": match_messages,
+            "highest_conversation_length": highest_conversation_length,
+            "likes_by_weekday_hour": likes_by_weekday_hour
+        }
+
 
     async def fetch(self, on_date: Optional[date] = None,
                     start_date: Optional[date] = None,

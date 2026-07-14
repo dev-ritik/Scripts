@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+{% block title %}Home | Hinge Insights{% endblock %}
+
+{% block extra_style %}
+<style>
+
+    body {
+        background: #F8F6F2;
+    }
+
+    .hi-layout {
+        max-width: 1200px;
+        margin: auto;
+        padding: 32px;
+    }
+
+    .hero {
+        text-align: center;
+        margin-bottom: 36px;
+    }
+
+    .hero h1 {
+        font-size: 3rem;
+        margin-bottom: 8px;
+        font-weight: 800;
+    }
+
+    .hero p {
+        color: #666;
+        font-size: 1.1rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-card {
+
+        background: white;
+        border-radius: 24px;
+        padding: 28px;
+
+        transition: .2s;
+
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .05);
+
+    }
+
+    .stat-card:hover {
+
+        transform: translateY(-4px);
+
+        box-shadow: 0 20px 40px rgba(0, 0, 0, .10);
+
+    }
+
+    .emoji {
+        font-size: 2rem;
+    }
+
+    .label {
+        margin-top: 12px;
+        color: #777;
+        font-size: .95rem;
+    }
+
+    .value {
+
+        margin-top: 10px;
+
+        font-size: 2.6rem;
+
+        font-weight: 800;
+
+        color: #111;
+    }
+
+    .accent {
+
+        color: #F25C54;
+
+    }
+
+    .section {
+
+        margin-top: 32px;
+
+        background: white;
+
+        border-radius: 24px;
+
+        padding: 28px;
+
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .05);
+
+    }
+
+    .section h2 {
+
+        margin-top: 0;
+
+        margin-bottom: 18px;
+
+    }
+
+    .message {
+
+        background: #FFF4F3;
+
+        border-radius: 16px;
+
+        padding: 16px;
+
+        margin-bottom: 12px;
+
+        font-size: 1rem;
+
+    }
+
+    .loading {
+
+        opacity: .6;
+
+    }
+
+    .heatmap-hours{
+        display:grid;
+        grid-template-columns:repeat(24,24px);
+        gap:4px;
+        margin-left:30px;   /* aligns with weekday labels */
+        margin-bottom:6px;
+        font-size:.75rem;
+        color:#777;
+    }
+
+    .heatmap-hours div{
+        text-align:center;
+    }
+
+    .heatmap-hours div{
+        text-align:center;
+    }
+
+    .heatmap-body{
+        display:flex;
+        gap:8px;
+    }
+
+    .heatmap-days{
+        width:52px;
+        display:grid;
+        grid-template-rows:repeat(7,24px);
+        gap:4px;
+        align-items:center;
+        font-size:.8rem;
+        color:#777;
+    }
+
+    .heatmap-grid{
+        display:grid;
+        grid-template-columns:repeat(24,24px);
+        grid-template-rows:repeat(7,24px);
+        gap:4px;
+    }
+
+    .heat-cell{
+        width:24px;
+        height:24px;
+        border-radius:6px;
+        transition:.15s;
+    }
+
+    .heat-cell:hover{
+        transform:scale(1.15);
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="hi-layout loading" id="dashboard">
+
+    <div class="hero">
+
+        <h1>❤️ Your Hinge</h1>
+
+        <p>
+            Tiny insights about your dating life.
+        </p>
+
+    </div>
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="emoji">👍</div>
+            <div class="label">Likes Sent</div>
+            <div class="value" id="totalLikesSent">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">💬</div>
+            <div class="label">Likes With Message</div>
+            <div class="value accent" id="likesWithMessage">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">💕</div>
+            <div class="label">Matches</div>
+            <div class="value accent" id="totalMatches">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">🎯</div>
+            <div class="label">Match Rate</div>
+            <div class="value" id="matchRate">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">⚡</div>
+            <div class="label">Fastest Match</div>
+            <div class="value" id="fastestMatchTime">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">⏳</div>
+            <div class="label">Median Match Time</div>
+            <div class="value" id="medianMatchTime">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">📨</div>
+            <div class="label">Messages / Match</div>
+            <div class="value" id="avgMessages">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">🌟</div>
+            <div class="label">Message Like Rate</div>
+            <div class="value accent" id="messageRate">--</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="emoji">💬</div>
+            <div class="label">Longest Conversation</div>
+            <div class="value" id="highestConversationLength">--</div>
+        </div>
+    </div>
+
+    <div class="section">
+
+        <h2>💌 Messages that got you matches</h2>
+
+        <div id="successfulMessages">
+
+            <div class="message">
+                Loading...
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <h2>🕒 When you send likes</h2>
+
+        <div class="heatmap-wrapper">
+
+        <div class="heatmap-hours" id="heatmapHours"></div>
+
+        <div class="heatmap-body">
+
+            <div class="heatmap-days">
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+                <div>Sun</div>
+            </div>
+
+            <div class="heatmap-grid" id="heatmapGrid"></div>
+
+        </div>
+
+    </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    async function loadStats() {
+
+        const response = await fetch("/Hinge/get_stats");
+
+        const s = await response.json();
+
+        totalLikesSent.textContent = s.total_likes_sent;
+        likesWithMessage.textContent = s.likes_with_message_sent;
+        totalMatches.textContent = s.total_matches;
+
+        medianMatchTime.textContent = formatDuration(s.median_match_time);
+        fastestMatchTime.textContent = formatDuration(s.fastest_match_time);
+        avgMessages.textContent = s.average_chat_message_sent;
+
+        highestConversationLength.textContent = s.highest_conversation_length;
+
+        matchRate.textContent =
+            ((s.likes_that_matched / s.total_likes_sent) * 100).toFixed(1) + "%";
+
+        messageRate.textContent =
+            ((s.likes_with_message_sent / s.total_likes_sent) * 100).toFixed(1) + "%";
+
+        const container = document.getElementById("successfulMessages");
+
+        container.innerHTML = "";
+
+        s.like_message_that_matched.forEach(msg => {
+
+            container.innerHTML += `
+            <div class="message">
+                ❤️ ${msg}
+            </div>
+        `;
+
+        });
+
+        renderHeatmap(s.likes_by_weekday_hour);
+
+        dashboard.classList.remove("loading");
+
+    }
+
+    window.onload = loadStats;
+
+    function formatDuration(seconds) {
+
+        if (seconds == null)
+            return "--";
+
+        seconds = Math.round(seconds);
+
+        if (seconds < 60)
+            return `${seconds}s`;
+
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+
+        if (minutes < 60) {
+            if (remainingSeconds === 0)
+                return `${minutes} min`;
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+
+        if (hours < 24) {
+            if (remainingMinutes === 0)
+                return `${hours} hr`;
+            return `${hours}h ${remainingMinutes}m`;
+        }
+
+        const days = Math.floor(hours / 24);
+        const remainingHours = hours % 24;
+
+        if (remainingHours === 0)
+            return `${days} day${days === 1 ? "" : "s"}`;
+
+        return `${days}d ${remainingHours}h`;
+    }
+
+    function renderHeatmap(data) {
+
+        const grid = document.getElementById("heatmapGrid");
+        const hours = document.getElementById("heatmapHours");
+
+        hours.innerHTML = "";
+
+        // Show every 2 hours to reduce clutter
+        for (let i = 0; i < 24; i++) {
+            hours.innerHTML += `<div>${i % 2 === 0 ? String(i).padStart(2, "0") : ""}</div>`;
+        }
+
+        grid.innerHTML = "";
+
+        const max = Math.max(...data.flat(), 1);
+
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+        data.forEach((row, day) => {
+
+            row.forEach((value, hour) => {
+
+                const cell = document.createElement("div");
+
+                cell.className = "heat-cell";
+
+                const opacity = value / max;
+
+                cell.style.backgroundColor =
+                    `rgba(242,92,84,${0.15 + opacity * 0.85})`;
+
+                cell.title =
+                    `${days[day]}\n${String(hour).padStart(2, "0")}:00 - ${String(hour + 1).padStart(2, "0")}:00\n${value} like${value === 1 ? "" : "s"}`;
+
+                grid.appendChild(cell);
+
+            });
+
+        });
+
+    }
+</script>
+
+{% endblock %}
