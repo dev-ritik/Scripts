@@ -38,14 +38,14 @@ class Compressions(Enum):
 
 
 class Message:
-    def __init__(self, _datetime: datetime, message_type: MessageType = None, message: str = '', sender='',
+    def __init__(self, _datetime: datetime, message_type: MessageType = None, message: Optional[str] = '', sender='',
                  provider=None, context: dict = None, chat_name=None, is_group: bool = False,
                  media_type: MediaType = MediaType.TEXT, formatting: List[dict] = None
                  ):
 
         self.datetime = _datetime
         self.message_type = message_type
-        self.message = message
+        self.message = message or ''
         self.sender = sender
         self.provider = provider
         self.context = context

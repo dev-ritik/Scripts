@@ -255,9 +255,6 @@ ORDER BY
             text = row["message_text"]
             if not text:
                 text = IMessageProvider._decode_attributed_body(row["attributed_body"])
-            elif text == '�':
-                # TODO: Verify if this mean anything other than location
-                text = 'Started Sharing Location'
             # print("Timestamp:", row["timestamp"])
             _dt = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
             sender_id = row["handle_identifier"] if row["handle_identifier"] and row["handle_identifier"] != 0 else row[
@@ -290,10 +287,16 @@ ORDER BY
             if not text and not contexts:
                 # TODO: Add support for emoji reactions
                 continue
+            if text == '�':
+                # TODO: Verify if this mean anything other than location
+                contexts = contexts if contexts else [{}]
+                for context in contexts:
+                    context['location'] = True
+                text = ''
             if not sender_name:
                 continue
 
-            if pattern and pattern.search(text) is None:
+            if pattern and text and pattern.search(text) is None:
                 continue
 
             contexts = contexts if contexts else [None]

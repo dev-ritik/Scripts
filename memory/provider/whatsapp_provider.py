@@ -376,6 +376,11 @@ class WhatsAppProvider(MemoryProvider):
                 context['deleted'] = True
                 text = ''
 
+            if text == 'live location shared':
+                context['location'] = True
+                media_type = MediaType.MIXED
+                text = ''
+
             if not text and not context:
                 return
 
