@@ -9,9 +9,8 @@ from utils import human_duration
 
 class UberProvider(MemoryProvider):
     NAME = "Uber"
-    WORKING = True
-    UBER_PATH = 'data/uber'
-    TRIPS_HISTORY_PATH = f'{UBER_PATH}/trips_data-0.csv'
+    DATA_PATH = 'data/uber'
+    TRIPS_HISTORY_PATH = f'{DATA_PATH}/trips_data-0.csv'
 
     def __init__(self):
         super().__init__()
@@ -20,9 +19,6 @@ class UberProvider(MemoryProvider):
             self.WORKING = False
             print("Uber folder not found")
             return
-
-    def is_working(self):
-        return self.WORKING
 
     @staticmethod
     def parse_ts(ts: str | None):
@@ -136,7 +132,7 @@ class UberProvider(MemoryProvider):
             **kwargs
     ):
         messages = []
-        if not self.WORKING:
+        if not self.is_working():
             return messages
 
         if senders or search_regex:
@@ -177,7 +173,7 @@ class UberProvider(MemoryProvider):
         return messages
 
     async def get_start_end_date(self):
-        if not self.WORKING:
+        if not self.is_working():
             return None, None
 
         start_dt = None

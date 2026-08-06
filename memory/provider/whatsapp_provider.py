@@ -15,7 +15,7 @@ class WhatsAppProvider(MemoryProvider):
     NAME = "Whatsapp"
     USER = 'Ritik'
 
-    WHATSAPP_PATH = 'data/whatsapp'
+    DATA_PATH = 'data/whatsapp'
     WHATSAPP_ANDROID_FILE_NAME_PREFIX = 'WhatsApp Chat with '
     WHATSAPP_IOS_FOLDER_NAME_PREFIX = 'WhatsApp Chat - '
 
@@ -28,8 +28,6 @@ class WhatsAppProvider(MemoryProvider):
         IOS: True
     }
 
-    def is_working(self):
-        return True
 
     @staticmethod
     def clean_message(message):
@@ -658,11 +656,11 @@ class WhatsAppProvider(MemoryProvider):
         memories = []
         tasks = []
         pattern = re.compile(search_regex) if search_regex else None
-        for _folder in os.listdir(WhatsAppProvider.WHATSAPP_PATH):
+        for _folder in os.listdir(WhatsAppProvider.DATA_PATH):
             if _folder not in self.SUPPORTED_OS:
                 continue
 
-            base_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, _folder)
+            base_path = os.path.join(WhatsAppProvider.DATA_PATH, _folder)
             for found in os.listdir(base_path):
                 if _folder == self.ANDROID:
                     if not found.startswith(WhatsAppProvider.WHATSAPP_ANDROID_FILE_NAME_PREFIX):
@@ -711,10 +709,10 @@ class WhatsAppProvider(MemoryProvider):
     async def get_asset(self, asset_id: str) -> Tuple[bytes, str]:
         _os, user_name, file_name = WhatsAppProvider.get_user_name_file_name(asset_id)
         if _os == WhatsAppProvider.IOS:
-            media_file_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, _os,
+            media_file_path = os.path.join(WhatsAppProvider.DATA_PATH, _os,
                                            f'{WhatsAppProvider.WHATSAPP_IOS_FOLDER_NAME_PREFIX}{user_name}', file_name)
         else:
-            media_file_path = os.path.join(WhatsAppProvider.WHATSAPP_PATH, _os,
+            media_file_path = os.path.join(WhatsAppProvider.DATA_PATH, _os,
                                            f'{WhatsAppProvider.WHATSAPP_ANDROID_FILE_NAME_PREFIX}{user_name}',
                                            file_name)
         if not os.path.exists(media_file_path):

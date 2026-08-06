@@ -11,20 +11,16 @@ from utils import human_duration
 
 class GoogleMapsProvider(MemoryProvider):
     NAME = "Google Maps"
-    WORKING = True
-    GOOGLE_MAPS_PATH = 'data/google_maps'
-    LOCATIONS_PATH = f'{GOOGLE_MAPS_PATH}/location-history.json'
+    DATA_PATH = 'data/google_maps'
+    LOCATIONS_PATH = f'{DATA_PATH}/location-history.json'
 
     def __init__(self):
         super().__init__()
 
-        if not os.path.exists(self.GOOGLE_MAPS_PATH):
+        if not os.path.exists(self.DATA_PATH):
             self.WORKING = False
             print("Google Maps folder not found")
             return
-
-    def is_working(self):
-        return self.WORKING
 
     def get_allowed_exposed_functions(self) -> List[str]:
         return ['get_location_clustering']
@@ -199,7 +195,7 @@ class GoogleMapsProvider(MemoryProvider):
             **kwargs
     ):
         messages = []
-        if not self.WORKING:
+        if not self.is_working():
             return messages
 
         if senders or search_regex:
@@ -242,7 +238,7 @@ class GoogleMapsProvider(MemoryProvider):
         return messages
 
     async def get_start_end_date(self):
-        if not self.WORKING:
+        if not self.is_working():
             return None, None
 
         async with aiofiles.open(self.LOCATIONS_PATH, "r", encoding="utf-8") as f:

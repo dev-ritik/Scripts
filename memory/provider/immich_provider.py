@@ -13,19 +13,12 @@ from utils import post_with_retries
 class ImmichProvider(MemoryProvider):
     NAME = "Immich"
 
-    IMMICH_PATH = 'data/immich'
+    DATA_PATH = 'data/immich'
     IMMICH_BASE_URL = os.environ.get('IMMICH_BASE_URL')
     SEARCH_PAGE_SIZE = 100
-    WORKING = True
 
     def __init__(self):
-        if not self.WORKING:
-            return
-
         self.bearer_token = None
-
-    def is_working(self):
-        return self.WORKING
 
     async def get_bearer_token(self) -> Any | None:
         if self.bearer_token:
@@ -76,7 +69,7 @@ class ImmichProvider(MemoryProvider):
             'Authorization': f'Bearer {await self.get_bearer_token()}',
         }
 
-        if not self.WORKING:
+        if not self.is_working():
             return results
 
         async with httpx.AsyncClient() as client:
@@ -143,7 +136,7 @@ class ImmichProvider(MemoryProvider):
             'Authorization': f'Bearer {await self.get_bearer_token()}',
         }
 
-        if not self.WORKING:
+        if not self.is_working():
             return {}
 
         async with httpx.AsyncClient() as client:
@@ -170,7 +163,7 @@ class ImmichProvider(MemoryProvider):
             'Authorization': f'Bearer {await self.get_bearer_token()}',
         }
 
-        if not self.WORKING:
+        if not self.is_working():
             return None, None
 
         async with httpx.AsyncClient() as client:

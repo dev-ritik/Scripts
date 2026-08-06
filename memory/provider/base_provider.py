@@ -2,7 +2,7 @@ import asyncio
 import os
 import re
 import tempfile
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime, timedelta, date
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
@@ -87,6 +87,11 @@ class MemoryProvider(ABC):
     UNKNOWN = 'unknown'
     MINIMUM_DATE = datetime(2000, 1, 1)
     MAXIMUM_DATE = datetime(2050, 1, 1)
+    DATA_PATH = None
+    WORKING = True
+
+    def is_working(self):
+        return self.WORKING
 
     @staticmethod
     def _sender_matched(sender, allowed_senders: List[str]):
@@ -197,10 +202,6 @@ class MemoryProvider(ABC):
 
     async def get_asset(self, image_id: str) -> Tuple[bytes, str]:
         pass
-
-    @abstractmethod
-    def is_working(self) -> bool:
-        return True
 
     def supports_home(self) -> bool:
         return False

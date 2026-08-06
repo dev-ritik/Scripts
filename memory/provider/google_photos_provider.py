@@ -20,39 +20,33 @@ from utils import post_with_retries, AsyncDownloadManager
 
 class GooglePhotosProvider(MemoryProvider):
     NAME = "Google Photos"
-    WORKING = True
-    GOOGLE_PHOTOS_PATH = 'data/google_photos'
+    DATA_PATH = 'data/google_photos'
 
     SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata',
               'https://www.googleapis.com/auth/photoslibrary.readonly',
               'https://www.googleapis.com/auth/photospicker.mediaitems.readonly']
 
     def __init__(self):
-        if not self.WORKING:
-            return
         self.token = None
         self.metadata_context_by_dates = defaultdict(set)
         self.metadata_context_by_id = defaultdict(dict)
         self.session_ids = {}
-        os.makedirs(self.GOOGLE_PHOTOS_PATH, exist_ok=True)
-        if not os.path.exists(os.path.join(self.GOOGLE_PHOTOS_PATH, "index.json")):
+        os.makedirs(self.DATA_PATH, exist_ok=True)
+        if not os.path.exists(os.path.join(self.DATA_PATH, "index.json")):
             print("No index.json file found")
-            with open(os.path.join(self.GOOGLE_PHOTOS_PATH, "index.json"), "w") as f:
+            with open(os.path.join(self.DATA_PATH, "index.json"), "w") as f:
                 json.dump({
                     "sessions": [],
                     "mediaItems": {}
                 }, f)
         else:
-            with open(os.path.join(self.GOOGLE_PHOTOS_PATH, "index.json")) as f:
+            with open(os.path.join(self.DATA_PATH, "index.json")) as f:
                 d = json.load(f)
                 self.metadata_context_by_id = d.get('mediaItems', {})
                 for _id, item in self.metadata_context_by_id.items():
                     item['createTime'] = datetime.fromisoformat(item.get('createTime'))
                     self.metadata_context_by_dates[item['createTime'].date()].add(_id)
                 self.session_ids = d.get('sessions', {}) if d else {}
-
-    def is_working(self):
-        return self.WORKING
 
     async def setup(self, create_new_session: bool = False, compressions: List[Compressions] = None):
         """
@@ -77,7 +71,7 @@ class GooglePhotosProvider(MemoryProvider):
     @staticmethod
     def get_gphotos_token():
         creds = None
-        token_file = os.path.join(GooglePhotosProvider.GOOGLE_PHOTOS_PATH, "token.pkl")
+        token_file = os.path.join(GooglePhotosProvider.DATA_PATH, "token.pkl")
 
         # Load existing token if available
         if os.path.exists(token_file):
@@ -90,7 +84,7 @@ class GooglePhotosProvider(MemoryProvider):
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    os.path.join(GooglePhotosProvider.GOOGLE_PHOTOS_PATH, "credentials.json"),
+                    os.path.join(GooglePhotosProvider.DATA_PATH, "credentials.json"),
                     GooglePhotosProvider.SCOPES)
                 creds = flow.run_local_server(port=55433)
 
@@ -217,7 +211,7 @@ class GooglePhotosProvider(MemoryProvider):
                 self.fetch_asset(
                     self.token,
                     base_url,
-                    os.path.join(self.GOOGLE_PHOTOS_PATH, file_name),
+                    os.path.join(self.DATA_PATH, file_name),
                     _type,
                     compressions
                 )
@@ -255,7 +249,7 @@ class GooglePhotosProvider(MemoryProvider):
                     # Fallback if it's a completely different or broken string format
                     print(f"Could not parse string format for {k}: {v['createTime']}")
 
-        with open(os.path.join(self.GOOGLE_PHOTOS_PATH, "index.json"), "w") as f:
+        with open(os.path.join(self.DATA_PATH, "index.json"), "w") as f:
             json.dump({
                 "sessions": self.session_ids,
                 "mediaItems": self.metadata_context_by_id
@@ -369,14 +363,14 @@ class GooglePhotosProvider(MemoryProvider):
         return min(all_available_dates), max(all_available_dates)
 
     async def get_asset(self, asset_id: str) -> List[str] or None:
-        if not self.WORKING:
+        if not self.is_working():
             return None, None
 
         if asset_id not in self.metadata_context_by_id:
             print(f"No metadata found for asset {asset_id}")
             return None, None
 
-        file_path = os.path.join(self.GOOGLE_PHOTOS_PATH, self.metadata_context_by_id[asset_id].get('file_name'))
+        file_path = os.path.join(self.DATA_PATH, self.metadata_context_by_id[asset_id].get('file_name'))
         if not os.path.exists(file_path):
             print(f"{file_path} does not exist")
             return None, None

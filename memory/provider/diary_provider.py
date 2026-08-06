@@ -16,13 +16,9 @@ from utils import load_dictionary, is_valid_word, str_to_bool
 
 class DiaryProvider(MemoryProvider):
     NAME = "Diary"
-    WORKING = True
 
     def __init__(self):
         super().__init__()
-        if not self.WORKING:
-            return
-
         if not (diary_folder := os.getenv("DIARY_PATH")):
             self.WORKING = False
             print("Diary folder not found")
@@ -32,9 +28,7 @@ class DiaryProvider(MemoryProvider):
             self.WORKING = False
             print("Diary folder not found")
             return
-
-    def is_working(self):
-        return self.WORKING
+        self.DATA_PATH = diary_folder
 
     def get_allowed_exposed_functions(self) -> List[str]:
         return ['get_most_word_written']
@@ -171,7 +165,7 @@ class DiaryProvider(MemoryProvider):
                             search_regex: str = None,
                             **kwargs) -> List[Message]:
         results = []
-        if not self.WORKING:
+        if not self.is_working():
             return results
 
         if senders:
@@ -226,7 +220,7 @@ class DiaryProvider(MemoryProvider):
                           **kwargs
                           ) -> Dict[date, List[Message]]:
         results: Dict[date, List[Message]] = defaultdict(list)
-        if not self.WORKING:
+        if not self.is_working():
             return results
 
         print(f"Fetching diary entries from {start_date} to {end_date}")
@@ -299,7 +293,7 @@ class DiaryProvider(MemoryProvider):
         start_date = None
         end_date = None
 
-        if not self.WORKING:
+        if not self.is_working():
             return start_date, end_date
 
         print("Starting to fetch from Diary")

@@ -1,4 +1,5 @@
 .env
 .idea
 data/
+new_data/
 __pycache__/

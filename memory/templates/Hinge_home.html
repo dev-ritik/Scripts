@@ -239,8 +239,8 @@
 
         <div class="stat-card">
             <div class="emoji">🌟</div>
-            <div class="label">Message Like Rate</div>
-            <div class="value accent" id="messageRate">--</div>
+            <div class="label">Comment Like Rate</div>
+            <div class="value accent" id="commentRate">--</div>
         </div>
 
         <div class="stat-card">
@@ -315,7 +315,7 @@
         matchRate.textContent =
             ((s.likes_that_matched / s.total_likes_sent) * 100).toFixed(1) + "%";
 
-        messageRate.textContent =
+        commentRate.textContent =
             ((s.likes_with_message_sent / s.total_likes_sent) * 100).toFixed(1) + "%";
 
         const container = document.getElementById("successfulMessages");

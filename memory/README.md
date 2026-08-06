@@ -120,6 +120,18 @@ Hinge has limited support even through backups. It only support getting user's o
 - Once you receive the downloaded zip, copy the `matches.json` file to `data/hinge`
 - Hinge doesn't provide the name of the chat. You can use `provider_details.hinge.match_time` to add a name to the chats (as in the example below). Any match time for the user from matches.json will work fine.
 
+> Rather than manually replacing an old matches.json file, you can use the following script to merge the new matches.json with the old one. This will ensure that you don't lose any old messages.
+
+- Put the new matches.json file in the `new_data/hinge` folder
+- Run the following script
+```py
+async def merge(new_path='new_data/hinge'):
+    from provider.hinge_merge_helper import HingeMerge
+    hinge_merger = HingeMerge(new_path)
+    data = await hinge_merger.merge()
+    await hinge_merger.dump(data, dry_run=True)
+```
+
 #### Uber
 We use Personal data copy to get the ride history.
 - Go to https://privacy.uber.com/center?show_header=false or Manage Account > Privacy & Data > Privacy Center > `Would you like a copy of your personal data?` Hit `Request`

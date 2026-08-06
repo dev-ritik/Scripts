@@ -17,13 +17,8 @@ class IMessageProvider(MemoryProvider):
     NAME = "iMessage"
     USER = 'Ritik'
 
-    IMESSAGE_PATH = 'data/imessage'
+    DATA_PATH = 'data/imessage'
     APPLE_EPOCH = datetime(2001, 1, 1)
-    WORKING = True
-
-    def __init__(self):
-        if not self.WORKING:
-            return
 
     # ------------------------------
     # Convert human → Apple timestamp
@@ -34,9 +29,6 @@ class IMessageProvider(MemoryProvider):
     def to_apple_time(_datetime: datetime) -> int:
         delta = (_datetime - IMessageProvider.APPLE_EPOCH).total_seconds()
         return int(delta * 1_000_000_000)  # nanoseconds
-
-    def is_working(self):
-        return self.WORKING
 
     @staticmethod
     def _read_apple_length(blob, offset=73):
@@ -95,7 +87,7 @@ class IMessageProvider(MemoryProvider):
 
     @staticmethod
     def query_db_db(query, params, db_name='sms.db'):
-        conn = sqlite3.connect(f'{IMessageProvider.IMESSAGE_PATH}/{db_name}')
+        conn = sqlite3.connect(f'{IMessageProvider.DATA_PATH}/{db_name}')
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
@@ -454,7 +446,7 @@ ORDER BY
         print(f"Found {len(mapping)} attachments")
 
     async def get_asset(self, asset_id: str) -> List[str] or None:
-        media_file_path = f'{self.IMESSAGE_PATH}/attachments/{asset_id}'
+        media_file_path = f'{self.DATA_PATH}/attachments/{asset_id}'
         if not os.path.exists(media_file_path):
             raise FileNotFoundError(f"{media_file_path} does not exist")
 

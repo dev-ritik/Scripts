@@ -18,10 +18,9 @@ class InstagramProvider(MemoryProvider):
 
     USER = 'Ritik Kumar'
     DELETED_USER = 'deleted_user'
-    INSTAGRAM_PATH = 'data/instagram'
+    DATA_PATH = 'data/instagram'
     INSTAGRAM_MESSAGE_PATH = 'data/instagram/messages'
     INSTAGRAM_FOLLOWER_FOLLOWING_PATH = 'data/instagram/followers_and_following'
-    _working = True
 
     # Instagram adds these in regional language sometimes
     REGIONAL_LANGUAGE_LIKED_MESSAGE = [
@@ -30,38 +29,32 @@ class InstagramProvider(MemoryProvider):
 
     def __init__(self):
         super().__init__()
-        if not self._working:
-            return
-
         chat_path = Path(self.INSTAGRAM_MESSAGE_PATH)
         if not chat_path.exists():
             print("Instagram data folder not found")
-            self._working = False
+            self.WORKING = False
             return
-
-    def is_working(self) -> bool:
-        return self._working
 
     def get_allowed_exposed_functions(self) -> List[str]:
         return ['get_followers', 'get_following', 'get_close_friends']
 
     def supports_home(self) -> bool:
-        return self._working and self.supports_followers() and self.supports_following() and self.supports_close_friends()
+        return self.is_working() and self.supports_followers() and self.supports_following() and self.supports_close_friends()
 
     def supports_followers(self) -> bool:
-        if not self._working:
+        if not self.is_working():
             return False
 
         return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/followers_1.json').exists()
 
     def supports_following(self) -> bool:
-        if not self._working:
+        if not self.is_working():
             return False
 
         return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/following.json').exists()
 
     def supports_close_friends(self) -> bool:
-        if not self._working:
+        if not self.is_working():
             return False
         return Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/close_friends.json').exists()
 

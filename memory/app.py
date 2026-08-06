@@ -417,6 +417,13 @@ async def call_provider_function(provider, function):
 
     return add_caching_to_response(response)
 
+
+# async def merge(new_path='new_data/hinge'):
+#     from provider.hinge_merge_helper import HingeMerge
+#     hinge_merger = HingeMerge(new_path)
+#     data = await hinge_merger.merge()
+#     await hinge_merger.dump(data, dry_run=True)
+
 if __name__ == '__main__':
     # from provider.imessage_provider import IMessageProvider
     # asyncio.run(IMessageProvider.get_script_for_attachment())
@@ -430,3 +437,5 @@ if __name__ == '__main__':
     #
     # provider = GooglePhotosProvider()
     # print(asyncio.run(provider.setup(create_new_session=False)))
+
+    # asyncio.run(merge())
