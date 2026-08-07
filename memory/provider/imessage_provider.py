@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 import aiofiles
 
 from configs import USER
+from init import DATA_DIR
 from profile import get_all_imessage_chat_ids_from_senders
 from provider.base_provider import MemoryProvider, Message, MediaType, MessageType
 
@@ -17,7 +18,7 @@ class IMessageProvider(MemoryProvider):
     NAME = "iMessage"
     USER = 'Ritik'
 
-    DATA_PATH = 'data/imessage'
+    DATA_PATH = os.path.join(DATA_DIR, 'imessage')
     APPLE_EPOCH = datetime(2001, 1, 1)
 
     # ------------------------------

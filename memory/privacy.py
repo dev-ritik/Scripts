@@ -1,3 +1,4 @@
+import os.path
 from datetime import datetime, date, time
 
 import yaml
@@ -49,7 +50,7 @@ def resolve_mode_rules(modes: dict) -> dict:
 def load_visibility():
     global PRIVACY_RULES
     if not PRIVACY_RULES:
-        with open('data/privacy.yaml') as f:
+        with open(os.path.join(init.DATA_DIR, 'privacy.yaml')) as f:
             modes = yaml.safe_load(f)
             PRIVACY_RULES = resolve_mode_rules(modes['modes'])
     return PRIVACY_RULES[init.MODE]

@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Dict, Any
 
 import aiofiles
 
+from init import DATA_DIR
 from profile import get_regex_from_name
 from provider.base_provider import MemoryProvider, MessageType, MediaType, Message, FormattingType
 
@@ -15,7 +16,7 @@ class WhatsAppProvider(MemoryProvider):
     NAME = "Whatsapp"
     USER = 'Ritik'
 
-    DATA_PATH = 'data/whatsapp'
+    DATA_PATH = os.path.join(DATA_DIR, 'whatsapp')
     WHATSAPP_ANDROID_FILE_NAME_PREFIX = 'WhatsApp Chat with '
     WHATSAPP_IOS_FOLDER_NAME_PREFIX = 'WhatsApp Chat - '
 

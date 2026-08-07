@@ -187,3 +187,6 @@ modes:
     hide: []
 ```
 The `MODE` variable can be set to `friends` or `close_friends` to use the respective privacy settings in .env file
+
+### Changing data root
+The default directory for data is `data`. It can be changed by setting the `DATA_DIR` environment variable.

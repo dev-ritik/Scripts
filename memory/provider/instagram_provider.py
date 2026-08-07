@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 
 import aiofiles
 
+from init import DATA_DIR
 from profile import get_regex_from_name
 from provider.base_provider import MemoryProvider, MessageType, MediaType, Message
 
@@ -18,9 +19,9 @@ class InstagramProvider(MemoryProvider):
 
     USER = 'Ritik Kumar'
     DELETED_USER = 'deleted_user'
-    DATA_PATH = 'data/instagram'
-    INSTAGRAM_MESSAGE_PATH = 'data/instagram/messages'
-    INSTAGRAM_FOLLOWER_FOLLOWING_PATH = 'data/instagram/followers_and_following'
+    DATA_PATH = os.path.join(DATA_DIR, 'instagram')
+    INSTAGRAM_MESSAGE_PATH = os.path.join(DATA_PATH, 'messages')
+    INSTAGRAM_FOLLOWER_FOLLOWING_PATH = os.path.join(DATA_PATH, 'followers_and_following')
 
     # Instagram adds these in regional language sometimes
     REGIONAL_LANGUAGE_LIKED_MESSAGE = [

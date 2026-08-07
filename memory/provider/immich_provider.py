@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Any
 
 import httpx
 
+from init import DATA_DIR
 from profile import get_immich_ids_from_senders
 from provider.base_provider import MemoryProvider, MediaType, Message
 from utils import post_with_retries
@@ -13,7 +14,7 @@ from utils import post_with_retries
 class ImmichProvider(MemoryProvider):
     NAME = "Immich"
 
-    DATA_PATH = 'data/immich'
+    DATA_PATH = os.path.join(DATA_DIR, 'immich')
     IMMICH_BASE_URL = os.environ.get('IMMICH_BASE_URL')
     SEARCH_PAGE_SIZE = 100
 

@@ -5,14 +5,15 @@ from typing import List, Optional, Tuple
 
 import aiofiles
 
+from init import DATA_DIR
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
 from utils import human_duration
 
 
 class GoogleMapsProvider(MemoryProvider):
     NAME = "Google Maps"
-    DATA_PATH = 'data/google_maps'
-    LOCATIONS_PATH = f'{DATA_PATH}/location-history.json'
+    DATA_PATH = os.path.join(DATA_DIR, 'google_maps')
+    LOCATIONS_PATH = os.path.join(DATA_PATH, 'location-history.json')
 
     def __init__(self):
         super().__init__()

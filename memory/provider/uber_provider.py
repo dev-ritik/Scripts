@@ -3,14 +3,15 @@ import os
 from datetime import date, datetime, timezone
 from typing import List, Optional, Iterable
 
+from init import DATA_DIR
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
 from utils import human_duration
 
 
 class UberProvider(MemoryProvider):
     NAME = "Uber"
-    DATA_PATH = 'data/uber'
-    TRIPS_HISTORY_PATH = f'{DATA_PATH}/trips_data-0.csv'
+    DATA_PATH = os.path.join(DATA_DIR, 'uber')
+    TRIPS_HISTORY_PATH = os.path.join(DATA_PATH, 'trips_data-0.csv')
 
     def __init__(self):
         super().__init__()

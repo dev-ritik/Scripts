@@ -340,7 +340,7 @@ async def get_user_stats(name):
 async def user_dp(name):
     dp_path = await get_user_dp(name, use_regex=False)
     if not dp_path:
-        possible_file_path = f'data/dp/{name}'
+        possible_file_path = os.path.join(init.DATA_DIR, f'dp/{name}')
         if os.path.exists(possible_file_path):
             dp_path = possible_file_path
         else:

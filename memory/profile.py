@@ -1,8 +1,11 @@
 import json
+import os.path
 import re
 from typing import List, Dict
 
 import aiofiles
+
+import init
 
 PROFILE_DATA = {}
 NAME_TO_DISPLAY_NAME = {}
@@ -15,7 +18,7 @@ async def get_profile_json() -> dict:
         return PROFILE_DATA
 
     try:
-        async with aiofiles.open('data/profile.json', 'r') as f:
+        async with aiofiles.open(os.path.join(init.DATA_DIR, 'profile.json'), 'r') as f:
             profile_data_list = json.loads(await f.read())
             for profile_data in profile_data_list:
                 PROFILE_DATA[profile_data['display_name']] = profile_data
@@ -59,7 +62,7 @@ async def get_user_dp(name, use_regex=False):
         return None
 
     user_profile = (await get_profile_json()).get(display_name)
-    return f'data/dp/{user_profile["dp"]}' if user_profile else None
+    return os.path.join(init.DATA_DIR, f'dp/{user_profile["dp"]}') if user_profile else None
 
 
 async def get_display_name_from_name(name, use_regex=False):

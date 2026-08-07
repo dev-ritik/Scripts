@@ -14,13 +14,14 @@ from anyio import sleep
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+from init import DATA_DIR
 from provider.base_provider import MemoryProvider, MediaType, Compressions, Message
 from utils import post_with_retries, AsyncDownloadManager
 
 
 class GooglePhotosProvider(MemoryProvider):
     NAME = "Google Photos"
-    DATA_PATH = 'data/google_photos'
+    DATA_PATH = os.path.join(DATA_DIR, 'google_photos')
 
     SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata',
               'https://www.googleapis.com/auth/photoslibrary.readonly',

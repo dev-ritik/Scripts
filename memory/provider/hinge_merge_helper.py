@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import dataclass, field
 from typing import List
 from typing import Optional
@@ -6,6 +7,7 @@ from typing import Optional
 import aiofiles
 from pydantic import BaseModel, model_validator, ConfigDict
 
+from init import DATA_DIR
 from provider.merger import MergeItem
 from provider.merger import Parser, Merge, MergeStrategy
 
@@ -86,7 +88,7 @@ class Conversation(MergeItem):
 
 
 class HingeParser(Parser):
-    DATA_PATH = 'data/hinge'
+    DATA_PATH = os.path.join(DATA_DIR, 'hinge')
 
     def __init__(self, path: str = None):
         if not path:
