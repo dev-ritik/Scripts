@@ -31,12 +31,16 @@ class HingeProvider(MemoryProvider):
         likes_with_message_sent_count = 0
         likes_without_message_sent_count = 0
         match_without_like_count = 0
-        likes_that_matched = 0
+        likes_with_comment_that_matched = 0
+        likes_with_no_comment_that_matched = 0
         total_chats = 0
         match_times = []
         match_messages = []
         highest_conversation_length = 0
         likes_by_weekday_hour = [[0 for _ in range(24)] for _ in range(7)]
+        matched_like_times = [[0 for _ in range(24)] for _ in range(7)]
+        year_today = date.today().year
+        likes_by_month_year = [[0 for _ in range(12)] for _ in range(year_today + 1 - 2013)]
 
         # Generally, if like exists before match, it means I initiated the match. If that also has a message, it means I added a like prompt.
         # If the match is at the top (possibly without any like, it means she initiated the match)
@@ -48,17 +52,30 @@ class HingeProvider(MemoryProvider):
                     weekday = _dt_local.weekday()  # Monday = 0
                     hour = _dt_local.hour  # 0-23
                     likes_by_weekday_hour[weekday][hour] += 1
+                    month = _dt_local.month - 1  # 0-11
+                    year_index = _dt_local.year - 2013
+                    if 0 <= year_index < len(likes_by_month_year):
+                        likes_by_month_year[year_index][month] += 1
+                    else:
+                        raise ValueError(f"Year {year_index} is out of range for likes_by_month_year {len(likes_by_month_year)}")
 
                 if like_data.comment:
                     likes_with_message_sent_count += 1
                 else:
                     likes_without_message_sent_count += 1
 
+
             match_count += len(data.matches)
 
             if data.has_messages() and data.has_likes():
                 match_dt = min([parser.parse(match_time) for match_time in data.matches])
                 like_dt = max([parser.parse(like_time.timestamp) for like_time in data.likes])
+
+                _dt_local = like_dt.replace(tzinfo=timezone.utc).astimezone()
+                weekday = _dt_local.weekday()  # Monday = 0
+                hour = _dt_local.hour  # 0-23
+                likes_by_weekday_hour[weekday][hour] += 1
+                matched_like_times[weekday][hour] += 1
 
                 # Calculate all positive differences in seconds
                 diff = (match_dt - like_dt).total_seconds()
@@ -72,7 +89,10 @@ class HingeProvider(MemoryProvider):
 
             if data.has_matches():
                 if data.has_likes():
-                    likes_that_matched += 1
+                    if any(like.comment for like in data.likes):
+                        likes_with_comment_that_matched += 1
+                    else:
+                        likes_with_no_comment_that_matched += 1
                 else:
                     match_without_like_count += 1
 
@@ -82,7 +102,8 @@ class HingeProvider(MemoryProvider):
         return {
             "total_likes_sent": likes_with_message_sent_count + likes_without_message_sent_count,
             "likes_with_message_sent": likes_with_message_sent_count,
-            "likes_that_matched": likes_that_matched,
+            "likes_with_comment_that_matched": likes_with_comment_that_matched,
+            "likes_with_no_comment_that_matched": likes_with_no_comment_that_matched,
             "match_without_like": match_without_like_count,
             "median_match_time": int(statistics.median(match_times) if match_times else 0),
             "fastest_match_time": int(min(match_times) if match_times else 0),
@@ -90,7 +111,9 @@ class HingeProvider(MemoryProvider):
             "total_matches": match_count,
             "like_message_that_matched": match_messages,
             "highest_conversation_length": highest_conversation_length,
-            "likes_by_weekday_hour": likes_by_weekday_hour
+            "likes_by_weekday_hour": likes_by_weekday_hour,
+            "likes_by_month_year": likes_by_month_year,
+            "matched_like_times": matched_like_times, # This is local to show correctly on the UI
         }
 
 

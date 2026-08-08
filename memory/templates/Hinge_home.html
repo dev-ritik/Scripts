@@ -176,7 +176,220 @@
         transform:scale(1.15);
     }
 
+    .match-breakdown {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+        padding: 24px;
+    }
+
+    .match-breakdown-chart {
+        width: 260px;
+        height: 260px;
+    }
+
+    .match-breakdown-text {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        max-width: 300px;
+    }
+
+    .breakdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .breakdown-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .breakdown-item strong {
+        display: block;
+        font-size: 14px;
+    }
+
+    .breakdown-item small {
+        display: block;
+        margin-top: 3px;
+        color: #888;
+        font-size: 12px;
+    }
+
+    @media (max-width: 600px) {
+        .match-breakdown {
+            flex-direction: column;
+            gap: 20px;
+        }
+    }
+
+    .like-style-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1.5fr;
+        align-items: center;
+        gap: 35px;
+        padding: 30px 35px;
+        background: white;
+        border-radius: 24px;
+    }
+
+    .like-total {
+        text-align: center;
+    }
+
+    .big-number {
+        font-size: 52px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .big-label {
+        margin-top: 8px;
+        color: #888;
+        font-size: 14px;
+    }
+
+    .like-visual {
+        display: flex;
+        justify-content: center;
+    }
+
+    .like-ring {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: conic-gradient(#ff6b81 var(--comment-percent, 0%), #f1eeee var(--comment-percent, 0%));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .like-ring-inner {
+        width: 116px;
+        height: 116px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ring-value {
+        font-size: 25px;
+        font-weight: 700;
+    }
+
+    .ring-label {
+        font-size: 11px;
+        color: #888;
+        text-align: center;
+        margin-top: 3px;
+    }
+
+    .like-breakdown {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+    }
+
+    .like-breakdown-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .like-icon {
+        font-size: 24px;
+    }
+
+    .like-breakdown-info {
+        flex: 1;
+        color: #777;
+        font-size: 14px;
+    }
+
+    .like-breakdown-info strong {
+        color: #222;
+        font-size: 18px;
+    }
+
+    .like-bar {
+        height: 7px;
+        background: #f0eeee;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+
+    .like-bar-fill {
+        height: 100%;
+        width: 0;
+        background: #ff6b81;
+        border-radius: inherit;
+        transition: width 0.6s ease;
+    }
+
+    .like-bar-fill.silent {
+        background: #ddd;
+    }
+
+    @media (max-width: 700px) {
+        .like-style-card {
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+    }
+
+    .activity-chart-wrapper {
+        height: 300px;
+        padding: 20px 10px 10px;
+    }
+
+    .section-subtitle {
+        color: #888;
+        margin-top: -12px;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+
+    .match-timing-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .timing-card {
+        background: white;
+        border-radius: 24px;
+        padding: 28px;
+    }
+
+    .timing-chart {
+        height: 380px;
+    }
+
+    .timing-card h3 {
+        margin: 0 0 20px;
+        font-size: 17px;
+    }
+
+    @media (max-width: 800px) {
+        .timing-chart {
+            height: 300px;
+        }
+    }
+
 </style>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -194,18 +407,6 @@
     </div>
 
     <div class="stats-grid">
-
-        <div class="stat-card">
-            <div class="emoji">👍</div>
-            <div class="label">Likes Sent</div>
-            <div class="value" id="totalLikesSent">--</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="emoji">💬</div>
-            <div class="label">Likes With Message</div>
-            <div class="value accent" id="likesWithMessage">--</div>
-        </div>
 
         <div class="stat-card">
             <div class="emoji">💕</div>
@@ -238,21 +439,87 @@
         </div>
 
         <div class="stat-card">
-            <div class="emoji">🌟</div>
-            <div class="label">Comment Like Rate</div>
-            <div class="value accent" id="commentRate">--</div>
-        </div>
-
-        <div class="stat-card">
             <div class="emoji">💬</div>
             <div class="label">Longest Conversation</div>
             <div class="value" id="highestConversationLength">--</div>
         </div>
     </div>
 
+    <div class="section like-style-section"><h2>💌 Your like style</h2>
+        <div class="like-style-card">
+            <div class="like-total">
+                <div class="big-number" id="totalLikesSent">--</div>
+                <div class="big-label">likes sent</div>
+            </div>
+            <div class="like-visual">
+                <div class="like-ring">
+                    <div class="like-ring-inner">
+                        <div class="ring-value" id="commentRate">--</div>
+                        <div class="ring-label">with a comment</div>
+                    </div>
+                </div>
+            </div>
+            <div class="like-breakdown">
+                <div class="like-breakdown-row"><span class="like-icon">💬</span>
+                    <div class="like-breakdown-info">
+                        <div><strong id="likesWithMessage">--</strong> <span> commented</span></div>
+                        <div class="like-bar">
+                            <div class="like-bar-fill" id="commentBar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="like-breakdown-row"><span class="like-icon">👉</span>
+                    <div class="like-breakdown-info">
+                        <div><strong id="likesWithoutMessage">--</strong> <span> silent likes</span></div>
+                        <div class="like-bar">
+                            <div class="like-bar-fill silent" id="silentBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="section">
 
-        <h2>💌 Messages that got you matches</h2>
+        <h2>💕 How your matches happened</h2>
+
+        <div class="match-breakdown">
+            <div class="match-breakdown-chart">
+                <canvas id="matchBreakdownChart"></canvas>
+            </div>
+
+            <div class="match-breakdown-text">
+                <div class="breakdown-item">
+                    <span class="breakdown-dot comment"></span>
+                    <div>
+                        <strong>Commented likes</strong>
+                        <small>Likes with a comment that matched</small>
+                    </div>
+                </div>
+
+                <div class="breakdown-item">
+                    <span class="breakdown-dot like"></span>
+                    <div>
+                        <strong>Silent likes</strong>
+                        <small>Likes without a comment that matched</small>
+                    </div>
+                </div>
+
+                <div class="breakdown-item">
+                    <span class="breakdown-dot incoming"></span>
+                    <div>
+                        <strong>They liked first</strong>
+                        <small>Matches without you sending a like</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+
+    <h2>💌 Messages that got you matches</h2>
 
         <div id="successfulMessages">
 
@@ -266,35 +533,186 @@
 
     <div class="section">
 
+        <h2>💘 Your liking era</h2>
+
+        <p class="section-subtitle">
+            How your Hinge activity has changed over the last 5 years
+        </p>
+
+        <div class="activity-chart-wrapper">
+            <canvas id="likesActivityChart"></canvas>
+        </div>
+
+    </div>
+
+    <div class="section">
+
         <h2>🕒 When you send likes</h2>
 
         <div class="heatmap-wrapper">
 
-        <div class="heatmap-hours" id="heatmapHours"></div>
+            <div class="heatmap-hours" id="heatmapHours"></div>
 
-        <div class="heatmap-body">
+            <div class="heatmap-body">
 
-            <div class="heatmap-days">
-                <div>Mon</div>
-                <div>Tue</div>
-                <div>Wed</div>
-                <div>Thu</div>
-                <div>Fri</div>
-                <div>Sat</div>
-                <div>Sun</div>
+                <div class="heatmap-days">
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
+                    <div>Sun</div>
+                </div>
+
+                <div class="heatmap-grid" id="heatmapGrid"></div>
+
             </div>
-
-            <div class="heatmap-grid" id="heatmapGrid"></div>
 
         </div>
 
     </div>
 
+    <div class="section"><h2>✨ When your likes work</h2>
+        <p class="section-subtitle"> When are your likes most likely to turn into matches? </p>
+        <div class="match-timing-grid">
+            <div class="timing-card"><h3>🕐 Matches by time of day</h3>
+                <div class="timing-chart">
+                    <canvas id="matchedByHourChart"></canvas>
+                </div>
+            </div>
+            <div class="timing-card"><h3>💘 Match rate by time</h3>
+                <div class="timing-chart">
+                    <canvas id="matchRateByHourChart"></canvas>
+                </div>
+            </div>
+            <div class="timing-card"><h3>📅 Matches by weekday</h3>
+                <div class="timing-chart">
+                    <canvas id="matchedByWeekdayChart"></canvas>
+                </div>
+            </div>
+            <div class="timing-card"><h3>✨ Match rate by weekday</h3>
+                <div class="timing-chart">
+                    <canvas id="matchRateByWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
-
 </div>
 
 <script>
+
+    function renderLikesActivityChart(monthlyData) {
+
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear - 2;
+
+        const labels = [];
+        const values = [];
+
+        const monthNames = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+
+        for (let year = startYear; year <= currentYear; year++) {
+            const rowIndex = year - 2013;
+            const row = monthlyData[rowIndex];
+
+            if (!row) {
+                continue;
+            }
+
+            for (let month = 0; month < 12; month++) {
+                // Don't show future months in the current year
+                if (
+                    year === currentYear &&
+                    month > new Date().getMonth()
+                ) {
+                    break;
+                }
+
+                labels.push(`${monthNames[month]} ${year}`);
+                values.push(row[month] || 0);
+            }
+        }
+
+        new Chart(document.getElementById("likesActivityChart"), {
+            type: "line",
+
+            data: {
+                labels: labels,
+
+                datasets: [{
+                    label: "Likes sent",
+                    data: values,
+
+                    borderColor: "#ff6b81",
+                    backgroundColor: "rgba(255, 107, 129, 0.10)",
+
+                    borderWidth: 3,
+                    pointRadius: 2,
+                    pointHoverRadius: 6,
+
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                interaction: {
+                    intersect: false,
+                    mode: "index"
+                },
+
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            title: function (context) {
+                                return context[0].label;
+                            },
+
+                            label: function (context) {
+                                return ` ${context.raw} likes`;
+                            }
+                        }
+                    }
+                },
+
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+
+                        ticks: {
+                            maxTicksLimit: 10,
+                            maxRotation: 0
+                        }
+                    },
+
+                    y: {
+                        beginAtZero: true,
+
+                        grid: {
+                            color: "rgba(0, 0, 0, 0.05)"
+                        },
+
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     async function loadStats() {
 
@@ -302,8 +720,19 @@
 
         const s = await response.json();
 
-        totalLikesSent.textContent = s.total_likes_sent;
-        likesWithMessage.textContent = s.likes_with_message_sent;
+        const totalLikes = s.total_likes_sent;
+        const commentedLikes = s.likes_with_message_sent;
+        const commentRate = totalLikes ? (commentedLikes / totalLikes) * 100 : 0;
+        const silentLikes = totalLikes - commentedLikes;
+
+        document.getElementById("totalLikesSent").textContent = totalLikes;
+        document.getElementById("likesWithMessage").textContent = commentedLikes;
+        document.getElementById("likesWithoutMessage").textContent = silentLikes;
+        document.getElementById("commentRate").textContent = `${commentRate.toFixed(0)}%`;
+        document.getElementById("commentBar").style.width = `${commentRate}%`;
+        document.getElementById("silentBar").style.width = `${100 - commentRate}%`;
+        document.querySelector(".like-ring").style.setProperty("--comment-percent", `${commentRate}%`);
+
         totalMatches.textContent = s.total_matches;
 
         medianMatchTime.textContent = formatDuration(s.median_match_time);
@@ -313,10 +742,58 @@
         highestConversationLength.textContent = s.highest_conversation_length;
 
         matchRate.textContent =
-            ((s.likes_that_matched / s.total_likes_sent) * 100).toFixed(1) + "%";
+            (((s.likes_with_comment_that_matched + s.likes_with_no_comment_that_matched) / s.total_likes_sent) * 100).toFixed(1) + "%";
 
-        commentRate.textContent =
-            ((s.likes_with_message_sent / s.total_likes_sent) * 100).toFixed(1) + "%";
+        new Chart(document.getElementById("matchBreakdownChart"), {
+            type: "doughnut",
+            data: {
+                labels: [
+                    "Commented likes",
+                    "Silent likes",
+                    "They liked first"
+                ],
+                datasets: [{
+                    data: [
+                        s.likes_with_comment_that_matched,
+                        s.likes_with_no_comment_that_matched,
+                        s.match_without_like
+                    ],
+                    backgroundColor: [
+                        "#ff6b81",
+                        "#ffb3c1",
+                        "#c9b6ff"
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "62%",
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const values = context.dataset.data;
+                                const total = values.reduce((a, b) => a + b, 0);
+                                const value = context.raw;
+                                const percentage = total
+                                    ? ((value / total) * 100).toFixed(1)
+                                    : 0;
+
+                                return ` ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        renderLikesActivityChart(s.likes_by_month_year);
+        renderMatchedLikeTiming(s);
 
         const container = document.getElementById("successfulMessages");
 
@@ -418,6 +895,196 @@
         });
 
     }
+
+    function renderMatchedLikeTiming(s) {
+        const likes = s.likes_by_weekday_hour;
+        const matched = s.matched_like_times;
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        // --------------------------------
+        // Aggregate by hour
+        // --------------------------------
+        const hourlyLikes = Array(24).fill(0);
+        const hourlyMatches = Array(24).fill(0);
+        for (let day = 0; day < 7; day++) {
+            for (let hour = 0; hour < 24; hour++) {
+                hourlyLikes[hour] += likes[day]?.[hour];
+                hourlyMatches[hour] += matched[day]?.[hour];
+            }
+        }
+        console.log(hourlyLikes, hourlyMatches);
+        const hourlyMatchRate = hourlyLikes.map((count, hour) => {
+            return count > 0 ? (hourlyMatches[hour] / count) * 100 : 0;
+        });
+        // --------------------------------
+        // Aggregate by weekday
+        // --------------------------------
+        const dailyLikes = Array(7).fill(0);
+        const dailyMatches = Array(7).fill(0);
+        for (let day = 0; day < 7; day++) {
+            dailyLikes[day] = likes[day]?.reduce((sum, value) => sum + value, 0) || 0;
+            dailyMatches[day] = matched[day]?.reduce((sum, value) => sum + value, 0) || 0;
+        }
+        const dailyMatchRate = dailyLikes.map((count, day) => {
+            return count > 0 ? (dailyMatches[day] / count) * 100 : 0;
+        });
+        // --------------------------------
+        // Common chart options
+        // --------------------------------
+        const commonLineOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {intersect: false, mode: "index"},
+            plugins: {legend: {display: false}},
+            scales: {
+                x: {grid: {display: false}},
+                y: {beginAtZero: true, ticks: {precision: 0}, grid: {color: "rgba(0, 0, 0, 0.05)"}}
+            }
+        };
+        // --------------------------------
+        // 1. Matches by hour
+        // --------------------------------
+        new Chart(document.getElementById("matchedByHourChart"), {
+            type: "line",
+            data: {
+                labels: Array.from({length: 24}, (_, hour) => `${hour}:00`),
+                datasets: [{
+                    label: "Matches",
+                    data: hourlyMatches,
+                    borderColor: "#ff6b81",
+                    backgroundColor: "rgba(255, 107, 129, 0.10)",
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                ...commonLineOptions,
+                plugins: {
+                    ...commonLineOptions.plugins, tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.raw} matches`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    ...commonLineOptions.scales,
+                    x: {...commonLineOptions.scales.x, ticks: {maxTicksLimit: 12, maxRotation: 0}}
+                }
+            }
+        });
+        // --------------------------------
+        // 2. Match rate by hour
+        // --------------------------------
+        new Chart(document.getElementById("matchRateByHourChart"), {
+            type: "line",
+            data: {
+                labels: Array.from({length: 24}, (_, hour) => `${hour}:00`),
+                datasets: [{
+                    label: "Match rate",
+                    data: hourlyMatchRate,
+                    borderColor: "#c9a7ff",
+                    backgroundColor: "rgba(201, 167, 255, 0.12)",
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                ...commonLineOptions,
+                plugins: {
+                    ...commonLineOptions.plugins, tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.raw.toFixed(1)}% match rate`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    ...commonLineOptions.scales,
+                    y: {...commonLineOptions.scales.y, ticks: {precision: 1, callback: value => `${value}%`}},
+                    x: {...commonLineOptions.scales.x, ticks: {maxTicksLimit: 12, maxRotation: 0}}
+                }
+            }
+        });
+        // --------------------------------
+        // 3. Matches by weekday
+        // --------------------------------
+        new Chart(document.getElementById("matchedByWeekdayChart"), {
+            type: "bar",
+            data: {
+                labels: days,
+                datasets: [{
+                    label: "Matches",
+                    data: dailyMatches,
+                    backgroundColor: "#ffb3c1",
+                    borderRadius: 12,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {display: false}, tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.raw} matches`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {grid: {display: false}},
+                    y: {beginAtZero: true, ticks: {precision: 0}, grid: {color: "rgba(0, 0, 0, 0.05)"}}
+                }
+            }
+        });
+        // --------------------------------
+        // 4. Match rate by weekday
+        // --------------------------------
+        new Chart(document.getElementById("matchRateByWeekdayChart"), {
+            type: "bar",
+            data: {
+                labels: days,
+                datasets: [{
+                    label: "Match rate",
+                    data: dailyMatchRate,
+                    backgroundColor: "#c9a7ff",
+                    borderRadius: 12,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {display: false}, tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.raw.toFixed(1)}% match rate`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {grid: {display: false}},
+                    y: {
+                        beginAtZero: true,
+                        ticks: {callback: value => `${value}%`},
+                        grid: {color: "rgba(0, 0, 0, 0.05)"}
+                    }
+                }
+            }
+        });
+    }
+
 </script>
 
 {% endblock %}
