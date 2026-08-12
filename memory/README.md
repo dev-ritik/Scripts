@@ -138,6 +138,18 @@ We use Personal data copy to get the ride history.
 - Wait a while and download the zip file
 - Copy the file `Rider` > `trips_data-0.json` to `data/uber`
 
+#### Github
+- Go to https://github.com/settings/personal-access-tokens
+- Select `fine-tokens`
+- Get the token a name
+- Select your github account as `Resource owner`
+- Set `Expiration` to `No expiration`
+- Select `All repositories` under `Repository access`
+- Scroll down to the Permissions section and expand Repository permissions. Locate Contents in the list and change the dropdown selection from No access to Read-only.
+- Generate a new token with `repo` scope
+- Add the token to the `.env` file as `GITHUB_TOKEN`
+- Update the Github username in `GitHubProvider.GITHUB_USERNAME`
+
 ### Web app setup
 - Run `pip install -r requirements.txt`
 - `python app.py`
