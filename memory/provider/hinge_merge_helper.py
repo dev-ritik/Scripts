@@ -95,7 +95,7 @@ class HingeParser(Parser):
             path = self.DATA_PATH
         super().__init__(path)
 
-    async def load_raw_data(self) -> List[Conversation]:
+    async def load_data(self):
         try:
             async with aiofiles.open(f'{self.path}/matches.json', 'r') as f:
                 return json.loads(await f.read())
@@ -103,7 +103,7 @@ class HingeParser(Parser):
             print("Error reading matches file.")
             return []
 
-    def validate_raw_data(self, raw_data):
+    def validate_data(self, raw_data):
         if not isinstance(raw_data, list):
             raise ValueError("Raw data must be a list of conversations.")
 
@@ -117,7 +117,7 @@ class HingeParser(Parser):
             else:
                 PersonModel.model_validate(person_data)
 
-    def parse_raw_data(self, raw_data) -> List[Conversation]:
+    def parse_data(self, raw_data) -> List[Conversation]:
         conversations: List[Conversation] = []
         for match in raw_data:
             conversation = Conversation()

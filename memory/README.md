@@ -150,6 +150,21 @@ We use Personal data copy to get the ride history.
 - Add the token to the `.env` file as `GITHUB_TOKEN`
 - Update the Github username in `GitHubProvider.GITHUB_USERNAME`
 
+#### Airtel
+Airtel provides a way to download the call and messages logs. It can be done for the past 6 months. It only has outgoing calls and messages. The incoming calls and messages are not available.
+**This data is not accurate about call lengths though**
+- Send `EPREBILL <Month_name_in_caps> <email_address>` to 121. For example, `EPREBILL MAY ritikkne@gmail.com`
+- You will receive an encrypted pdf file in your email. Download it and save it to `new_data/airtel`
+- Assuming the password for all the files is the same and it is added to the `.env` file as `AIRTEL_PASSWORD`
+- Run the following script
+```py
+async def merge(new_path='new_data/airtel'):
+    from provider.airtel_merge_helper import AirtelMerge
+    airtel_merger = AirtelMerge(new_path)
+    data = await airtel_merger.merge()
+    await airtel_merger.dump(data, dry_run=True)
+```
+
 ### Web app setup
 - Run `pip install -r requirements.txt`
 - `python app.py`

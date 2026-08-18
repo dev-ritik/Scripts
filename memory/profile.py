@@ -87,6 +87,16 @@ async def get_regex_from_name(_name):
         raise ValueError("User not found")
     return user_profile.get('name_regex')
 
+_phone_number_to_name_mapping = {}
+
+async def get_name_from_phone_number(phone_number):
+    if not _phone_number_to_name_mapping:
+        profile_json = await get_profile_json()
+        for name, user_profile in profile_json.items():
+            for number in user_profile.get('phone_numbers', []):
+                _phone_number_to_name_mapping[number] = name
+    return _phone_number_to_name_mapping.get(phone_number)
+
 
 async def get_all_display_name_regexes_mapping() -> Dict[str, str]:
     profile_json = await get_profile_json()

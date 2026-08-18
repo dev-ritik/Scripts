@@ -25,7 +25,7 @@ class HingeProvider(MemoryProvider):
 
     async def get_stats(self, **kwargs) -> dict:
         old_data_parser = HingeParser()
-        older_data: List[Conversation] = await old_data_parser.load(validate_raw_data=False)
+        older_data: List[Conversation] = await old_data_parser.get_data(validate_raw_data=False)
 
         match_count = 0
         likes_with_message_sent_count = 0
@@ -135,7 +135,7 @@ class HingeProvider(MemoryProvider):
         pattern = re.compile(search_regex) if search_regex else None
 
         old_data_parser = HingeParser()
-        older_data: List[Conversation] = await old_data_parser.load(validate_raw_data=False)
+        older_data: List[Conversation] = await old_data_parser.get_data(validate_raw_data=False)
 
         chat_name_match_time = await get_all_hinge_match_times()
         match_time_chat_name = {v: k for k, v in chat_name_match_time.items()}

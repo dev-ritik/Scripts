@@ -15,6 +15,7 @@ def get_available_providers() -> list:
     from provider.google_maps_provider import GoogleMapsProvider
     from provider.uber_provider import UberProvider
     from provider.github_provider import GitHubProvider
+    from provider.airtel_provider import AirtelProvider
 
     # Only get providers that are in .env
     enabled_providers = os.environ.get('ENABLED_PROVIDERS', '').split(',')
@@ -31,6 +32,7 @@ def get_available_providers() -> list:
         GoogleMapsProvider,
         UberProvider,
         GitHubProvider,
+        AirtelProvider,
     ]
 
     if not enabled_providers:

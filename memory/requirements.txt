@@ -6,3 +6,5 @@ httpx
 google-auth-oauthlib
 google
 sqlite3
+pdfplumber
+pypdf

@@ -250,29 +250,25 @@
         let range = maxDateMs - minDateMs;
         if (range <= 0) range = 24 * 3600 * 1000;
 
-        const rows = [];
-        const placements = [];
-
-        providerList.forEach(p => {
-            const startMs = p.start.getTime();
-            const endMs = (p.end || now).getTime();
-
-            let rowIndex = rows.findIndex(lastEnd => startMs >= lastEnd);
-            if (rowIndex === -1) {
-                rowIndex = rows.length;
-                rows.push(endMs);
-            } else {
-                rows[rowIndex] = endMs;
-            }
-            placements.push({...p, startMs, endMs, row: rowIndex});
+        providerList.sort((a, b) => {
+            const endA = (a.end || now).getTime();
+            const endB = (b.end || now).getTime();
+            return endA - endB;
         });
+
+        const placements = providerList.map((p, row) => ({
+            ...p,
+            startMs: p.start.getTime(),
+            endMs: (p.end || now).getTime(),
+            row
+        }));
 
         const rowHeight = 36;
         const topOffset = 80;
         const leftPadding = 12;
         const rightPadding = 12;
 
-        const containerHeight = topOffset + rows.length * rowHeight;
+        const containerHeight = topOffset + placements.length * rowHeight;
         container.style.height = containerHeight + 'px';
 
         if (timelineBar) {

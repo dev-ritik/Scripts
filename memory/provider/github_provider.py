@@ -5,6 +5,7 @@ from typing import List, Optional
 
 import requests
 
+import configs
 from provider.base_provider import MemoryProvider, Message, MessageType, MediaType
 
 
@@ -36,6 +37,16 @@ class GitHubProvider(MemoryProvider):
         up to the present moment, handling API pagination.
         """
         memories = []
+
+        if senders:
+            if len(senders) != 1:
+                return memories
+            if senders[0].lower() != configs.USER.lower():
+                return memories
+
+        if search_regex:
+            return memories
+
         start_date_str = start_date.strftime("%Y-%m-%d") if start_date else None
         end_date_str = end_date.strftime("%Y-%m-%d") if end_date else None
 
