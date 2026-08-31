@@ -1,11 +1,9 @@
-import os
 from datetime import date, timezone
 from typing import List, Optional
 
 from dateutil import parser
 
 import configs
-from init import DATA_DIR
 from profile import get_name_from_phone_number
 from provider.airtel_merge_helper import AirtelParser, CallLog
 from provider.base_provider import MemoryProvider, Message, MessageType, MediaType
@@ -13,7 +11,6 @@ from provider.base_provider import MemoryProvider, Message, MessageType, MediaTy
 
 class AirtelProvider(MemoryProvider):
     NAME = "Airtel"
-    DATA_PATH = os.path.join(DATA_DIR, 'airtel')
 
     async def fetch(self,
                     on_date: Optional[date] = None,

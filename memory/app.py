@@ -418,11 +418,11 @@ async def call_provider_function(provider, function):
     return add_caching_to_response(response)
 
 
-# async def merge(new_path='new_data/hinge'):
-#     from provider.hinge_merge_helper import HingeMerge
-#     hinge_merger = HingeMerge(new_path)
-#     data = await hinge_merger.merge()
-#     await hinge_merger.dump(data, dry_run=True)
+async def merge(new_path='new_data/google_maps'):
+    from provider.google_maps_merge_helper import GoogleMapsMerge
+    google_maps_merger = GoogleMapsMerge(new_path)
+    data = await google_maps_merger.merge()
+    await google_maps_merger.dump(data, dry_run=False)
 
 if __name__ == '__main__':
     # from provider.imessage_provider import IMessageProvider

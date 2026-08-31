@@ -111,8 +111,16 @@ We shall be using the unencrypted iMessage database (on mac) to get the messages
 Google Maps timeline collects data on the device. We can export it using the following steps:
 - Google Maps → Profile photo
 - Your Timeline
-- Settings → Export Timeline
-- Save the file `location-history.json` in `data/google_maps`
+- Triple dots → `Location & privacy settings` → `Export Timeline data`
+- Save the file `location-history.json` in `new_data/google_maps`
+- Run the following script
+```py
+async def merge(new_path='new_data/google_maps'):
+    from provider.google_maps_merge_helper import GoogleMapsMerge
+    google_maps_merger = GoogleMapsMerge(new_path)
+    data = await google_maps_merger.merge()
+    await google_maps_merger.dump(data, dry_run=False)
+```
 
 #### Hinge
 Hinge has limited support even through backups. It only support getting user's own messages.

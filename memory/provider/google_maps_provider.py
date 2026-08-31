@@ -1,27 +1,13 @@
-import json
-import os
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
-import aiofiles
-
-from init import DATA_DIR
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
+from provider.google_maps_merge_helper import GoogleMapsParser, LocationItem
 from utils import human_duration
 
 
 class GoogleMapsProvider(MemoryProvider):
     NAME = "Google Maps"
-    DATA_PATH = os.path.join(DATA_DIR, 'google_maps')
-    LOCATIONS_PATH = os.path.join(DATA_PATH, 'location-history.json')
-
-    def __init__(self):
-        super().__init__()
-
-        if not os.path.exists(self.DATA_PATH):
-            self.WORKING = False
-            print("Google Maps folder not found")
-            return
 
     def get_allowed_exposed_functions(self) -> List[str]:
         return ['get_location_clustering']
@@ -38,8 +24,7 @@ class GoogleMapsProvider(MemoryProvider):
         from sklearn.cluster import DBSCAN
 
         # 1. Sample Data: List of (latitude, longitude) coordinates
-        coordinates = [
-        ]
+        coordinates = []
 
         for memory in all_memories:
             if memory.context and memory.context.get('coordinates') and len(memory.context['coordinates']) == 1:
@@ -118,73 +103,34 @@ class GoogleMapsProvider(MemoryProvider):
         return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
     @staticmethod
-    def parse_geo(geo: str) -> Tuple[float, float]:
-        # "geo:11.111,11.1111"
-        lat, lng = geo.replace("geo:", "").split(",")
-        return float(lat), float(lng)
-
-    @staticmethod
-    def parse_timeline_entry(entry) -> Optional[tuple]:
+    def parse_timeline_entry(entry: LocationItem) -> Optional[tuple]:
         """
         Returns (datetime, text) or None
         """
 
-        start = GoogleMapsProvider.parse_iso_time(entry["startTime"])
-        end = GoogleMapsProvider.parse_iso_time(entry["endTime"])
+        start = GoogleMapsProvider.parse_iso_time(entry.start_time)
+        end = GoogleMapsProvider.parse_iso_time(entry.end_time)
         duration_min = int((end - start).total_seconds() / 60)
 
-        # -----------------------
-        # VISIT
-        # -----------------------
-        if "visit" in entry:
-            visit = entry["visit"]
-            top = visit.get("topCandidate", {})
-            hierarchy_level = entry.get("hierarchyLevel", 1)  # GPT: 0 is precise and 4+ is very imprecise
-            lat, lng = GoogleMapsProvider.parse_geo(top["placeLocation"])
-            place_type = top.get("semanticType", "Unknown")
-
-            text = (
-                f"{'Visited place' if hierarchy_level <= 1 else 'Was in'}{' ' + place_type if place_type != 'Unknown' else ''} for {human_duration(minutes=duration_min)}"
-            )
+        if entry.visit:
+            text = f"{entry.visit} for {human_duration(minutes=duration_min)}"
 
             # TODO: Add running messages in UI
-            return start, text, [(lat, lng)]
+            return start, text, entry.get_coords_list()
 
-        # -----------------------
-        # ACTIVITY
-        # -----------------------
-        if "activity" in entry:
-            act = entry["activity"]
-            top = act.get("topCandidate", {})
+        elif entry.activity:
+            text = f"{entry.activity} in {human_duration(minutes=duration_min)}"
+            return start, text, entry.get_coords_list()
 
-            activity_type = top.get("type", "Unknown")
-            distance = act.get("distanceMeters")
-
-            start_lat, start_lng = GoogleMapsProvider.parse_geo(act["start"])
-            end_lat, end_lng = GoogleMapsProvider.parse_geo(act["end"])
-
-            text = f"Was {activity_type} for {int(float(distance))} meters in {human_duration(minutes=duration_min)}"
-
-            return start, text, [(start_lat, start_lng), (end_lat, end_lng)]
-
-        # -----------------------
-        # TIMELINE PATH (RAW GPS)
-        # -----------------------
-        if "timelinePath" in entry:
-            points = entry["timelinePath"]
-
+        else:
+            if not entry.timelinePath:
+                raise Exception(f"No timelinePath for {entry}")
             # StartTime and EndTime may be irrelevant.
-            start = start + timedelta(minutes=int(points[0]["durationMinutesOffsetFromStartTime"]))
+            start = start + timedelta(minutes=entry.timelinePath[0].duration_minutes_offset_from_start_time)
 
-            text = f"Movement in {human_duration(minutes=int(points[-1]['durationMinutesOffsetFromStartTime']) - int(points[0]['durationMinutesOffsetFromStartTime']))}"
+            text = f"Movement in {human_duration(minutes=int(entry.timelinePath[-1].duration_minutes_offset_from_start_time) - int(entry.timelinePath[0].duration_minutes_offset_from_start_time))}"
 
-            return start, text, [GoogleMapsProvider.parse_geo(p['point']) for p in points]
-
-        if 'timelineMemory' in entry:
-            # There are no coordinates here
-            return None, None, None
-
-        return None
+            return start, text, entry.get_coords_list()
 
     async def fetch(
             self,
@@ -203,9 +149,8 @@ class GoogleMapsProvider(MemoryProvider):
             return messages
 
         print("Starting to fetch from Google Maps")
-        async with aiofiles.open(self.LOCATIONS_PATH, "r", encoding="utf-8") as f:
-            data = json.loads(await f.read())
-
+        data_parser = GoogleMapsParser()
+        data: List[LocationItem] = await data_parser.get_old_data(validate=False)
         for entry in data:
             parsed = GoogleMapsProvider.parse_timeline_entry(entry)
             if not parsed or not parsed[0]:
@@ -242,8 +187,8 @@ class GoogleMapsProvider(MemoryProvider):
         if not self.is_working():
             return None, None
 
-        async with aiofiles.open(self.LOCATIONS_PATH, "r", encoding="utf-8") as f:
-            data = json.loads(await f.read())
+        data_parser = GoogleMapsParser()
+        data: List[LocationItem] = await data_parser.get_old_data(validate=False)
 
         dates = []
         for entry in data:

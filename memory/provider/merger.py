@@ -84,13 +84,13 @@ class Parser:
         # Deprecated
         raise NotImplementedError
 
-    async def get_incoming_data(self, validate_raw_data=False):
+    async def get_incoming_data(self, validate=True):
         raw_data = await self.load_incoming_data()
-        if validate_raw_data:
+        if validate:
             self.validate_incoming_data(raw_data)
         return self.parse_incoming_data(raw_data)
 
-    async def get_old_data(self, validate=True):
+    async def get_old_data(self, validate=False):
         raw_data = await self.load_old_data()
         if validate:
             self.validate_old_data(raw_data)
