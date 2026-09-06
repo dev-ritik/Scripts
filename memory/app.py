@@ -339,13 +339,13 @@ async def get_user_stats(name):
 @app.route('/user/dp/<name>')
 async def user_dp(name):
     dp_path = await get_user_dp(name, use_regex=False)
-    if not dp_path:
+    if not dp_path or not os.path.exists(dp_path):
         possible_file_path = os.path.join(init.DATA_DIR, f'dp/{name}')
         if os.path.exists(possible_file_path):
             dp_path = possible_file_path
         else:
             dp_path = await get_user_dp(name, use_regex=True)
-            if not dp_path:
+            if not dp_path or not os.path.exists(dp_path):
                 return add_caching_to_response(("Display picture not found", 404), 60, 30)
 
     return add_caching_to_response(send_file(dp_path), 86400)

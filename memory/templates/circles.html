@@ -211,6 +211,38 @@
         margin-bottom: 8px;
     }
 
+    .moving-average-player {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        margin-top: 12px;
+    }
+
+    .moving-average-player button {
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 20px;
+        padding: 4px 8px;
+    }
+
+    .moving-average-player button:hover {
+        transform: scale(1.1);
+    }
+
+    .moving-average-slider {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .moving-average-date {
+        min-width: 75px;
+        text-align: right;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
 </style>
 
 <h1>💬 Chat Circles</h1>
@@ -247,6 +279,10 @@
     <div class="orbit orbit1" id="orbit1"></div>
     <div class="orbit orbit2" id="orbit2"></div>
     <div class="orbit orbit3" id="orbit3"></div>
+</div>
+
+<div id="weekly-chart-dynamic" style="width: 100%; height: 400px; margin-top: 40px;">
+    <canvas id="weeklyLineChartDynamic"></canvas>
 </div>
 
 <div id="weekly-chart" style="width: 100%; height: 400px; margin-top: 40px;">
@@ -378,6 +414,1309 @@
 
         renderCircles(data.people);
         await renderMovingAverageChart(data.people)
+        await renderMovingAverageChartDynamic(data.people)
+    }
+
+    async function renderMovingAverageChartDynamic(people) {
+        const chartContainer = document.getElementById("weekly-chart-dynamic");
+
+        const allWeeks = Array.from(
+            new Set(
+                people.flatMap(p =>
+                    Object.keys(p.chat_times.weekly_counts)
+                )
+            )
+        ).sort();
+
+        if (allWeeks.length < 7) {
+            if (movingAvgChartDynamic) {
+                movingAvgChartDynamic.destroy();
+                movingAvgChartDynamic = null;
+            }
+
+            if (chartContainer) {
+                chartContainer.style.display = "none";
+            }
+
+            return;
+        }
+
+        if (chartContainer) {
+            chartContainer.style.display = "";
+        }
+
+        if (movingAvgChartDynamic) {
+            movingAvgChartDynamic.destroy();
+            movingAvgChartDynamic = null;
+        }
+
+        const MA_WINDOW = 7;
+        const DISPLAY_WEEKS = 5;
+        const TOP_N = 8;
+
+        // Faster animation
+        const STEP_TIME = 600;
+
+        /*
+         * ------------------------------------------------------------
+         * 1. ALL PEOPLE
+         * ------------------------------------------------------------
+         */
+
+        const allPeople = [...people];
+
+        /*
+         * ------------------------------------------------------------
+         * 3. 7-WEEK MOVING AVERAGES
+         * ------------------------------------------------------------
+         */
+
+        const movingAverages = allPeople.map(p => {
+
+            const weekly = p.chat_times.weekly_counts;
+
+            return allWeeks.map((week, i) => {
+
+                if (i < MA_WINDOW - 1) {
+                    return null;
+                }
+
+                let sum = 0;
+
+                for (
+                    let j = i - MA_WINDOW + 1;
+                    j <= i;
+                    j++
+                ) {
+                    sum += weekly[allWeeks[j]] ?? 0;
+                }
+
+                return sum / MA_WINDOW;
+            });
+        });
+
+        /*
+         * ------------------------------------------------------------
+         * 4. FIXED Y AXIS
+         *
+         * Calculated across ALL people and ALL frames.
+         * ------------------------------------------------------------
+         */
+
+        const allValues = movingAverages
+            .flat()
+            .filter(v => v !== null && v > 0);
+
+        const minValue =
+            allValues.length > 0
+                ? Math.min(...allValues)
+                : 1;
+
+        const maxValue =
+            allValues.length > 0
+                ? Math.max(...allValues)
+                : 10;
+
+        const yMin = Math.max(
+            1,
+            Math.floor(minValue * 0.7)
+        );
+
+        const yMax = Math.max(
+            yMin + 1,
+            Math.ceil(maxValue * 1.3)
+        );
+
+
+        /*
+         * ------------------------------------------------------------
+         * 5. STABLE COLORS
+         *
+         * Every person gets one color which never changes.
+         * ------------------------------------------------------------
+         */
+
+        const colors = allPeople.map(
+            (_, idx) =>
+                `hsl(${
+                    idx * 360 /
+                    Math.max(allPeople.length, 1)
+                }, 70%, 55%)`
+        );
+
+
+        /*
+         * ------------------------------------------------------------
+         * 6. AVATAR CACHE
+         * ------------------------------------------------------------
+         */
+
+        const avatarCache = {};
+
+        function getPersonAvatar(name) {
+
+            if (!avatarCache[name]) {
+
+                const img = new Image();
+
+                img.src =
+                    `/user/dp/${encodeURIComponent(name)}`;
+
+                img.onload = () => {
+
+                    if (movingAvgChartDynamic) {
+                        movingAvgChartDynamic.draw();
+                    }
+                };
+
+                img.onerror = () => {
+                    console.warn(
+                        "Could not load avatar:",
+                        name
+                    );
+                };
+
+                avatarCache[name] = img;
+            }
+
+            return avatarCache[name];
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 7. TIMELINE
+         * ------------------------------------------------------------
+         */
+
+        const firstFrame =
+            MA_WINDOW - 1;
+
+        const lastFrame =
+            allWeeks.length - 1;
+
+        let currentFrame =
+            firstFrame;
+
+        let isPlaying = false;
+
+        let animationToken = 0;
+
+        let currentWeek =
+            allWeeks[currentFrame];
+
+
+        /*
+         * ------------------------------------------------------------
+         * 8. GET TOP 8 FOR A FRAME
+         * ------------------------------------------------------------
+         */
+
+        function getTopPeople(frame) {
+
+            return allPeople
+                .map((person, personIndex) => ({
+                    person,
+                    personIndex,
+                    value:
+                        movingAverages[
+                            personIndex
+                            ][frame]
+                }))
+                .filter(x =>
+                    x.value !== null &&
+                    x.value > 0
+                )
+                .sort((a, b) =>
+                    b.value - a.value
+                )
+                .slice(0, TOP_N);
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 9. CURRENT WEEK PLUGIN
+         * ------------------------------------------------------------
+         */
+
+        const currentWeekPlugin = {
+
+            id: "currentWeek",
+
+            afterDraw(chart) {
+
+                const {
+                    ctx,
+                    chartArea
+                } = chart;
+
+                if (!chartArea) {
+                    return;
+                }
+
+                ctx.save();
+
+                ctx.font =
+                    "bold 28px sans-serif";
+
+                ctx.textAlign = "right";
+                ctx.textBaseline = "top";
+                ctx.fillStyle = "#666";
+
+                ctx.fillText(
+                    currentWeek,
+                    chartArea.right,
+                    8
+                );
+
+                ctx.restore();
+            }
+        };
+
+
+        /*
+         * ------------------------------------------------------------
+         * 10. LINE LABELS + DP + COLLISION HANDLING
+         * ------------------------------------------------------------
+         */
+
+        const lineLabelsPlugin = {
+
+            id: "lineLabels",
+
+            afterDatasetsDraw(chart) {
+
+                const {
+                    ctx,
+                    chartArea
+                } = chart;
+
+                if (!chartArea) {
+                    return;
+                }
+
+                const AVATAR_SIZE = 24;
+                const LABEL_GAP = 30;
+
+                const CONNECTOR_LENGTH = 12;
+                const TEXT_GAP = 8;
+
+
+                /*
+                 * Collect visible datasets
+                 */
+
+                const labels = [];
+
+                chart.data.datasets.forEach(
+                    (dataset, datasetIndex) => {
+
+                        const meta =
+                            chart.getDatasetMeta(
+                                datasetIndex
+                            );
+
+                        if (
+                            !meta ||
+                            meta.hidden
+                        ) {
+                            return;
+                        }
+
+                        const points =
+                            meta.data;
+
+                        if (
+                            !points ||
+                            points.length === 0
+                        ) {
+                            return;
+                        }
+
+                        const point =
+                            points[
+                            points.length - 1
+                                ];
+
+                        if (
+                            !point ||
+                            !dataset.label
+                        ) {
+                            return;
+                        }
+
+                        labels.push({
+
+                            point,
+
+                            x: point.x,
+
+                            originalY:
+                            point.y,
+
+                            y: point.y,
+
+                            color:
+                            dataset.borderColor,
+
+                            name:
+                            dataset.label
+                        });
+                    }
+                );
+
+
+                /*
+                 * Sort by actual Y position.
+                 */
+
+                labels.sort(
+                    (a, b) =>
+                        a.originalY -
+                        b.originalY
+                );
+
+
+                /*
+                 * Push overlapping labels apart.
+                 */
+
+                for (
+                    let i = 1;
+                    i < labels.length;
+                    i++
+                ) {
+
+                    const previous =
+                        labels[i - 1];
+
+                    const current =
+                        labels[i];
+
+                    if (
+                        current.y -
+                        previous.y <
+                        LABEL_GAP
+                    ) {
+
+                        current.y =
+                            previous.y +
+                            LABEL_GAP;
+                    }
+                }
+
+
+                /*
+                 * Keep the whole label group inside the chart.
+                 */
+
+                const topLimit =
+                    chartArea.top +
+                    AVATAR_SIZE / 2;
+
+                const bottomLimit =
+                    chartArea.bottom -
+                    AVATAR_SIZE / 2;
+
+
+                /*
+                 * Shift upwards if bottom overflow occurs.
+                 */
+
+                if (labels.length > 0) {
+
+                    const bottomOverflow =
+                        labels[
+                        labels.length - 1
+                            ].y -
+                        bottomLimit;
+
+                    if (bottomOverflow > 0) {
+
+                        labels.forEach(label => {
+                            label.y -= bottomOverflow;
+                        });
+                    }
+                }
+
+
+                /*
+                 * Shift downwards if top overflow occurs.
+                 */
+
+                if (
+                    labels.length > 0 &&
+                    labels[0].y < topLimit
+                ) {
+
+                    const topOverflow =
+                        topLimit -
+                        labels[0].y;
+
+                    labels.forEach(label => {
+                        label.y += topOverflow;
+                    });
+                }
+
+
+                /*
+                 * Draw everything.
+                 */
+
+                ctx.save();
+
+                labels.forEach(label => {
+
+                    const {
+                        point,
+                        x,
+                        y,
+                        color,
+                        name
+                    } = label;
+
+
+                    /*
+                     * Connector.
+                     *
+                     * Starts at the ACTUAL data point and ends
+                     * at the displaced label.
+                     */
+
+                    ctx.beginPath();
+
+                    ctx.moveTo(
+                        point.x,
+                        point.y
+                    );
+
+                    ctx.lineTo(
+                        x + CONNECTOR_LENGTH,
+                        y
+                    );
+
+                    ctx.strokeStyle =
+                        color;
+
+                    ctx.lineWidth = 2;
+
+                    ctx.stroke();
+
+
+                    /*
+                     * Avatar position.
+                     */
+
+                    const avatarX =
+                        x +
+                        CONNECTOR_LENGTH +
+                        AVATAR_SIZE / 2;
+
+                    const avatarY =
+                        y;
+
+
+                    /*
+                     * Circular avatar.
+                     */
+
+                    ctx.save();
+
+                    ctx.beginPath();
+
+                    ctx.arc(
+                        avatarX,
+                        avatarY,
+                        AVATAR_SIZE / 2,
+                        0,
+                        Math.PI * 2
+                    );
+
+                    ctx.clip();
+
+
+                    const avatar =
+                        getPersonAvatar(name);
+
+
+                    if (
+                        avatar &&
+                        avatar.complete &&
+                        avatar.naturalWidth > 0
+                    ) {
+
+                        /*
+                         * Preserve aspect ratio and crop
+                         * into the circle.
+                         */
+
+                        const size =
+                            Math.max(
+                                avatar.naturalWidth,
+                                avatar.naturalHeight
+                            );
+
+                        const scale =
+                            AVATAR_SIZE / size;
+
+                        const width =
+                            avatar.naturalWidth *
+                            scale;
+
+                        const height =
+                            avatar.naturalHeight *
+                            scale;
+
+                        ctx.drawImage(
+                            avatar,
+
+                            avatarX -
+                            width / 2,
+
+                            avatarY -
+                            height / 2,
+
+                            width,
+                            height
+                        );
+
+                    } else {
+
+                        /*
+                         * Fallback while image loads.
+                         */
+
+                        ctx.fillStyle =
+                            color;
+
+                        ctx.fillRect(
+                            avatarX -
+                            AVATAR_SIZE / 2,
+
+                            avatarY -
+                            AVATAR_SIZE / 2,
+
+                            AVATAR_SIZE,
+                            AVATAR_SIZE
+                        );
+                    }
+
+                    ctx.restore();
+
+
+                    /*
+                     * Name.
+                     */
+
+                    ctx.font =
+                        "14px sans-serif";
+
+                    ctx.textAlign =
+                        "left";
+
+                    ctx.textBaseline =
+                        "middle";
+
+                    ctx.fillStyle =
+                        color;
+
+                    ctx.fillText(
+                        name,
+
+                        avatarX +
+                        AVATAR_SIZE / 2 +
+                        TEXT_GAP,
+
+                        y
+                    );
+                });
+
+                ctx.restore();
+            }
+        };
+
+
+        /*
+         * ------------------------------------------------------------
+         * 11. PLAYER UI
+         * ------------------------------------------------------------
+         *
+         * We keep your existing player HTML/classes so your
+         * existing CSS continues to control its appearance.
+         * ------------------------------------------------------------
+         */
+
+        const canvas =
+            document.getElementById(
+                "weeklyLineChartDynamic"
+            );
+
+        const oldPlayer =
+            chartContainer.querySelector(
+                ".moving-average-player"
+            );
+
+        if (oldPlayer) {
+            oldPlayer.remove();
+        }
+
+
+        const player =
+            document.createElement("div");
+
+        player.className =
+            "moving-average-player";
+
+
+        player.innerHTML = `
+        <button
+            type="button"
+            class="moving-average-play"
+            title="Play / Pause"
+        >
+            ▶
+        </button>
+
+        <button
+            type="button"
+            class="moving-average-restart"
+            title="Restart"
+        >
+            ↻
+        </button>
+
+        <input
+            type="range"
+            class="moving-average-slider"
+            min="${firstFrame}"
+            max="${lastFrame}"
+            value="${firstFrame}"
+            step="1"
+        />
+
+        <span class="moving-average-date">
+            ${currentWeek}
+        </span>
+    `;
+
+        chartContainer.appendChild(player);
+
+
+        /*
+         * ------------------------------------------------------------
+         * 12. PLAYER ELEMENTS
+         * ------------------------------------------------------------
+         */
+
+        const playButton =
+            player.querySelector(
+                ".moving-average-play"
+            );
+
+        const restartButton =
+            player.querySelector(
+                ".moving-average-restart"
+            );
+
+        const slider =
+            player.querySelector(
+                ".moving-average-slider"
+            );
+
+        const dateLabel =
+            player.querySelector(
+                ".moving-average-date"
+            );
+
+
+        /*
+         * ------------------------------------------------------------
+         * 13. INITIAL TOP 8
+         * ------------------------------------------------------------
+         */
+
+        const initialTopPeople =
+            getTopPeople(firstFrame);
+
+
+        /*
+         * ------------------------------------------------------------
+         * 14. DATASETS
+         * ------------------------------------------------------------
+         */
+
+        const datasets =
+            Array.from(
+                {length: TOP_N},
+                (_, slotIndex) => {
+
+                    const entry =
+                        initialTopPeople[
+                            slotIndex
+                            ];
+
+                    return {
+
+                        label:
+                            entry
+                                ? entry.person.name
+                                : "",
+
+                        data:
+                            entry
+                                ? movingAverages[
+                                    entry.personIndex
+                                    ].slice(
+                                    firstFrame -
+                                    DISPLAY_WEEKS +
+                                    1,
+
+                                    firstFrame + 1
+                                )
+                                : [],
+
+                        borderColor:
+                            entry
+                                ? colors[
+                                    entry.personIndex
+                                    ]
+                                : "#999",
+
+                        backgroundColor:
+                            entry
+                                ? colors[
+                                    entry.personIndex
+                                    ]
+                                : "#999",
+
+                        borderWidth: 2,
+
+                        tension: 0.3,
+
+                        pointRadius: 0,
+
+                        pointHoverRadius: 6,
+
+                        spanGaps: false,
+                    };
+                }
+            );
+
+
+        /*
+         * ------------------------------------------------------------
+         * 15. INITIAL VISIBLE WEEKS
+         * ------------------------------------------------------------
+         */
+
+        const initialStart =
+            firstFrame -
+            DISPLAY_WEEKS +
+            1;
+
+        const initialEnd =
+            firstFrame + 1;
+
+
+        /*
+         * ------------------------------------------------------------
+         * 16. CREATE CHART
+         * ------------------------------------------------------------
+         */
+
+        const ctx =
+            canvas.getContext("2d");
+
+
+        movingAvgChartDynamic =
+            new Chart(ctx, {
+
+                type: "line",
+
+                data: {
+
+                    labels:
+                        allWeeks.slice(
+                            initialStart,
+                            initialEnd
+                        ),
+
+                    datasets:
+                    datasets
+                },
+
+
+                plugins: [
+                    currentWeekPlugin,
+                    lineLabelsPlugin
+                ],
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+
+                    layout: {
+
+                        padding: {
+
+                            top: 45,
+
+                            /*
+                             * Room for:
+                             * connector + DP + name
+                             */
+
+                            right: 150
+                        }
+                    },
+
+
+                    animation: {
+
+                        duration:
+                        STEP_TIME,
+
+                        easing:
+                            "linear"
+                    },
+
+
+                    interaction: {
+
+                        mode:
+                            "nearest",
+
+                        intersect:
+                            false
+                    },
+
+
+                    plugins: {
+
+                        legend: {
+
+                            display:
+                                false
+                        },
+
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                label: ctx =>
+                                    `${ctx.dataset.label}: ${ctx.formattedValue}`
+                            }
+                        }
+                    },
+
+
+                    scales: {
+
+                        x: {
+
+                            title: {
+
+                                display:
+                                    true,
+
+                                text:
+                                    "Week"
+                            },
+
+
+                            grid: {
+
+                                display:
+                                    false
+                            }
+                        },
+
+
+                        y: {
+
+                            type:
+                                "logarithmic",
+
+                            /*
+                             * Fixed for entire animation.
+                             */
+
+                            min:
+                            yMin,
+
+                            max:
+                            yMax,
+
+
+                            title: {
+
+                                display:
+                                    true,
+
+                                text:
+                                    "Messages (7-week avg)"
+                            },
+
+
+                            ticks: {
+
+                                callback:
+                                    val =>
+                                        Number(
+                                            val
+                                        ).toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+
+
+        /*
+         * ------------------------------------------------------------
+         * 17. UPDATE FRAME
+         * ------------------------------------------------------------
+         */
+
+        function updateFrame(
+            frame,
+            animate = true
+        ) {
+
+            frame =
+                Math.max(
+                    firstFrame,
+                    Math.min(
+                        lastFrame,
+                        frame
+                    )
+                );
+
+
+            currentFrame =
+                frame;
+
+
+            currentWeek =
+                allWeeks[frame];
+
+
+            /*
+             * Five visible weeks.
+             */
+
+            const start =
+                frame -
+                DISPLAY_WEEKS +
+                1;
+
+            const end =
+                frame + 1;
+
+
+            /*
+             * Top 8 at THIS frame.
+             */
+
+            const topPeople =
+                getTopPeople(frame);
+
+
+            /*
+             * Player.
+
+             */
+
+            dateLabel.textContent =
+                currentWeek;
+
+            slider.value =
+                frame;
+
+
+            /*
+             * X-axis.
+             */
+
+            movingAvgChartDynamic
+                .data
+                .labels =
+                allWeeks.slice(
+                    start,
+                    end
+                );
+
+
+            /*
+             * Update the 8 slots.
+             */
+
+            for (
+                let slotIndex = 0;
+                slotIndex < TOP_N;
+                slotIndex++
+            ) {
+
+                const dataset =
+                    datasets[slotIndex];
+
+                const entry =
+                    topPeople[slotIndex];
+
+
+                /*
+                 * No person for this slot.
+                 */
+
+                if (!entry) {
+
+                    dataset.label =
+                        "";
+
+                    dataset.data =
+                        [];
+
+                    /*
+                     * Keep a valid color.
+                     * There are no points, so nothing gets drawn.
+                     */
+
+                    dataset.borderColor =
+                        "#999";
+
+                    dataset.backgroundColor =
+                        "#999";
+
+                    continue;
+                }
+
+
+                /*
+                 * Person currently occupying
+                 * this ranking slot.
+                 */
+
+                dataset.label =
+                    entry.person.name;
+
+
+                /*
+                 * Stable person color.
+                 */
+
+                dataset.borderColor =
+                    colors[
+                        entry.personIndex
+                        ];
+
+                dataset.backgroundColor =
+                    colors[
+                        entry.personIndex
+                        ];
+
+
+                /*
+                 * Five visible 7-week moving-average points.
+                 */
+
+                dataset.data =
+                    movingAverages[
+                        entry.personIndex
+                        ].slice(
+                        start,
+                        end
+                    );
+            }
+
+
+            /*
+             * Update.
+             */
+
+            movingAvgChartDynamic.update(
+                animate
+                    ? undefined
+                    : "none"
+            );
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 18. PLAY
+         * ------------------------------------------------------------
+         */
+
+        async function play() {
+
+            if (isPlaying) {
+                return;
+            }
+
+
+            /*
+             * Start over if already at the end.
+             */
+
+            if (
+                currentFrame >=
+                lastFrame
+            ) {
+
+                updateFrame(
+                    firstFrame,
+                    false
+                );
+            }
+
+
+            isPlaying =
+                true;
+
+            playButton.textContent =
+                "⏸";
+
+
+            const token =
+                ++animationToken;
+
+
+            while (
+                isPlaying &&
+                currentFrame <
+                lastFrame &&
+                token ===
+                animationToken
+                ) {
+
+                const nextFrame =
+                    currentFrame + 1;
+
+
+                updateFrame(
+                    nextFrame,
+                    true
+                );
+
+
+                await new Promise(
+                    resolve =>
+                        setTimeout(
+                            resolve,
+                            STEP_TIME
+                        )
+                );
+            }
+
+
+            /*
+             * Finished.
+             */
+
+            if (
+                currentFrame >=
+                lastFrame
+            ) {
+
+                isPlaying =
+                    false;
+
+                playButton.textContent =
+                    "▶";
+            }
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 19. PAUSE
+         * ------------------------------------------------------------
+         */
+
+        function pause() {
+
+            isPlaying =
+                false;
+
+            animationToken++;
+
+
+            if (
+                movingAvgChartDynamic
+            ) {
+
+                movingAvgChartDynamic.stop();
+            }
+
+
+            playButton.textContent =
+                "▶";
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 20. PLAY / PAUSE
+         * ------------------------------------------------------------
+         */
+
+        playButton.addEventListener(
+            "click",
+            () => {
+
+                if (isPlaying) {
+                    pause();
+                } else {
+                    play();
+                }
+            }
+        );
+
+
+        /*
+         * ------------------------------------------------------------
+         * 21. RESTART
+         * ------------------------------------------------------------
+         */
+
+        restartButton.addEventListener(
+            "click",
+            () => {
+
+                pause();
+
+                updateFrame(
+                    firstFrame,
+                    false
+                );
+            }
+        );
+
+
+        /*
+         * ------------------------------------------------------------
+         * 22. SEEK
+         * ------------------------------------------------------------
+         */
+
+        slider.addEventListener(
+            "input",
+            () => {
+
+                pause();
+
+                updateFrame(
+                    Number(slider.value),
+                    false
+                );
+            }
+        );
     }
 
     async function renderMovingAverageChart(people) {
@@ -497,6 +1836,8 @@
 
     let charts = [];
     let movingAvgChart = null;
+    let movingAvgChartDynamic = null;
+
     async function updateCommonWords(name, start_date, end_date) {
         const container = document.getElementById("word-cloud-container");
         container.innerHTML = `<p style="color:#bbb">Loading ${name}'s words...</p>`;
