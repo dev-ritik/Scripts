@@ -38,4 +38,34 @@ export async function loadPeople() {
     }
 }
 
+async function loadAppSettings() {
+    try {
+        const response = await fetch("/api/settings");
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const settings = await response.json();
+
+        document.getElementById("current-mode").textContent =
+            settings.mode;
+
+        document.getElementById("debug-mode").textContent =
+            settings.debug ? "ON" : "OFF";
+
+        return settings;
+    } catch (error) {
+        console.error("Failed to load application settings:", error);
+
+        document.getElementById("current-mode").textContent = "ERROR";
+        document.getElementById("debug-mode").textContent = "ERROR";
+
+        return null;
+    }
+}
+
+loadAppSettings();
+
+window.loadAppSettings = loadAppSettings;
 window.loadPeople = loadPeople;

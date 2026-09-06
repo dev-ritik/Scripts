@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}Settings & Privacy | Memory Aggregator{% endblock %}
+
+{% block extra_style %}
+
+<style>
+    .settings-page {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .settings-header {
+        margin-bottom: 25px;
+    }
+
+    .settings-header h1 {
+        margin: 0 0 6px;
+        font-size: 26px;
+        color: #222;
+    }
+
+    .settings-header p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .settings-section {
+        margin-bottom: 25px;
+    }
+
+    .settings-section h2 {
+        font-size: 18px;
+        margin: 0 0 12px;
+        color: #333;
+    }
+
+    .settings-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .setting-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid #eee;
+        gap: 20px;
+    }
+
+    .setting-row:last-child {
+        border-bottom: none;
+    }
+
+    .setting-label {
+        color: #555;
+        font-size: 14px;
+    }
+
+    .setting-value {
+        font-weight: 600;
+        color: #222;
+        text-align: right;
+    }
+
+    .mode-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 6px;
+        background: #e8f5f1;
+        color: #008069;
+        font-size: 13px;
+    }
+
+    .debug-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+
+    .debug-on {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .debug-off {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    /* Privacy rules */
+
+    .privacy-rule {
+        padding: 16px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .privacy-rule:last-child {
+        border-bottom: none;
+    }
+
+    .rule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .rule-number {
+        font-size: 13px;
+        font-weight: 600;
+        color: #666;
+    }
+
+    .read-only-badge {
+        font-size: 11px;
+        padding: 3px 7px;
+        border-radius: 4px;
+        background: #f1f1f1;
+        color: #777;
+    }
+
+    .rule-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .rule-field {
+        background: #f7f7f7;
+        border-radius: 6px;
+        padding: 10px;
+    }
+
+    .rule-field-label {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+    }
+
+    .rule-field-value {
+        font-size: 13px;
+        color: #333;
+        word-break: break-word;
+    }
+
+    .provider {
+        display: inline-block;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 3px 6px;
+        margin: 2px 3px 2px 0;
+        font-size: 12px;
+    }
+
+    .empty-state {
+        padding: 25px;
+        text-align: center;
+        color: #888;
+        font-size: 14px;
+    }
+
+    .future-note {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+    }
+
+    @media (max-width: 600px) {
+        .rule-details {
+            grid-template-columns: 1fr;
+        }
+
+        .setting-row {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .setting-value {
+            text-align: left;
+        }
+    }
+</style>
+
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-page">
+
+    <div class="settings-header">
+        <h1>Settings & Privacy</h1>
+        <p>Application configuration and privacy rules.</p>
+    </div>
+
+
+    <!-- Application settings -->
+
+    <div class="settings-section">
+
+        <h2>Application</h2>
+
+        <div class="settings-card">
+
+            <div class="setting-row">
+            <span class="setting-label">
+                Current Mode
+            </span>
+
+                <span class="setting-value">
+                <span id="settings-mode" class="mode-badge">
+                    Loading...
+                </span>
+            </span>
+            </div>
+
+
+            <div class="setting-row">
+            <span class="setting-label">
+                Debug
+            </span>
+
+                <span class="setting-value">
+                <span id="settings-debug" class="debug-badge">
+                    Loading...
+                </span>
+            </span>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Privacy rules -->
+
+    <div class="settings-section">
+
+        <h2>Privacy Rules</h2>
+
+        <div class="settings-card">
+
+            <div id="privacy-rules">
+
+                <div class="empty-state">
+                    Loading privacy rules...
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="future-note">
+            Privacy rules are currently read-only.
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    async function loadSettings() {
+
+        const modeElement =
+            document.getElementById("settings-mode");
+
+        const debugElement =
+            document.getElementById("settings-debug");
+
+        const privacyElement =
+            document.getElementById("privacy-rules");
+
+
+        try {
+
+            const response =
+                await fetch("/api/settings");
+
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+
+            const settings =
+                await response.json();
+
+
+            // Application settings
+
+            modeElement.textContent =
+                settings.mode;
+
+
+            debugElement.textContent =
+                settings.debug ? "ON" : "OFF";
+
+
+            debugElement.classList.remove(
+                "debug-on",
+                "debug-off"
+            );
+
+
+            debugElement.classList.add(
+                settings.debug
+                    ? "debug-on"
+                    : "debug-off"
+            );
+
+
+            // Privacy rules
+
+            renderPrivacyRules(
+                settings.privacy
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Failed to load settings:",
+                error
+            );
+
+
+            modeElement.textContent =
+                "Error";
+
+
+            debugElement.textContent =
+                "Error";
+
+
+            privacyElement.innerHTML = `
+                <div class="empty-state">
+                    Failed to load privacy settings.
+                </div>
+            `;
+
+        }
+
+    }
+
+
+    function renderPrivacyRules(rules) {
+
+        const container =
+            document.getElementById("privacy-rules");
+
+
+        if (!rules || rules.length === 0) {
+
+            container.innerHTML = `
+                <div class="empty-state">
+                    No privacy rules configured.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            rules.map((rule, index) => {
+
+                const providers =
+                    (rule.providers || [])
+                        .map(provider => `
+                            <span class="provider">
+                                ${escapeHtml(provider)}
+                            </span>
+                        `)
+                        .join("");
+
+
+                return `
+                    <div class="privacy-rule">
+
+                        <div class="rule-header">
+
+                            <span class="rule-number">
+                                Rule ${index + 1}
+                            </span>
+
+                            <span class="read-only-badge">
+                                Read only
+                            </span>
+
+                        </div>
+
+
+                        <div class="rule-details">
+
+                            <div class="rule-field">
+
+                                <span class="rule-field-label">
+                                    Providers
+                                </span>
+
+                                <div class="rule-field-value">
+                                    ${providers || "All providers"}
+                                </div>
+
+                            </div>
+
+
+                            <div class="rule-field">
+
+                                <span class="rule-field-label">
+                                    From
+                                </span>
+
+                                <span class="rule-field-value">
+                                    ${escapeHtml(rule.from || "—")}
+                                </span>
+
+                            </div>
+
+
+                            <div class="rule-field">
+
+                                <span class="rule-field-label">
+                                    To
+                                </span>
+
+                                <span class="rule-field-value">
+                                    ${escapeHtml(rule.to || "—")}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+
+            })
+                .join("");
+
+    }
+
+
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = value;
+        return div.innerHTML;
+    }
+
+
+    loadSettings();
+
+</script>
+
+{% endblock %}

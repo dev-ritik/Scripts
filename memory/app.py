@@ -8,6 +8,7 @@ import pandas as pd
 
 import configs
 import init
+from privacy import load_visibility
 
 # This should be the first line in the file. It initializes the app.
 init.init()
@@ -417,6 +418,17 @@ async def call_provider_function(provider, function):
 
     return add_caching_to_response(response)
 
+@app.get("/api/settings")
+def get_settings():
+    return add_caching_to_response(jsonify({
+        "mode": init.MODE,
+        "debug": init.DEBUG,
+        "privacy": load_visibility()
+    }))
+
+@app.route("/settings")
+def settings_page():
+    return add_caching_to_response(render_template("settings.html"))
 
 async def merge(new_path='new_data/google_maps'):
     from provider.google_maps_merge_helper import GoogleMapsMerge

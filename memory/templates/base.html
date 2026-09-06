@@ -38,11 +38,13 @@
             font-size: 18px;
             color: white;
             text-decoration: none;
+            white-space: nowrap;
         }
 
         .nav-links {
             display: flex;
             gap: 20px;
+            align-items: center;
         }
 
         .nav-item {
@@ -60,13 +62,46 @@
             border-bottom: 2px solid #dcf8c6;
         }
 
+        /* Mode / Debug indicators */
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .status-badge {
+            padding: 4px 7px;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        .status-badge strong {
+            font-weight: 600;
+        }
+
+        /* Settings button */
+        .settings-button {
+            color: white;
+            text-decoration: none;
+            font-size: 17px;
+            padding: 5px;
+            transition: color 0.2s;
+        }
+
+        .settings-button:hover {
+            color: #dcf8c6;
+        }
+
         /* Shared container style */
         .container {
             background-color: white;
             border-radius: 10px;
             padding: 20px;
             margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
         }
 
         {% block extra_style %}{% endblock %}
@@ -81,10 +116,33 @@
         <div class="nav-container">
             <a href="/" class="nav-logo">🧠 Memory Aggregator</a>
             <div class="nav-links">
-                <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">Home</a>
-                <a href="/status" class="nav-item {% if request.path == '/status' %}active{% endif %}">Status</a>
-                <a href="/people" class="nav-item {% if request.path == '/people' %}active{% endif %}">People</a>
-                <a href="/circles" class="nav-item {% if request.path == '/circles' %}active{% endif %}">Circles</a>
+                <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">
+                    Home
+                </a>
+                <a href="/status" class="nav-item {% if request.path == '/status' %}active{% endif %}">
+                    Status
+                </a>
+                <a href="/people" class="nav-item {% if request.path == '/people' %}active{% endif %}">
+                    People
+                </a>
+                <a href="/circles" class="nav-item {% if request.path == '/circles' %}active{% endif %}">
+                    Circles
+                </a>
+                <!-- Current application status -->
+                <div class="nav-status">
+                    <span class="status-badge">
+                        MODE: <strong id="current-mode">...</strong>
+                    </span>
+
+                    <span class="status-badge">
+                        DEBUG: <strong id="debug-mode">...</strong>
+                    </span>
+                </div>
+
+                <a href="/settings" class="settings-button" title="Settings & Privacy">
+                    <i class="fas fa-cog"></i>
+                </a>
+
             </div>
         </div>
     </nav>
