@@ -1,0 +1,911 @@
+{% extends "base.html" %}
+{% block title %}Home | Airtel Insights{% endblock %}
+
+{% block extra_style %}
+<style>
+    .airtel-dashboard {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem 5rem;
+    }
+
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: #222;
+    }
+
+    .dashboard-header p {
+        margin-top: 0.5rem;
+        color: #777;
+    }
+
+    /* Range selector */
+
+    .dropdown {
+        margin: 1rem 0 3rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .dropdown label {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #333;
+    }
+
+    #range {
+        padding: 0.6rem 1rem;
+        font-size: 1rem;
+        border: 2px solid #ddd;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        transition: all 0.2s ease;
+        cursor: pointer;
+        outline: none;
+    }
+
+    #range:hover,
+    #range:focus {
+        border-color: #33b37a;
+        box-shadow: 0 0 0 3px rgba(51, 179, 122, 0.15);
+    }
+
+    /* Custom dates */
+
+    .custom-date-range {
+        display: none;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .custom-date-range label {
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .custom-date-range input[type="date"] {
+        padding: 0.45rem 0.6rem;
+        font-size: 0.95rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: #fff;
+        outline: none;
+    }
+
+    #applyCustomRange {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        background: #33b37a;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    #applyCustomRange:hover {
+        opacity: 0.9;
+    }
+
+    /* Summary cards */
+
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        background: white;
+        border: 1px solid #eee;
+        border-radius: 16px;
+        padding: 1.25rem;
+
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .summary-icon {
+        font-size: 1.8rem;
+    }
+
+    .summary-label {
+        color: #777;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #222;
+    }
+
+    /* Leaderboards */
+
+    .leaderboards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .leaderboard-card {
+        background: white;
+        border: 1px solid #eee;
+        border-radius: 18px;
+        padding: 1.5rem;
+
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .leaderboard-header {
+        margin-bottom: 1rem;
+    }
+
+    .leaderboard-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #222;
+    }
+
+    .leaderboard-header span {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.85rem;
+        color: #888;
+    }
+
+    /* Leaderboard rows */
+
+    .leaderboard-row {
+        display: grid;
+        grid-template-columns: 42px 1fr auto;
+        align-items: center;
+
+        gap: 0.75rem;
+
+        padding: 0.85rem 0.5rem;
+
+        border-bottom: 1px solid #f1f1f1;
+    }
+
+    .leaderboard-row:last-child {
+        border-bottom: none;
+    }
+
+    .rank {
+        width: 32px;
+        height: 32px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border-radius: 50%;
+
+        background: #f4f4f4;
+        color: #555;
+
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .rank.top {
+        background: #e7f7f0;
+        color: #279b68;
+    }
+
+    .person {
+        min-width: 0;
+    }
+
+    .person-name {
+        font-weight: 600;
+        color: #333;
+
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .person-bar {
+        height: 5px;
+        background: #f0f0f0;
+        border-radius: 5px;
+        margin-top: 6px;
+        overflow: hidden;
+    }
+
+    .person-bar-fill {
+        height: 100%;
+        background: #33b37a;
+        border-radius: 5px;
+
+        transition: width 0.4s ease;
+    }
+
+    .person-value {
+        font-weight: 700;
+        color: #333;
+        white-space: nowrap;
+    }
+
+    /* Loading */
+
+    .loading {
+        text-align: center;
+        color: #888;
+        padding: 3rem;
+    }
+
+    /* Mobile */
+
+    @media (max-width: 700px) {
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .leaderboards {
+            grid-template-columns: 1fr;
+        }
+
+        .custom-date-range {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .airtel-dashboard {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="airtel-dashboard">
+
+    <div class="dashboard-header">
+        <h1>📞 Call Insights</h1>
+        <p>Who you talk to, and for how long.</p>
+    </div>
+
+
+    <div class="dropdown">
+
+        <label for="range">📅 Select Range:</label>
+
+        <select id="range">
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+            <option value="2020">2020</option>
+
+            <option value="custom">Custom Range</option>
+        </select>
+
+
+        <div class="custom-date-range" id="customDateInputs">
+
+            <label for="fromDate">From:</label>
+            <input type="date" id="fromDate">
+
+            <label for="toDate">To:</label>
+            <input type="date" id="toDate">
+
+            <button id="applyCustomRange">
+                Apply
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div id="loading" class="loading">
+        Loading call statistics...
+    </div>
+
+
+    <div id="dashboardContent" style="display: none;">
+
+        <!-- Summary -->
+
+        <div class="summary-cards">
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    📞
+                </div>
+
+                <div>
+                    <div class="summary-label">
+                        Total Calls
+                    </div>
+
+                    <div class="summary-value" id="totalCalls">
+                        0
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    ⏱️
+                </div>
+
+                <div>
+                    <div class="summary-label">
+                        Total Call Time
+                    </div>
+
+                    <div class="summary-value" id="totalDuration">
+                        0m
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    👥
+                </div>
+
+                <div>
+                    <div class="summary-label">
+                        People Called
+                    </div>
+
+                    <div class="summary-value" id="peopleCalled">
+                        0
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Leaderboards -->
+
+        <div class="leaderboards">
+
+            <!-- Calls -->
+
+            <div class="leaderboard-card">
+
+                <div class="leaderboard-header">
+
+                    <h2>📞 Most Calls</h2>
+
+                    <span>
+                        Number of calls
+                    </span>
+
+                </div>
+
+                <div id="callsLeaderboard"></div>
+
+            </div>
+
+
+            <!-- Duration -->
+
+            <div class="leaderboard-card">
+
+                <div class="leaderboard-header">
+
+                    <h2>⏱️ Most Time</h2>
+
+                    <span>
+                        Total time spent on calls
+                    </span>
+
+                </div>
+
+                <div id="durationLeaderboard"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    const rangeSelect =
+        document.getElementById("range");
+
+    const customInputs =
+        document.getElementById("customDateInputs");
+
+    const fromDate =
+        document.getElementById("fromDate");
+
+    const toDate =
+        document.getElementById("toDate");
+
+    const applyCustomRange =
+        document.getElementById("applyCustomRange");
+
+    const loading =
+        document.getElementById("loading");
+
+    const dashboardContent =
+        document.getElementById("dashboardContent");
+
+    const callsLeaderboard =
+        document.getElementById("callsLeaderboard");
+
+    const durationLeaderboard =
+        document.getElementById("durationLeaderboard");
+
+    const totalCalls =
+        document.getElementById("totalCalls");
+
+    const totalDuration =
+        document.getElementById("totalDuration");
+
+    const peopleCalled =
+        document.getElementById("peopleCalled");
+
+
+    /*
+     * Convert seconds into a human-readable duration.
+     */
+    function formatDuration(seconds) {
+
+        seconds = Number(seconds) || 0;
+
+        const hours =
+            Math.floor(seconds / 3600);
+
+        const minutes =
+            Math.floor((seconds % 3600) / 60);
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        }
+
+        if (minutes > 0) {
+            return `${minutes}m`;
+        }
+
+        return `${seconds}s`;
+    }
+
+
+    /*
+     * Convert Date -> YYYY-MM-DD
+     *
+     * Uses local time rather than UTC so that
+     * dates don't shift around midnight.
+     */
+    function formatDate(date) {
+
+        const year =
+            date.getFullYear();
+
+        const month =
+            String(date.getMonth() + 1)
+                .padStart(2, "0");
+
+        const day =
+            String(date.getDate())
+                .padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+    }
+
+
+    // Helper: get start & end dates for a preset range
+    function getDateRange(range) {
+        const today = new Date();
+        let start, end;
+
+        switch (range) {
+            case "week":
+                end = new Date(today);
+                start = new Date();
+                start.setDate(end.getDate() - 7);
+                break;
+
+            case "month":
+                end = new Date(today);
+                start = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                break;
+
+            case "quarter":
+                end = new Date(today);
+                start = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+                break;
+
+            case "2020":
+            case "2021":
+            case "2022":
+            case "2023":
+            case "2024":
+            case "2025":
+            case "2026":
+                start = new Date(parseInt(range), 0, 1);
+                end = new Date(parseInt(range), 11, 31);
+                break;
+
+            default:
+                return null;
+        }
+
+        start_date = formatDate(start)
+        end_date = formatDate(end)
+        return {
+            start_date: formatDate(start),
+            end_date: formatDate(end),
+        };
+    }
+
+
+    /*
+     * Fetch statistics from Airtel API.
+     */
+    async function loadStats() {
+
+        const value =
+            rangeSelect.value;
+
+        const dates =
+            getDateRange(value);
+
+
+        if (!dates.start_date || !dates.end_date) {
+            return;
+        }
+
+
+        if (dates.start_date > dates.end_date) {
+
+            alert(
+                "From date must be before To date."
+            );
+
+            return;
+        }
+
+
+        loading.style.display = "block";
+
+        dashboardContent.style.display = "none";
+
+
+        try {
+
+            const params =
+                new URLSearchParams({
+                    start_date: dates.start_date,
+                    end_date: dates.end_date
+                });
+
+
+            const response =
+                await fetch(
+                    `/Airtel/get_stats?${params.toString()}`
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            renderDashboard(data);
+
+        } catch (error) {
+
+            console.error(
+                "Failed to load Airtel stats:",
+                error
+            );
+
+            loading.textContent =
+                "Unable to load call statistics.";
+
+        }
+
+    }
+
+
+    /*
+     * Render the complete dashboard.
+     */
+
+    function renderDashboard(data) {
+
+        /*
+         * API response:
+         *
+         * {
+         *     "Suma": {
+         *         "calls": 1,
+         *         "duration": 10
+         *     },
+         *     "9876543210": {
+         *         "calls": 12,
+         *         "duration": 5400
+         *     }
+         * }
+         *
+         * The key is either the person's name or phone number.
+         */
+
+
+        const stats = Object.entries(data).map(
+            ([person, item]) => ({
+                person: person,
+                calls: Number(item.calls) || 0,
+                duration: Number(item.duration) || 0
+            })
+        );
+
+
+        /*
+         * Summary
+         */
+
+        const calls = stats.reduce(
+            (sum, item) => sum + item.calls,
+            0
+        );
+
+        const duration = stats.reduce(
+            (sum, item) => sum + item.duration,
+            0
+        );
+
+
+        totalCalls.textContent =
+            calls.toLocaleString();
+
+        totalDuration.textContent =
+            formatDuration(duration);
+
+        peopleCalled.textContent =
+            stats.length.toLocaleString();
+
+
+        /*
+         * Calls leaderboard
+         */
+
+        const byCalls = [...stats].sort(
+            (a, b) => b.calls - a.calls
+        );
+
+
+        /*
+         * Duration leaderboard
+         */
+
+        const byDuration = [...stats].sort(
+            (a, b) => b.duration - a.duration
+        );
+
+
+        renderLeaderboard(
+            callsLeaderboard,
+            byCalls,
+            "calls"
+        );
+
+        renderLeaderboard(
+            durationLeaderboard,
+            byDuration,
+            "duration"
+        );
+
+
+        loading.style.display = "none";
+
+        dashboardContent.style.display = "block";
+    }
+
+    /*
+     * Render one leaderboard.
+     */
+    function renderLeaderboard(
+        container,
+        data,
+        type
+    ) {
+
+        container.innerHTML = "";
+
+
+        if (!data.length) {
+
+            container.innerHTML = `
+                <div style="
+                    text-align: center;
+                    color: #999;
+                    padding: 2rem 0;
+                ">
+                    No calls found.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        const maxValue =
+            type === "calls"
+                ? data[0].calls
+                : data[0].duration;
+
+
+        data.forEach((item, index) => {
+
+            const value =
+                type === "calls"
+                    ? item.calls
+                    : item.duration;
+
+
+            const displayValue =
+                type === "calls"
+                    ? `${value.toLocaleString()} calls`
+                    : formatDuration(value);
+
+
+            const percentage =
+                maxValue > 0
+                    ? (value / maxValue) * 100
+                    : 0;
+
+
+            const row =
+                document.createElement("div");
+
+
+            row.className =
+                "leaderboard-row";
+
+
+            row.innerHTML = `
+
+                <div class="rank ${index < 3 ? "top" : ""}">
+                    ${index + 1}
+                </div>
+
+
+                <div class="person">
+
+                    <div class="person-name">
+                        ${escapeHtml(item.person)}
+                    </div>
+
+                    <div class="person-bar">
+
+                        <div
+                            class="person-bar-fill"
+                            style="width: ${percentage}%"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="person-value">
+                    ${displayValue}
+                </div>
+
+            `;
+
+
+            container.appendChild(row);
+
+        });
+
+    }
+
+
+    /*
+     * Prevent person names returned by the API
+     * from being interpreted as HTML.
+     */
+    function escapeHtml(value) {
+
+        const div =
+            document.createElement("div");
+
+        div.textContent =
+            value ?? "";
+
+        return div.innerHTML;
+    }
+
+
+    /*
+     * Range selector.
+     */
+    rangeSelect.addEventListener(
+        "change",
+        () => {
+
+            if (rangeSelect.value === "custom") {
+
+                customInputs.style.display =
+                    "flex";
+
+                return;
+            }
+
+
+            customInputs.style.display =
+                "none";
+
+
+            loadStats();
+
+        }
+    );
+
+
+    /*
+     * Custom range.
+     */
+    applyCustomRange.addEventListener(
+        "click",
+        () => {
+
+            loadStats();
+
+        }
+    );
+
+
+    /*
+     * Initial load.
+     */
+    loadStats();
+
+</script>
+{% endblock %}
+

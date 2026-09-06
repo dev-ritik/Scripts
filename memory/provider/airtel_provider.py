@@ -12,6 +12,33 @@ from provider.base_provider import MemoryProvider, Message, MessageType, MediaTy
 class AirtelProvider(MemoryProvider):
     NAME = "Airtel"
 
+    def get_allowed_exposed_functions(self) -> List[str]:
+        return ['get_stats']
+
+    def supports_home(self) -> bool:
+        return self.is_working()
+
+    async def get_stats(self, start_date, end_date) -> dict:
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date).date()
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date).date()
+
+        old_data_parser = AirtelParser()
+        older_data: List[CallLog] = await old_data_parser.get_old_data(validate=False)
+
+        relevant_data = [call_log for call_log in older_data if start_date <= parser.parse(call_log.datetime).date() <= end_date]
+
+        user_calls_stats = {}
+        for call_log in relevant_data:
+            chat_name = await get_name_from_phone_number(call_log.number) or call_log.number
+            if chat_name not in user_calls_stats:
+                user_calls_stats[chat_name] = {"calls": 0, "duration": 0}
+            user_calls_stats[chat_name]["calls"] += 1
+            user_calls_stats[chat_name]["duration"] += call_log.duration_seconds
+
+        return user_calls_stats
+
     async def fetch(self,
                     on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
