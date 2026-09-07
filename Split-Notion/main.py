@@ -11,6 +11,8 @@ from dateutil import parser, tz
 from requests import HTTPError
 from tqdm import tqdm
 
+from utils import get_scraping_session
+
 SPLIT_LIMIT = 75
 MAX_RETRIES = 3
 BACK_OFF_FACTOR = 2
@@ -19,6 +21,7 @@ USER_ID: Optional[str] = None
 
 def get_user_id() -> str:
     """
+    @Deprecated: Starting September 2026, access to this API is behind a paywall.
     Get the splitwise user id
     :return:
     """
@@ -34,6 +37,27 @@ def get_user_id() -> str:
     }
 
     response = requests.request("GET", url, headers=headers, data={})
+
+    if response.status_code == 200:
+        USER_ID = response.json()["user"]["id"]
+    else:
+        raise HTTPError(f'Invalid Notion response {response.status_code} {response.text}', response=response)
+
+    return USER_ID
+
+def get_user_id_scrape(session) -> str:
+    """
+    Get the splitwise user id
+    :return:
+    """
+    global USER_ID
+
+    if USER_ID:
+        return USER_ID
+
+    url = "https://secure.splitwise.com/api/v3.0/get_current_user"
+
+    response = session.request("GET", url)
 
     if response.status_code == 200:
         USER_ID = response.json()["user"]["id"]
@@ -130,6 +154,7 @@ def getNotionDatabase(db_id):
 
 def getSplitwiseLastNDays(days: int, split_items_limit: int = SPLIT_LIMIT):
     """
+    @Deprecated: Starting September 2026, access to this API is behind a paywall.
     Get Splitwise items added in the last n days: https://dev.splitwise.com/#tag/expenses/paths/~1get_expenses/get
     :param days: Last n days
     :param split_items_limit: Number of items in splitwise to fetch
@@ -150,13 +175,36 @@ def getSplitwiseLastNDays(days: int, split_items_limit: int = SPLIT_LIMIT):
         raise HTTPError('Invalid Splitwise response', response=response)
 
 
+def getSplitwiseLastNDaysScrape(session, days: int, split_items_limit: int = SPLIT_LIMIT):
+    dated_after = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    url = f"https://secure.splitwise.com/api/v3.0/get_expenses?dated_after={dated_after}&limit={split_items_limit}"
+    response = session.request("GET", url)
+
+    if response.status_code == 200:
+        return response.json()["expenses"]
+    else:
+        raise HTTPError(f'Invalid Splitwise response {response.text}', response=response)
+
+
 def main(days, notiondb, split_items_limit):
     if not days:
         raise ValueError('Days not found')
     if not notiondb:
         raise ValueError('notiondb not found')
 
-    split_items = getSplitwiseLastNDays(days, split_items_limit)
+    session = get_scraping_session(origin_url="https://secure.splitwise.com/")
+
+    # Get the latest value of this from browser. There is a captcha on the login page, so you need to login manually and get the cookie value from browser
+    cookie_header = {
+        'Cookie': os.getenv("SPLITWISE_COOKIE")
+    }
+
+    if not cookie_header['Cookie']:
+        raise ValueError('SPLITWISE_COOKIE not found. Log into the Splitwise website and copy the cookie value from the browser')
+
+    session.headers.update(cookie_header)
+
+    split_items = getSplitwiseLastNDaysScrape(session, days, split_items_limit)
     items = []
     for item in split_items:
         created = parser.parse(item['date'])
@@ -176,7 +224,7 @@ def main(days, notiondb, split_items_limit):
         created = created.astimezone(tz.tzlocal())
         result = [created.strftime("%Y-%m-%d"), name]
         for user in item['users']:
-            if user['user_id'] == get_user_id():
+            if user['user_id'] == get_user_id_scrape(session):
                 result.append(float(user['owed_share'].strip()))
                 items.append(result)
     print('Following records were found from Splitwise')

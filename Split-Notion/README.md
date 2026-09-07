@@ -4,6 +4,13 @@ This works by pulling the expense report from Splitwise and pushing it to Notion
 
 - This creates all the expenses in the staging select option column
 
+> ⚠️ Starting September 2026, the actual API is behind a paywall. The code is in there for reference (but not used).
+> You can still use it if you want to. We shall be using the browser-based session to get the data.
+> The APIs remain the same. We just need to get the session cookie post-authentication.
+> Get the swdid & _splitwise_session cookie from the browser and add that in the `.env` file.
+
+`SPLITWISE_COOKIE=swdid=<cookie>; _splitwise_session=<cookie>`
+
 ## Setup
 - Install tqdm
 - Get the notion db id from db link (the uuid before the `?`)
