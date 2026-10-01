@@ -1,0 +1,20 @@
+audio {
+  width: 100% !important;
+  min-width: 300px;
+  height: 40px;
+}
+
+.mention-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+/* Arrow Icon markers for Leaflet Polyline routes */
+.arrow-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3388ff;
+  font-size: 14px;
+}

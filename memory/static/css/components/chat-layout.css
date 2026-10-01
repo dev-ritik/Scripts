@@ -1,0 +1,119 @@
+.chat-container {
+  background-color: var(--color-received-bg);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.chat-header {
+  padding: 10px 20px;
+  background-color: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  margin: -20px -20px 20px -20px;
+}
+
+/* Dividers */
+.provider-header {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  margin: 15px 0;
+}
+
+.date-divider {
+  text-align: center;
+  font-size: 12px;
+  background-color: #e2e2e2;
+  color: #555;
+  padding: 4px 10px;
+  border-radius: 10px;
+  width: fit-content;
+  margin: 10px auto;
+}
+
+/* Event & Message Row */
+.event {
+  display: flex;
+  align-items: flex-start;
+  margin: 2px 0;
+}
+
+.event:not(.consecutive) {
+  margin-top: 15px;
+}
+
+.event.consecutive {
+  margin-top: 2px !important;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.avatar.hidden,
+.sender-name.hidden {
+  display: none;
+}
+
+/* Message Content Bubbles */
+.message-content {
+  background-color: var(--color-received-bg);
+  padding: 8px 12px;
+  border-radius: var(--radius-message);
+  max-width: 70%;
+  box-shadow: var(--shadow-message);
+  position: relative;
+}
+
+.message-content.consecutive {
+  margin-left: 50px;
+}
+
+.sender-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--color-primary);
+  margin-bottom: 2px;
+}
+
+/* Sent Messages (Right Aligned) */
+.sent-message {
+  flex-direction: row-reverse;
+}
+
+.sent-message .message-content.sent,
+.message-content.consecutive.sent {
+  background-color: var(--color-sent-bg);
+  margin-right: 0;
+  margin-left: auto;
+}
+
+/* Timestamps & Attributes */
+.message-time {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-edited {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.message-deleted {
+  color: #7d8488;
+  font-style: italic;
+}
