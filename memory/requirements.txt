@@ -1,10 +1,10 @@
-flask~=3.0.2
+Flask[async]
 requests
 python-dotenv
 aiofiles
 httpx
 google-auth-oauthlib
 google
-sqlite3
 pdfplumber
 pypdf
+pytz
