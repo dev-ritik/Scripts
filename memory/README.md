@@ -173,6 +173,12 @@ async def merge(new_path='new_data/airtel'):
     await airtel_merger.dump(data, dry_run=True)
 ```
 
+#### Spotify
+- Go to https://www.spotify.com/in-en/account/privacy/
+- Hit the `Extended streaming history`
+- Wait for the email. Download the zip
+- Extract the contents in `data/spotify`
+
 ### Web app setup
 - Run `pip install -r requirements.txt`
 - `python app.py`
