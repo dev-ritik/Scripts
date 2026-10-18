@@ -8,3 +8,4 @@ google
 pdfplumber
 pypdf
 pytz
+pyyaml

@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import os
 import string
 from collections import defaultdict, Counter
@@ -8,14 +9,15 @@ import pandas as pd
 
 import configs
 import init
-from privacy import load_visibility
+from privacy import load_privacy_config, get_current_privacy_rules, validate_rules, resolve_mode_rules, \
+    save_privacy_config, PRIVACY_LOCK
 
 # This should be the first line in the file. It initializes the app.
 init.init()
 
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
 from provider.base_provider import MediaType, MemoryProvider
-from utils import add_caching_to_response
+from utils import add_caching_to_response, json_safe
 
 import mimetypes
 
@@ -23,7 +25,7 @@ import aiofiles
 
 from datetime import datetime, timezone, timedelta
 
-from flask import Flask, render_template, request, send_file, make_response, jsonify, abort
+from flask import Flask, render_template, send_file, make_response, abort
 
 from common import MemoryAggregator
 from profile import get_user_dp, get_profile_json, get_user_profile_from_name, get_all_display_name_regexes_mapping
@@ -419,12 +421,98 @@ async def call_provider_function(provider, function):
     return add_caching_to_response(response)
 
 @app.get("/api/settings")
-def get_settings():
-    return add_caching_to_response(jsonify({
-        "mode": init.MODE,
-        "debug": init.DEBUG,
-        "privacy": load_visibility()
-    }))
+async def get_settings():
+    with PRIVACY_LOCK:
+        config = load_privacy_config()
+        modes = config["modes"]
+
+        return add_caching_to_response(jsonify({
+            "mode": init.MODE,
+            "debug": init.DEBUG,
+            "privacy": modes,
+            "effective_rules": get_current_privacy_rules()
+        }))
+
+
+from flask import request, jsonify
+
+
+@app.put("/api/settings")
+def update_settings():
+    payload = request.get_json(silent=True)
+
+    if not isinstance(payload, dict) or not payload:
+        return jsonify({"error": "Expected a non-empty JSON object"}), 400
+
+    if "debug" not in payload and "mode" not in payload:
+        return jsonify({"error": "Provide 'debug' or 'mode'"}), 400
+
+    if "debug" in payload and type(payload["debug"]) is not bool:
+        return jsonify({"error": "'debug' must be a boolean"}), 400
+
+    with PRIVACY_LOCK:
+        if "mode" in payload:
+            if not isinstance(payload["mode"], str):
+                return jsonify({"error": "'mode' must be a string"}), 400
+
+            config = load_privacy_config()
+            modes = config.get("modes", {})
+
+            if payload["mode"] not in modes:
+                return jsonify({
+                    "error": f"Invalid mode: {payload['mode']}",
+                    "available_modes": list(modes.keys())
+                }), 400
+
+            init.MODE = payload["mode"]
+
+        if "debug" in payload:
+            init.DEBUG = payload["debug"]
+            app.debug = payload["debug"]
+
+        return jsonify({
+            "success": True,
+            "mode": init.MODE,
+            "debug": init.DEBUG
+        })
+
+
+@app.put("/api/settings/modes/<mode>/rules")
+async def update_mode_rules(mode):
+    payload = request.get_json(silent=True) or {}
+
+    if not isinstance(payload.get("hide"), list):
+        return jsonify({"error": "'hide' must be a list"}), 400
+
+    try:
+        with PRIVACY_LOCK:
+            config = load_privacy_config()
+            modes = config.get("modes", {})
+
+            if mode not in modes:
+                return jsonify({"error": "Unknown mode"}), 404
+
+            # Only local rules can be changed.
+            rules = validate_rules(copy.deepcopy(payload["hide"]))
+
+            # Validate the existing inheritance graph before writing.
+            candidate = copy.deepcopy(config)
+            candidate["modes"][mode]["hide"] = rules
+            resolve_mode_rules(candidate["modes"])
+
+            save_privacy_config(candidate)
+
+        return jsonify({
+            "success": True,
+            "mode": mode,
+            "hide": json_safe(rules),
+        })
+
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Failed to save privacy rules")
+        return jsonify({"error": "Failed to save privacy rules"}), 500
 
 @app.route("/settings")
 def settings_page():

@@ -48,9 +48,6 @@ async function loadAppSettings() {
 
         const settings = await response.json();
 
-        document.getElementById("current-mode").textContent =
-            settings.mode;
-
         document.getElementById("debug-mode").textContent =
             settings.debug ? "ON" : "OFF";
 
@@ -58,10 +55,30 @@ async function loadAppSettings() {
     } catch (error) {
         console.error("Failed to load application settings:", error);
 
-        document.getElementById("current-mode").textContent = "ERROR";
         document.getElementById("debug-mode").textContent = "ERROR";
 
         return null;
+    }
+}
+
+async function loadAvailableProviders() {
+    try {
+        const response = await fetch("/available_providers");
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        // API returns a list of [name, logo] tuples.
+        const providers = await response.json();
+
+        return providers.map(([name, logo]) => ({
+            name,
+            logo
+        }));
+    } catch (error) {
+        console.error("Failed to load available providers:", error);
+        return [];
     }
 }
 
@@ -69,3 +86,4 @@ loadAppSettings();
 
 window.loadAppSettings = loadAppSettings;
 window.loadPeople = loadPeople;
+window.loadAvailableProviders = loadAvailableProviders;

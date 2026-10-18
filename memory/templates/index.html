@@ -264,25 +264,24 @@
 
         await renderSenders();
 
-        fetch("/available_providers")
-            .then(r => r.json())
-            .then(providers => {
-                const container = document.getElementById("providersContainer");
-                const urlProvidersParam = getUrlParameter('providers');
-                const selectedProviders = urlProvidersParam ? urlProvidersParam.split(",") : [];
+        const container = document.getElementById("providersContainer");
+        const urlProvidersParam = getUrlParameter('providers');
+        const selectedProviders = urlProvidersParam ? urlProvidersParam.split(",") : [];
 
+        window.loadAvailableProviders()
+            .then(providers => {
                 providers.forEach(provider => {
                     const optionDiv = document.createElement("div");
                     optionDiv.className = "provider-option";
-                    if (selectedProviders.includes(provider)) optionDiv.classList.add("selected");
+                    if (selectedProviders.includes(provider.name)) optionDiv.classList.add("selected");
 
                     const img = document.createElement("img");
                     img.className = "provider-logo";
-                    img.src = provider[1]
+                    img.src = provider.logo
                     img.onerror = () => img.style.display = "none";
 
                     const label = document.createElement("span");
-                    label.textContent = provider[0];
+                    label.textContent = provider.name;
 
                     optionDiv.appendChild(img);
                     optionDiv.appendChild(label);

@@ -3,13 +3,13 @@ import os
 import re
 import tempfile
 from abc import ABC
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
 
 import aiofiles
 
-from privacy import is_hidden
+from privacy import get_current_privacy_rules
 
 
 class MessageType(Enum):
@@ -68,8 +68,32 @@ class Message:
             'formatting': self.formatting
         }
 
-    def is_hidden(self):
-        return is_hidden(self)
+    def is_hidden(self) -> bool:
+        for rule in get_current_privacy_rules():
+            if rule["providers"] != 'all' and self.provider not in rule["providers"]:
+                continue
+
+            start = rule["from"]
+            if isinstance(start, date):
+                start = datetime.combine(start, time(0, 0, 0))
+            else:
+                start = datetime.strptime(
+                    start,
+                    '%Y-%m-%d %H:%M:%S UTC'
+                ).replace(tzinfo=None)
+            end = rule["to"]
+            if isinstance(end, date):
+                end = datetime.combine(end, time(23, 59, 59))
+            else:
+                end = datetime.strptime(
+                    end,
+                    '%Y-%m-%d %H:%M:%S UTC'
+                ).replace(tzinfo=None)
+
+            if start <= self.datetime <= end:
+                return True
+
+        return False
 
     def update_display_name_in_formatted_message(self, name_regexes: Dict[str, str]):
         for formatting in self.formatting:

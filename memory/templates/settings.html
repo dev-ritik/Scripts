@@ -3,462 +3,1040 @@
 {% block title %}Settings & Privacy | Memory Aggregator{% endblock %}
 
 {% block extra_style %}
-
 <style>
     .settings-page {
-        max-width: 700px;
+        max-width: 800px;
         margin: 0 auto;
     }
 
     .settings-header {
-        margin-bottom: 25px;
+        margin-bottom: 24px;
     }
 
     .settings-header h1 {
         margin: 0 0 6px;
         font-size: 26px;
-        color: #222;
     }
 
     .settings-header p {
-        margin: 0;
         color: #666;
         font-size: 14px;
+        margin: 0;
     }
 
     .settings-section {
-        margin-bottom: 25px;
+        margin-bottom: 28px;
     }
 
     .settings-section h2 {
         font-size: 18px;
         margin: 0 0 12px;
-        color: #333;
     }
 
     .settings-card {
+        background: white;
         border: 1px solid #e0e0e0;
-        border-radius: 8px;
+        border-radius: 10px;
         overflow: hidden;
-        background: #fff;
     }
 
     .setting-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 16px;
         padding: 14px 16px;
         border-bottom: 1px solid #eee;
-        gap: 20px;
     }
 
     .setting-row:last-child {
         border-bottom: none;
     }
 
-    .setting-label {
-        color: #555;
-        font-size: 14px;
+    .muted {
+        color: #777;
+        font-size: 13px;
     }
 
-    .setting-value {
-        font-weight: 600;
-        color: #222;
-        text-align: right;
-    }
-
-    .mode-badge {
+    .badge {
         display: inline-block;
-        padding: 5px 10px;
-        border-radius: 6px;
+        padding: 4px 9px;
+        border-radius: 5px;
         background: #e8f5f1;
         color: #008069;
-        font-size: 13px;
+        font-size: 12px;
+        font-weight: 600;
     }
 
-    .debug-badge {
-        display: inline-block;
-        padding: 5px 10px;
-        border-radius: 6px;
-        font-size: 13px;
-    }
-
-    .debug-on {
+    .badge.debug-on {
         background: #fff3cd;
         color: #856404;
     }
 
-    .debug-off {
-        background: #e8f5e9;
-        color: #2e7d32;
+    .mode-card {
+        margin-bottom: 16px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: white;
+        overflow: hidden;
     }
 
-    /* Privacy rules */
-
-    .privacy-rule {
+    .mode-header {
         padding: 16px;
+        background: #fafafa;
         border-bottom: 1px solid #eee;
     }
 
-    .privacy-rule:last-child {
-        border-bottom: none;
-    }
-
-    .rule-header {
+    .mode-title-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        justify-content: space-between;
+        gap: 12px;
     }
 
-    .rule-number {
+    .mode-title {
+        font-size: 17px;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    .mode-parent {
+        margin-top: 5px;
         font-size: 13px;
-        font-weight: 600;
-        color: #666;
-    }
-
-    .read-only-badge {
-        font-size: 11px;
-        padding: 3px 7px;
-        border-radius: 4px;
-        background: #f1f1f1;
         color: #777;
     }
 
-    .rule-details {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+    .mode-body {
+        padding: 16px;
+    }
+
+    .rules-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 10px;
-    }
-
-    .rule-field {
-        background: #f7f7f7;
-        border-radius: 6px;
-        padding: 10px;
-    }
-
-    .rule-field-label {
-        display: block;
-        font-size: 11px;
-        color: #888;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-    }
-
-    .rule-field-value {
-        font-size: 13px;
-        color: #333;
-        word-break: break-word;
-    }
-
-    .provider {
-        display: inline-block;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 3px 6px;
-        margin: 2px 3px 2px 0;
-        font-size: 12px;
-    }
-
-    .empty-state {
-        padding: 25px;
-        text-align: center;
-        color: #888;
+        margin-bottom: 12px;
+        font-weight: 600;
         font-size: 14px;
     }
 
-    .future-note {
-        margin-top: 8px;
+    .rule-card {
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        padding: 13px;
+        margin-bottom: 10px;
+    }
+
+    .rule-card.inherited {
+        background: #fafafa;
+    }
+
+    .rule-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .rule-name {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .rule-source {
+        color: #777;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .rule-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .field {
+        min-width: 0;
+    }
+
+    .field label {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .field input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 13px;
+        background: white;
+    }
+
+    .field input:focus {
+        outline: 2px solid #b7dfd4;
+        border-color: #008069;
+    }
+
+    .rule-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .btn {
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        background: white;
+        color: #333;
+    }
+
+    .btn:hover {
+        background: #f5f5f5;
+    }
+
+    .btn-primary {
+        background: #008069;
+        border-color: #008069;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #006b58;
+        color: white;
+    }
+
+    .btn-danger {
+        color: #b42318;
+        border-color: #e6b8b5;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #888;
+        font-size: 13px;
+        padding: 18px 10px;
+    }
+
+    .inherited-section {
+        margin-top: 16px;
+        border-top: 1px solid #eee;
+        padding-top: 12px;
+    }
+
+    .inherited-section summary {
+        cursor: pointer;
+        color: #666;
+        font-size: 13px;
+    }
+
+    .inherited-rules {
+        margin-top: 12px;
+    }
+
+    .settings-message {
+        display: none;
+        margin-bottom: 16px;
+        padding: 11px 13px;
+        border-radius: 7px;
+        font-size: 13px;
+    }
+
+    .settings-message.success {
+        display: block;
+        background: #e8f5e9;
+        color: #276738;
+    }
+
+    .settings-message.error {
+        display: block;
+        background: #fdecea;
+        color: #a12622;
+    }
+
+    .settings-message.info {
+        display: block;
+        background: #e8f1fb;
+        color: #24558a;
+    }
+
+    .settings-footer {
         font-size: 12px;
         color: #888;
+        margin-top: 8px;
+    }
+
+    .settings-section {
+        margin-bottom: 24px;
+    }
+
+    .setting-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 16px 0;
+        max-width: 420px;
+    }
+
+    .setting-row select {
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font: inherit;
+    }
+
+    .setting-row small {
+        color: #777;
+    }
+
+    #app-settings-status {
+        margin-top: 12px;
     }
 
     @media (max-width: 600px) {
-        .rule-details {
+        .rule-fields {
             grid-template-columns: 1fr;
         }
 
         .setting-row {
             align-items: flex-start;
-            flex-direction: column;
-            gap: 5px;
         }
 
-        .setting-value {
-            text-align: left;
+        .mode-title-row {
+            align-items: flex-start;
         }
     }
 </style>
-
 {% endblock %}
 
 {% block content %}
-
 <div class="settings-page">
 
     <div class="settings-header">
         <h1>Settings & Privacy</h1>
-        <p>Application configuration and privacy rules.</p>
+        <p>Manage privacy rules for each visibility mode.</p>
     </div>
 
+    <div id="settings-message" class="settings-message"
+         role="status" aria-live="polite"></div>
 
-    <!-- Application settings -->
-
-    <div class="settings-section">
-
+    <section class="settings-section">
         <h2>Application</h2>
 
-        <div class="settings-card">
-
-            <div class="setting-row">
-            <span class="setting-label">
-                Current Mode
-            </span>
-
-                <span class="setting-value">
-                <span id="settings-mode" class="mode-badge">
-                    Loading...
-                </span>
-            </span>
-            </div>
-
-
-            <div class="setting-row">
-            <span class="setting-label">
-                Debug
-            </span>
-
-                <span class="setting-value">
-                <span id="settings-debug" class="debug-badge">
-                    Loading...
-                </span>
-            </span>
-            </div>
-
+        <div class="setting-row">
+            <label for="mode-select">Active mode</label>
+            <select id="mode-select">
+                <option value="public">Public</option>
+                <option value="friends">Friends</option>
+                <option value="close_friends">Close Friends</option>
+                <option value="personal">Personal</option>
+                <option value="private">Private</option>
+            </select>
+            <small>Choose which privacy mode is active.</small>
         </div>
 
-    </div>
-
-
-    <!-- Privacy rules -->
-
-    <div class="settings-section">
-
-        <h2>Privacy Rules</h2>
-
-        <div class="settings-card">
-
-            <div id="privacy-rules">
-
-                <div class="empty-state">
-                    Loading privacy rules...
-                </div>
-
-            </div>
-
+        <div class="setting-row">
+            <label for="debug-select">Debug mode</label>
+            <select id="debug-select">
+                <option value="false">Off</option>
+                <option value="true">On</option>
+            </select>
+            <small>Enable or disable debug logging.</small>
         </div>
 
-        <div class="future-note">
-            Privacy rules are currently read-only.
-        </div>
+        <button type="button" id="save-app-settings" class="btn btn-primary">
+            Save settings
+        </button>
 
-    </div>
+        <p id="app-settings-status" role="status"></p>
+    </section>
+
+    <section class="settings-section">
+        <h2>Privacy modes</h2>
+
+        <p class="muted">
+            Modes and inheritance are fixed. Only each mode's own
+            privacy rules can be changed.
+        </p>
+
+        <div id="privacy-modes">
+            <div class="empty-state">Loading privacy configuration...</div>
+        </div>
+    </section>
 
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
+    (() => {
+        "use strict";
 
-    async function loadSettings() {
+        const API_URL = "/api/settings";
 
-        const modeElement =
-            document.getElementById("settings-mode");
+        // This is display order only. Inheritance is read from the API.
+        const MODE_ORDER = [
+            "friends",
+            "close_friends",
+            "personal",
+            "private"
+        ];
 
-        const debugElement =
-            document.getElementById("settings-debug");
+        let originalPrivacy = {};
+        let draftRules = {};
+        let savingModes = new Set();
 
-        const privacyElement =
-            document.getElementById("privacy-rules");
+        const modesContainer = document.getElementById("privacy-modes");
+        const messageElement = document.getElementById("settings-message");
+
+        let availableProviders;
+
+        import("/static/js/utils.js").then(() => {
+            window.loadAvailableProviders().then(providers => {
+                availableProviders = providers;
+                renderAllModes();
+            });
+        });
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, char => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            })[char]);
+        }
+
+        function showMessage(message, type = "info") {
+            messageElement.textContent = message;
+            messageElement.className = `settings-message ${type}`;
+        }
+
+        function clearMessage() {
+            messageElement.textContent = "";
+            messageElement.className = "settings-message";
+        }
+
+        function formatMode(mode) {
+            return mode.replaceAll("_", " ");
+        }
 
 
-        try {
+// Browser-local datetime → UTC string for YAML.
+        function toUTCString(value) {
+            if (!value) return "";
 
-            const response =
-                await fetch("/api/settings");
-
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+            // datetime-local has no timezone; the browser interprets it as local time.
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                throw new Error("Invalid date/time: " + value);
             }
 
-
-            const settings =
-                await response.json();
-
-
-            // Application settings
-
-            modeElement.textContent =
-                settings.mode;
-
-
-            debugElement.textContent =
-                settings.debug ? "ON" : "OFF";
-
-
-            debugElement.classList.remove(
-                "debug-on",
-                "debug-off"
-            );
-
-
-            debugElement.classList.add(
-                settings.debug
-                    ? "debug-on"
-                    : "debug-off"
-            );
-
-
-            // Privacy rules
-
-            renderPrivacyRules(
-                settings.privacy
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Failed to load settings:",
-                error
-            );
-
-
-            modeElement.textContent =
-                "Error";
-
-
-            debugElement.textContent =
-                "Error";
-
-
-            privacyElement.innerHTML = `
-                <div class="empty-state">
-                    Failed to load privacy settings.
-                </div>
-            `;
-
-        }
-
-    }
-
-
-    function renderPrivacyRules(rules) {
-
-        const container =
-            document.getElementById("privacy-rules");
-
-
-        if (!rules || rules.length === 0) {
-
-            container.innerHTML = `
-                <div class="empty-state">
-                    No privacy rules configured.
-                </div>
-            `;
-
-            return;
+            return date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
         }
 
 
-        container.innerHTML =
-            rules.map((rule, index) => {
+        function parseUTCDate(value) {
+            if (!value) return null;
 
-                const providers =
-                    (rule.providers || [])
-                        .map(provider => `
-                            <span class="provider">
-                                ${escapeHtml(provider)}
-                            </span>
-                        `)
-                        .join("");
+            // Expected format: 2026-10-12 18:11:04 UTC
+            const match = String(value).match(
+                /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) UTC$/
+            );
+
+            if (!match) return null;
+
+            const date = new Date(`${match[1]}T${match[2]}Z`);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        function toDateTimeLocal(value) {
+            const date = parseUTCDate(value);
+            if (!date) return "";
+
+            const pad = n => String(n).padStart(2, "0");
+
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+                `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        }
+
+        function formatLocalDateTime(value) {
+            const date = parseUTCDate(value);
+            if (!date) return "";
+
+            return new Intl.DateTimeFormat(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false
+            }).format(date);
+        }
 
 
+        function getProviderNames(rule) {
+            const value = rule.providers;
+
+            if (Array.isArray(value)) {
+                return value.flatMap(v => String(v).split(","))
+                    .map(v => v.trim())
+                    .filter(Boolean);
+            }
+
+            return String(value || "")
+                .split(",")
+                .map(v => v.trim())
+                .filter(Boolean);
+        }
+
+        function getInheritedRules(mode, visited = new Set()) {
+            if (visited.has(mode)) {
+                throw new Error(`Cyclic inheritance detected at ${mode}`);
+            }
+
+            visited.add(mode);
+
+            const definition = originalPrivacy[mode];
+            if (!definition) {
+                throw new Error(`Unknown mode: ${mode}`);
+            }
+
+            const parent = definition.extends;
+            if (!parent) return [];
+
+            const inherited = getInheritedRules(parent, visited).map(item => ({
+                rule: item.rule,
+                source: item.source
+            }));
+
+            const ownRules = draftRules[parent] ?? [];
+
+            return [
+                ...inherited,
+                ...ownRules.map(rule => ({
+                    rule,
+                    source: parent
+                }))
+            ];
+        }
+
+
+        function renderProviderSelect(rule) {
+            const selectedProviders = getProviderNames(rule);
+            if (availableProviders === undefined) {
+                return
+            }
+
+            const availableNames = new Set(
+                availableProviders.map(p => p.name)
+            );
+
+            // Preserve legacy providers that are not returned by the API.
+            const legacyProviders = selectedProviders.filter(
+                name => !availableNames.has(name)
+            );
+
+            const options = [
+                ...legacyProviders.map(name => ({
+                    name,
+                    legacy: true
+                })),
+                ...availableProviders.map(p => ({
+                    name: p.name,
+                    logo: p.logo,
+                    legacy: false
+                }))
+            ];
+
+            return `
+                <select data-field="providers" multiple size="5"
+                        aria-label="Select providers">
+                    ${options.map(provider => `
+                        <option
+                            value="${escapeHtml(provider.name)}"
+                            ${selectedProviders.includes(provider.name) ? "selected" : ""}
+                            ${provider.legacy ? 'data-legacy="true"' : ""}
+                        >
+                            ${escapeHtml(provider.name)}${provider.legacy ? " (unavailable)" : ""}
+                        </option>
+                    `).join("")}
+                </select>
+                <small>Select one or more providers. Use Ctrl (or Cmd on Mac)
+                to select multiple options. Unavailable existing providers are preserved.</small>
+            `;
+        }
+
+        function renderRule(rule, index, mode, inherited = false, source = "") {
+            const providers = getProviderNames(rule);
+
+            if (inherited) {
                 return `
-                    <div class="privacy-rule">
-
-                        <div class="rule-header">
-
-                            <span class="rule-number">
-                                Rule ${index + 1}
-                            </span>
-
-                            <span class="read-only-badge">
-                                Read only
-                            </span>
-
+                <div class="rule-card inherited">
+                    <div class="rule-top">
+                        <div>
+                            <div class="rule-name">
+                                ${escapeHtml(providers || "All providers")}
+                            </div>
+                            <div class="rule-source">
+                                Inherited from ${escapeHtml(formatMode(source))}
+                            </div>
                         </div>
-
-
-                        <div class="rule-details">
-
-                            <div class="rule-field">
-
-                                <span class="rule-field-label">
-                                    Providers
-                                </span>
-
-                                <div class="rule-field-value">
-                                    ${providers || "All providers"}
-                                </div>
-
-                            </div>
-
-
-                            <div class="rule-field">
-
-                                <span class="rule-field-label">
-                                    From
-                                </span>
-
-                                <span class="rule-field-value">
-                                    ${escapeHtml(rule.from || "—")}
-                                </span>
-
-                            </div>
-
-
-                            <div class="rule-field">
-
-                                <span class="rule-field-label">
-                                    To
-                                </span>
-
-                                <span class="rule-field-value">
-                                    ${escapeHtml(rule.to || "—")}
-                                </span>
-
-                            </div>
-
-                        </div>
-
+                        <span class="badge">Read only</span>
                     </div>
-                `;
 
-            })
+                    <div class="rule-fields">
+                        <div class="field">
+                            <label>From</label>
+                            <input readonly value="${escapeHtml(formatLocalDateTime(rule.from))}">
+                        </div>
+                        <div class="field">
+                            <label>To</label>
+                            <input readonly value="${escapeHtml(formatLocalDateTime(rule.to))}">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+            return `
+            <div class="rule-card" data-mode="${escapeHtml(mode)}"
+                 data-rule-index="${index}">
+
+                <div class="rule-top">
+                    <div class="rule-name">
+                        ${escapeHtml(providers || "New rule")}
+                    </div>
+                    <span class="badge">Local rule</span>
+                </div>
+
+                <div class="rule-fields">
+                    <div class="field">
+                        <label>Providers</label>
+                        ${renderProviderSelect(rule)}
+                    </div>
+
+                    <div class="field">
+                        <label>From</label>
+                        <input type="datetime-local" step="1"
+                               data-field="from"
+                               value="${escapeHtml(toDateTimeLocal(rule.from))}">
+                    </div>
+
+                    <div class="field">
+                        <label>To</label>
+                        <input type="datetime-local" step="1"
+                               data-field="to"
+                               value="${escapeHtml(toDateTimeLocal(rule.to))}">
+                    </div>
+                </div>
+
+                <div class="rule-actions">
+                    <button type="button" class="btn btn-danger"
+                            data-action="delete-rule"
+                            data-mode="${escapeHtml(mode)}"
+                            data-index="${index}">
+                        Remove
+                    </button>
+                </div>
+            </div>
+        `;
+        }
+
+        function renderMode(mode) {
+            const definition = originalPrivacy[mode];
+            const rules = draftRules[mode] ?? [];
+            const parent = definition.extends;
+
+            let inherited = [];
+
+            try {
+                inherited = getInheritedRules(mode);
+            } catch (error) {
+                console.error(error);
+            }
+
+            const inheritedHtml = inherited.length
+                ? inherited.map(item =>
+                    renderRule(item.rule, -1, mode, true, item.source)
+                ).join("")
+                : `<div class="empty-state">No inherited rules.</div>`;
+
+            const ownRulesHtml = rules.length
+                ? rules.map((rule, index) =>
+                    renderRule(rule, index, mode)
+                ).join("")
+                : `<div class="empty-state">No local privacy rules.</div>`;
+
+            const isSaving = savingModes.has(mode);
+
+            return `
+            <article class="mode-card" data-mode-card="${escapeHtml(mode)}">
+                <header class="mode-header">
+                    <div class="mode-title-row">
+                        <div class="mode-title">
+                            ${escapeHtml(formatMode(mode))}
+                        </div>
+                        <span class="badge">
+                            ${rules.length} local rule${rules.length === 1 ? "" : "s"}
+                        </span>
+                    </div>
+
+                    <div class="mode-parent">
+                        ${parent
+                ? `Inherits from ${escapeHtml(formatMode(parent))}`
+                : "No parent mode"}
+                    </div>
+                </header>
+
+                <div class="mode-body">
+                    <div class="rules-heading">
+                        <span>Own privacy rules</span>
+                        <button type="button" class="btn"
+                                data-action="add-rule"
+                                data-mode="${escapeHtml(mode)}">
+                            + Add rule
+                        </button>
+                    </div>
+
+                    <div class="local-rules">
+                        ${ownRulesHtml}
+                    </div>
+
+                    <div class="rule-actions">
+                        <button type="button" class="btn"
+                                data-action="reset-mode"
+                                data-mode="${escapeHtml(mode)}"
+                                ${isSaving ? "disabled" : ""}>
+                            Discard changes
+                        </button>
+
+                        <button type="button" class="btn btn-primary"
+                                data-action="save-mode"
+                                data-mode="${escapeHtml(mode)}"
+                                ${isSaving ? "disabled" : ""}>
+                            ${isSaving ? "Saving..." : "Save changes"}
+                        </button>
+                    </div>
+
+                    <details class="inherited-section">
+                        <summary>
+                            Inherited rules (${inherited.length})
+                        </summary>
+                        <div class="inherited-rules">
+                            ${inheritedHtml}
+                        </div>
+                    </details>
+                </div>
+            </article>
+        `;
+        }
+
+        function renderAllModes() {
+            modesContainer.innerHTML = MODE_ORDER
+                .filter(mode => originalPrivacy[mode])
+                .map(renderMode)
                 .join("");
 
-    }
+            // Preserve support for additional modes without making them editable
+            // through the fixed ordering list.
+            const additionalModes = Object.keys(originalPrivacy)
+                .filter(mode => !MODE_ORDER.includes(mode));
 
+            if (additionalModes.length) {
+                modesContainer.insertAdjacentHTML(
+                    "beforeend",
+                    `<p class="muted">
+                    Additional modes not shown: ${
+                        additionalModes.map(escapeHtml).join(", ")
+                    }
+                </p>`
+                );
+            }
+        }
 
-    function escapeHtml(value) {
-        const div = document.createElement("div");
-        div.textContent = value;
-        return div.innerHTML;
-    }
+        function collectModeRules(mode) {
+            const card = modesContainer.querySelector(
+                `[data-mode-card="${CSS.escape(mode)}"]`
+            );
 
+            if (!card) return;
+
+            const cards = card.querySelectorAll(
+                ".local-rules .rule-card[data-rule-index]"
+            );
+
+            const rules = [];
+
+            for (const ruleCard of cards) {
+                const providers = Array.from(
+                    ruleCard.querySelector('[data-field="providers"]').selectedOptions,
+                    option => option.value
+                );
+
+                const fromValue =
+                    ruleCard.querySelector('[data-field="from"]').value;
+
+                const toValue =
+                    ruleCard.querySelector('[data-field="to"]').value;
+
+                rules.push({
+                    providers: providers,
+                    from: toUTCString(fromValue),
+                    to: toUTCString(toValue)
+                });
+            }
+
+            draftRules[mode] = rules;
+        }
+
+        function validateModeRules(rules) {
+            for (const [index, rule] of rules.entries()) {
+                if (!rule.providers.length) {
+                    throw new Error(`Rule ${index + 1}: add at least one provider.`);
+                }
+
+                if (!rule.from || !rule.to) {
+                    throw new Error(`Rule ${index + 1}: both dates are required.`);
+                }
+
+                // datetime-local uses local wall-clock values. Compare the
+                // canonical strings, which are in YYYY-MM-DD HH:MM:SS format.
+                if (rule.from >= rule.to) {
+                    throw new Error(
+                        `Rule ${index + 1}: "From" must be earlier than "To".`
+                    );
+                }
+            }
+        }
+
+        async function saveMode(mode) {
+            collectModeRules(mode);
+
+            try {
+                validateModeRules(draftRules[mode]);
+            } catch (error) {
+                showMessage(error.message, "error");
+                return;
+            }
+
+            savingModes.add(mode);
+            renderAllModes();
+            showMessage(`Saving ${formatMode(mode)} rules...`, "info");
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/modes/${encodeURIComponent(mode)}/rules`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            hide: draftRules[mode]
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || `HTTP ${response.status}`);
+                }
+
+                // Refresh from the server to ensure local state matches YAML.
+                await loadSettings(false);
+                showMessage(
+                    `${formatMode(mode)} rules saved successfully.`,
+                    "success"
+                );
+
+            } catch (error) {
+                console.error("Failed to save rules:", error);
+                showMessage(`Could not save rules: ${error.message}`, "error");
+
+            } finally {
+                savingModes.delete(mode);
+                renderAllModes();
+            }
+        }
+
+        async function loadSettings(showLoading = true) {
+            if (showLoading) {
+                modesContainer.innerHTML =
+                    `<div class="empty-state">Loading privacy configuration...</div>`;
+            }
+
+            try {
+                const response = await fetch(API_URL, {
+                    cache: "no-store"
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const settings = await response.json();
+
+                const modeSelect = document.getElementById("mode-select");
+                const debugSelect = document.getElementById("debug-select");
+                const saveSettingsButton = document.getElementById("save-app-settings");
+                const settingsStatus = document.getElementById("app-settings-status");
+
+                modeSelect.value = settings.mode;
+                debugSelect.value = String(Boolean(settings.debug));
+
+                saveSettingsButton.addEventListener("click", async () => {
+                    saveSettingsButton.disabled = true;
+                    settingsStatus.textContent = "Saving...";
+
+                    try {
+                        const response = await fetch("/api/settings", {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                mode: modeSelect.value,
+                                debug: debugSelect.value === "true"
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(result.error || "Failed to save settings");
+                        }
+
+                        settingsStatus.textContent = "Settings saved successfully.";
+                    } catch (error) {
+                        settingsStatus.textContent = error.message;
+                    } finally {
+                        saveSettingsButton.disabled = false;
+                    }
+                });
+
+                settingsStatus.textContent = "";
+
+                originalPrivacy = settings.privacy ?? {};
+                draftRules = {};
+
+                for (const [mode, definition] of Object.entries(originalPrivacy)) {
+                    draftRules[mode] = structuredClone(definition.hide ?? []);
+                }
+
+                renderAllModes();
+
+            } catch (error) {
+                console.error("Failed to load settings:", error);
+                modesContainer.innerHTML =
+                    `<div class="empty-state">Failed to load privacy settings.</div>`;
+                showMessage(`Could not load settings: ${error.message}`, "error");
+            }
+        }
+
+        modesContainer.addEventListener("click", async event => {
+            const button = event.target.closest("[data-action]");
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const mode = button.dataset.mode;
+
+            if (!mode || savingModes.has(mode)) return;
+
+            clearMessage();
+
+            // Capture current input values before rerendering.
+            collectModeRules(mode);
+
+            if (action === "add-rule") {
+                draftRules[mode].push({
+                    providers: [],
+                    from: "",
+                    to: ""
+                });
+
+                renderAllModes();
+
+            } else if (action === "delete-rule") {
+                const index = Number(button.dataset.index);
+
+                if (!Number.isInteger(index) ||
+                    index < 0 ||
+                    index >= draftRules[mode].length) {
+                    return;
+                }
+
+                if (!confirm("Remove this rule? Save changes to persist the removal.")) {
+                    return;
+                }
+
+                draftRules[mode].splice(index, 1);
+                renderAllModes();
+
+            } else if (action === "reset-mode") {
+                if (!confirm("Discard all unsaved changes for this mode?")) {
+                    return;
+                }
+
+                const response = await fetch(API_URL, {cache: "no-store"});
+                if (!response.ok) {
+                    showMessage("Could not reload settings from the server.", "error");
+                    return;
+                }
+
+                const settings = await response.json();
+                originalPrivacy = settings.privacy ?? {};
+
+                draftRules[mode] = structuredClone(
+                    originalPrivacy[mode]?.hide ?? []
+                );
+
+                renderAllModes();
+                showMessage("Unsaved changes discarded.", "info");
+
+            } else if (action === "save-mode") {
+                await saveMode(mode);
+            }
+        });
+
+        // Keep drafts synchronized with input changes without rebuilding the DOM.
+        modesContainer.addEventListener("input", event => {
+            const card = event.target.closest("[data-mode-card]");
+            if (!card) return;
+
+            const mode = card.dataset.modeCard;
+            collectModeRules(mode);
+
+            const ruleCard = event.target.closest(".rule-card");
+            if (ruleCard) {
+                const name = ruleCard.querySelector(".rule-name");
+                const providersInput =
+                    ruleCard.querySelector('[data-field="providers"]');
+
+                if (name && providersInput) {
+                    name.textContent = providersInput.value.trim() || "New rule";
+                }
+            }
+        });
 
     loadSettings();
-
+    })();
 </script>
-
 {% endblock %}

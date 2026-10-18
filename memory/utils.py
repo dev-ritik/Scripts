@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import date, datetime, timezone
 from typing import List, Coroutine, Any
 
 import httpx
@@ -107,3 +108,28 @@ def str_to_bool(value: str) -> bool:
     if not value:
         return False
     return value.lower() in ("true", "1", "yes", "on")
+
+
+def json_safe(value):
+    """Convert YAML date/datetime values to JSON-friendly strings."""
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [json_safe(v) for v in value]
+    return value
+
+
+def parse_utc(value):
+    value = value.strip()
+
+    if value.endswith(" UTC"):
+        value = value[:-4] + "+00:00"
+
+    dt = datetime.fromisoformat(value.replace(" ", "T"))
+
+    if dt.tzinfo is None:
+        raise ValueError("Timestamp must include a timezone")
+
+    return dt.astimezone(timezone.utc)
