@@ -645,6 +645,19 @@ class SpotifyProvider(MemoryProvider):
                 if not description:
                     continue
 
+                # TODO: Use the below code to support links
+                # uri = SpotifyProvider.clean(
+                #                 row.get("spotify_episode_uri") if is_podcast
+                #                 else row.get("spotify_track_uri")
+
+                #     function spotifyLink(uri) {
+                #         if (!uri || !/^spotify:(track|episode):[A-Za-z0-9]+$/.test(uri)) {
+                #             return null;
+                #         }
+                #         return "https://open.spotify.com/" +
+                #             uri.replace("spotify:", "").replace(":", "/");
+                #     }
+
                 description = f"🎵 {description}"
 
                 memories.append(

@@ -26,9 +26,10 @@ class MediaType(Enum):
 
 
 class FormattingType(Enum):
+    # TODO: Support links
     BOLD = 'bold'
     ITALIC = 'italic'
-    UNDERLINE = 'mention'
+    UNDERLINE = 'underline'
     STRIKETHROUGH = 'strikethrough'
     CODE = 'code'
     MENTION = 'mention'

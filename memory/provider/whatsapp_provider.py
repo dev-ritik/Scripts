@@ -62,9 +62,9 @@ class WhatsAppProvider(MemoryProvider):
     BIDI_CHARS_CLASS = r'\u2066-\u2069\u200e\u200f'
 
     # Regex to capture syntax and entities in a raw string (used in compile)
-    # Group 1 captures standard mentions or unicode-wrapped bidi mentions: e.g. @\u2068Ritik Surname\u2069 or @John
+    # Group 1 captures standard mentions or unicode-wrapped bidi mentions: e.g. @\u2068Ritik Surname\u2069
     TOKEN_RE = re.compile(
-        rf'(@[{BIDI_CHARS_CLASS}][^{BIDI_CHARS_CLASS}@*~_`\n]+[{BIDI_CHARS_CLASS}]|@\w+)|'  # Group 1: Mentions
+        rf'(@[{BIDI_CHARS_CLASS}][^{BIDI_CHARS_CLASS}@*~_`\n]+[{BIDI_CHARS_CLASS}])|'  # Group 1: Mentions
         r'\*(.*?)\*|'  # Group 2: Bold
         r'_(.*?)_|'  # Group 3: Italic
         r'~(.*?)~|'  # Group 4: Strikethrough
@@ -106,7 +106,7 @@ class WhatsAppProvider(MemoryProvider):
 
         # 1. Identify Mentions (Bidi-wrapped and normal) in the raw string first
         mention_pattern = re.compile(
-            rf'@([{WhatsAppProvider.BIDI_CHARS_CLASS}])[^{WhatsAppProvider.BIDI_CHARS_CLASS}@*~_`\n]+([{WhatsAppProvider.BIDI_CHARS_CLASS}])|@\w+'
+            rf'@([{WhatsAppProvider.BIDI_CHARS_CLASS}])[^{WhatsAppProvider.BIDI_CHARS_CLASS}@*~_`\n]+([{WhatsAppProvider.BIDI_CHARS_CLASS}])'
         )
 
         for m in mention_pattern.finditer(text):
