@@ -17,7 +17,7 @@ init.init()
 
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
 from provider.base_provider import MediaType, MemoryProvider
-from utils import add_caching_to_response, json_safe
+from utils import add_caching_to_response, json_safe, run_function
 
 import mimetypes
 
@@ -414,7 +414,10 @@ async def call_provider_function(provider, function):
     kwargs = request.args.to_dict()
 
     try:
-        response = await getattr(provider_instance, function)(**kwargs)
+        response = await run_function(
+            getattr(provider_instance, function),
+            **kwargs,
+        )
     except TypeError as e:
         return jsonify({"error": f"Invalid arguments provided: {str(e)}"}), 400
 

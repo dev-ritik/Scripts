@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+
+{% block title %}Home | Spotify Insights{% endblock %}
+
+{% block extra_style %}
+<style>
+    :root {
+        --spotify-green: #1ed760;
+        --spotify-bg: #121212;
+        --spotify-panel: #242424;
+        --spotify-panel-hover: #2e2e2e;
+        --spotify-muted: #b3b3b3;
+    }
+
+    .spotify-dashboard {
+        max-width: 1450px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--spotify-muted);
+    }
+
+    .spotify-dashboard h1,
+    .spotify-dashboard h2,
+    .spotify-dashboard h3 {
+        color: var(--text-color, inherit);
+    }
+
+    .spotify-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .spotify-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .spotify-brand h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 3vw, 2.3rem);
+    }
+
+    .spotify-subtitle {
+        margin: 0.3rem 0 0;
+        color: var(--spotify-muted);
+    }
+
+    .spotify-filter {
+        background: var(--spotify-panel);
+        border-radius: 16px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 1rem;
+    }
+
+    .spotify-filter .filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .spotify-filter label {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .spotify-dashboard select,
+    .spotify-dashboard input[type="date"],
+    .spotify-dashboard button {
+        padding: 0.65rem 0.85rem;
+        border-radius: 9px;
+        border: 1px solid #444;
+        background: #181818;
+        color: #fff;
+        font: inherit;
+    }
+
+    .spotify-dashboard button {
+        cursor: pointer;
+        font-weight: 700;
+    }
+
+    .spotify-dashboard button.primary {
+        background: var(--spotify-green);
+        color: #000;
+        border-color: var(--spotify-green);
+    }
+
+    .spotify-dashboard button:hover {
+        filter: brightness(1.1);
+    }
+
+    #customDateInputs {
+        display: none;
+        align-items: end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .spotify-section {
+        margin: 2rem 0;
+    }
+
+    .spotify-section > h2 {
+        margin-bottom: 1rem;
+        font-size: 1.45rem;
+    }
+
+    .spotify-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .spotify-card {
+        background: var(--spotify-panel);
+        border-radius: 14px;
+        padding: 1.15rem;
+        min-width: 0;
+    }
+
+    .spotify-card .metric-label {
+        color: var(--spotify-muted);
+        font-size: 0.9rem;
+    }
+
+    .spotify-card .metric-value {
+        color: #fff;
+        font-size: clamp(1.35rem, 2.2vw, 2rem);
+        font-weight: 800;
+        margin-top: 0.5rem;
+        overflow-wrap: anywhere;
+    }
+
+    .spotify-card .metric-detail {
+        color: var(--spotify-muted);
+        font-size: 0.82rem;
+        margin-top: 0.45rem;
+    }
+
+    .spotify-card.highlight {
+        background: linear-gradient(135deg, #176b3a, #242424 75%);
+    }
+
+    .spotify-panels {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .spotify-panel {
+        background: var(--spotify-panel);
+        border-radius: 14px;
+        padding: 1.2rem;
+        min-width: 0;
+    }
+
+    .spotify-panel h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+    }
+
+    .spotify-chart {
+        height: 300px;
+        position: relative;
+    }
+
+    .spotify-chart canvas {
+        max-width: 100%;
+    }
+
+    .spotify-ranking {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+
+    .spotify-ranking-row {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 0.65rem;
+        border-radius: 8px;
+    }
+
+    .spotify-ranking-row:hover {
+        background: var(--spotify-panel-hover);
+    }
+
+    .spotify-rank {
+        color: var(--spotify-muted);
+        text-align: center;
+    }
+
+    .spotify-track-name {
+        color: #fff;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+    .spotify-track-subtitle {
+        color: var(--spotify-muted);
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .spotify-track-stat {
+        text-align: right;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .spotify-track-stat strong {
+        display: block;
+        color: #fff;
+    }
+
+    .spotify-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .spotify-tabs button {
+        border-radius: 30px;
+        padding: 0.5rem 0.9rem;
+    }
+
+    .spotify-tabs button.active {
+        background: var(--spotify-green);
+        color: #000;
+        border-color: var(--spotify-green);
+    }
+
+    .spotify-empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: var(--spotify-muted);
+    }
+
+    .spotify-status {
+        margin: 1rem 0;
+        color: var(--spotify-muted);
+    }
+
+    .spotify-status.error {
+        color: #ff8a80;
+    }
+
+    .spotify-heatmap {
+        display: grid;
+        grid-template-columns: 50px repeat(24, minmax(8px, 1fr));
+        gap: 3px;
+        overflow-x: auto;
+        align-items: center;
+    }
+
+    .heatmap-label {
+        font-size: 0.72rem;
+        color: var(--spotify-muted);
+        text-align: right;
+        padding-right: 0.35rem;
+    }
+
+    .heatmap-cell {
+        height: 17px;
+        min-width: 8px;
+        border-radius: 3px;
+        background: #292929;
+    }
+
+    .heatmap-hour {
+        font-size: 0.65rem;
+        text-align: center;
+        color: var(--spotify-muted);
+    }
+
+    .spotify-table-wrap {
+        overflow-x: auto;
+    }
+
+    .spotify-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .spotify-table th,
+    .spotify-table td {
+        padding: 0.8rem;
+        text-align: left;
+        border-bottom: 1px solid #383838;
+    }
+
+    .spotify-table th {
+        color: var(--spotify-muted);
+        font-size: 0.85rem;
+    }
+
+    .spotify-table td {
+        color: #fff;
+    }
+
+    .spotify-dashboard a {
+        color: var(--spotify-green);
+        text-decoration: none;
+    }
+
+    .spotify-dashboard a:hover {
+        text-decoration: underline;
+    }
+
+    @media (max-width: 1000px) {
+        .spotify-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 650px) {
+        .spotify-dashboard {
+            padding: 0.75rem;
+        }
+
+        .spotify-panels {
+            grid-template-columns: 1fr;
+        }
+
+        .spotify-grid {
+            gap: 0.65rem;
+        }
+
+        .spotify-card {
+            padding: 0.85rem;
+        }
+
+        .spotify-chart {
+            height: 250px;
+        }
+    }
+
+
+    /* Spotify dashboard: explicit dark theme */
+    .spotify-dashboard {
+        --spotify-green: #1ed760;
+        --spotify-bg: #121212;
+        --spotify-panel: #242424;
+        --spotify-panel-hover: #333333;
+        --spotify-muted: #c5c5c5;
+
+        background: var(--spotify-bg);
+        color: #f5f5f5;
+        border-radius: 16px;
+        min-height: 100vh;
+        padding: 1.5rem;
+        color-scheme: dark;
+    }
+
+    .spotify-dashboard h1,
+    .spotify-dashboard h2,
+    .spotify-dashboard h3,
+    .spotify-dashboard .metric-value,
+    .spotify-dashboard .spotify-track-name,
+    .spotify-dashboard .spotify-track-stat strong {
+        color: #ffffff;
+    }
+
+    .spotify-dashboard .spotify-subtitle,
+    .spotify-dashboard .metric-label,
+    .spotify-dashboard .metric-detail,
+    .spotify-dashboard .spotify-track-subtitle,
+    .spotify-dashboard .spotify-rank,
+    .spotify-dashboard .spotify-status,
+    .spotify-dashboard .heatmap-label,
+    .spotify-dashboard .heatmap-hour {
+        color: #c5c5c5;
+    }
+
+    .spotify-dashboard .spotify-card,
+    .spotify-dashboard .spotify-panel {
+        background-color: #242424;
+        color: #ffffff;
+        border: 1px solid #383838;
+    }
+
+    .spotify-dashboard .spotify-card.highlight {
+        background: linear-gradient(135deg, #174b30, #242424 85%);
+        border-color: #286744;
+    }
+
+    .spotify-dashboard select,
+    .spotify-dashboard input[type="date"] {
+        background-color: #181818;
+        color: #ffffff;
+        border: 1px solid #686868;
+        color-scheme: dark;
+    }
+
+    .spotify-dashboard select:focus,
+    .spotify-dashboard input[type="date"]:focus {
+        outline: 2px solid #1ed760;
+        outline-offset: 2px;
+        border-color: #1ed760;
+    }
+
+    .spotify-dashboard button {
+        background: #333333;
+        color: #ffffff;
+        border: 1px solid #666666;
+    }
+
+    .spotify-dashboard button.primary,
+    .spotify-dashboard .spotify-tabs button.active {
+        background: #1ed760;
+        color: #000000;
+        border-color: #1ed760;
+    }
+
+    .spotify-dashboard .spotify-ranking-row:hover {
+        background-color: #333333;
+    }
+
+    .spotify-dashboard .spotify-table th,
+    .spotify-dashboard .spotify-table td {
+        border-bottom-color: #454545;
+    }
+
+    .spotify-dashboard .spotify-table th {
+        color: #c5c5c5;
+    }
+
+    .spotify-dashboard .spotify-table td {
+        color: #ffffff;
+    }
+
+    .spotify-dashboard a {
+        color: #4de780;
+    }
+
+    .spotify-dashboard a:focus-visible,
+    .spotify-dashboard button:focus-visible {
+        outline: 2px solid #ffffff;
+        outline-offset: 3px;
+    }
+
+    .spotify-dashboard .heatmap-cell {
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .spotify-dashboard .spotify-empty {
+        color: #c5c5c5;
+    }
+
+    /* Keep chart text legible against the dark panels */
+    .spotify-dashboard canvas {
+        color: #ffffff;
+    }
+
+    @media (max-width: 650px) {
+        .spotify-dashboard {
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="spotify-dashboard">
+    <header class="spotify-header">
+        <div class="spotify-brand">
+            <div>
+                <h1>Spotify Insights</h1>
+                <p class="spotify-subtitle">
+                    Your listening history, visualized.
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <div class="spotify-filter">
+        <div class="filter-field">
+            <label for="range">Date range</label>
+            <select id="range">
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+                <option value="all" selected>All Time</option>
+                {% for year in range(2026, 2019, -1) %}
+                <option value="{{ year }}">{{ year }}</option>
+                {% endfor %}
+                <option value="custom">Custom Range</option>
+            </select>
+        </div>
+
+        <div id="customDateInputs">
+            <div class="filter-field">
+                <label for="fromDate">From</label>
+                <input type="date" id="fromDate">
+            </div>
+            <div class="filter-field">
+                <label for="toDate">To</label>
+                <input type="date" id="toDate">
+            </div>
+            <button id="applyCustomRange" class="primary">Apply</button>
+        </div>
+
+        <div id="rangeLabel" style="margin-left:auto"></div>
+    </div>
+
+    <div id="spotifyStatus" class="spotify-status">
+        Loading your listening history...
+    </div>
+
+    <section class="spotify-section">
+        <h2>Your Listening Wrapped</h2>
+        <div class="spotify-grid">
+            <div class="spotify-card highlight">
+                <div class="metric-label">Total listening time</div>
+                <div class="metric-value" id="listeningHours">—</div>
+                <div class="metric-detail">Hours of music and podcasts</div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Unique tracks</div>
+                <div class="metric-value" id="uniqueTracks">—</div>
+                <div class="metric-detail" id="trackPlays">—</div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Artists discovered</div>
+                <div class="metric-value" id="uniqueArtists">—</div>
+                <div class="metric-detail">Unique artists in this period</div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Unique albums</div>
+                <div class="metric-value" id="uniqueAlbums">—</div>
+                <div class="metric-detail">Albums represented in your history</div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Average listening per active day</div>
+                <div class="metric-value" id="averageDaily">—</div>
+                <div class="metric-detail">Minutes per day with listening</div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Longest listening streak</div>
+                <div class="metric-value" id="longestStreak">—</div>
+                <div class="metric-detail">Consecutive active calendar days</div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Most active day</div>
+                <div class="metric-value" id="mostActiveDay">—</div>
+                <div class="metric-detail" id="mostActiveMinutes"></div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Skipped tracks</div>
+                <div class="metric-value" id="skipRate">—</div>
+                <div class="metric-detail" id="skipCount">—</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="spotify-section">
+        <h2>Your favorites</h2>
+        <div class="spotify-grid">
+            <div class="spotify-card highlight">
+                <div class="metric-label">Top track</div>
+                <div class="metric-value" id="wrappedTrack">—</div>
+                <div class="metric-detail" id="wrappedTrackDetail"></div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Top artist</div>
+                <div class="metric-value" id="wrappedArtist">—</div>
+                <div class="metric-detail" id="wrappedArtistDetail"></div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Top album</div>
+                <div class="metric-value" id="wrappedAlbum">—</div>
+                <div class="metric-detail" id="wrappedAlbumDetail"></div>
+            </div>
+            <div class="spotify-card">
+                <div class="metric-label">Longest session</div>
+                <div class="metric-value" id="longestSession">—</div>
+                <div class="metric-detail" id="longestSessionDetail"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="spotify-section">
+        <h2>Listening habits & trends</h2>
+        <div class="spotify-panels">
+            <div class="spotify-panel">
+                <h3>Listening over time</h3>
+                <div class="spotify-chart">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+            <div class="spotify-panel">
+                <h3>Daily listening activity</h3>
+                <div class="spotify-chart">
+                    <canvas id="dailyChart"></canvas>
+                </div>
+            </div>
+            <div class="spotify-panel">
+                <h3>When do you listen?</h3>
+                <div class="spotify-chart">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+            <div class="spotify-panel">
+                <h3>Weekday vs weekend</h3>
+                <div class="spotify-chart">
+                    <canvas id="weekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="spotify-panel" style="margin-top:1rem">
+            <h3>Listening activity heatmap</h3>
+            <p class="spotify-subtitle">
+                Rows are weekdays; columns are hours of the day.
+            </p>
+            <div id="listeningHeatmap" class="spotify-heatmap"></div>
+        </div>
+    </section>
+
+    <section class="spotify-section">
+        <h2>Top songs, artists & albums</h2>
+
+        <div class="spotify-panel">
+            <div class="spotify-tabs">
+                <button class="active" data-ranking="tracks">Top Songs</button>
+                <button data-ranking="artists">Top Artists</button>
+                <button data-ranking="albums">Top Albums</button>
+                <button data-ranking="skipped">Most Skipped</button>
+            </div>
+
+            <div class="spotify-tabs">
+                <button class="active" data-sort="ms_played">Listening time</button>
+                <button data-sort="play_count">Play count</button>
+            </div>
+
+            <div id="spotifyRanking" class="spotify-ranking"></div>
+        </div>
+    </section>
+
+    <section class="spotify-section">
+        <h2>Longest listening sessions</h2>
+        <div class="spotify-panel spotify-table-wrap">
+            <table class="spotify-table">
+                <thead>
+                <tr>
+                    <th>Started</th>
+                    <th>Ended</th>
+                    <th>Plays</th>
+                    <th>Listening time</th>
+                    <th>Top artist</th>
+                </tr>
+                </thead>
+                <tbody id="sessionsTable"></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/spotify.js') }}"></script>
+{% endblock %}

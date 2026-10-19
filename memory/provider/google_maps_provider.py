@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
+from configs import MINIMUM_DATE, MAXIMUM_DATE
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
 from provider.google_maps_merge_helper import GoogleMapsParser, LocationItem
 from utils import human_duration
@@ -16,8 +17,8 @@ class GoogleMapsProvider(MemoryProvider):
         return self.is_working()
 
     async def get_location_clustering(self, **kwargs):
-        all_memories = await self.fetch(start_date=MemoryProvider.MINIMUM_DATE.date(),
-                                        end_date=MemoryProvider.MAXIMUM_DATE.date(),
+        all_memories = await self.fetch(start_date=MINIMUM_DATE.date(),
+                                        end_date=MAXIMUM_DATE.date(),
                                         )
 
         import numpy as np

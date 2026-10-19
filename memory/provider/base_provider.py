@@ -109,8 +109,6 @@ class MemoryProvider(ABC):
     NAME = None
     SYSTEM = 'system'
     UNKNOWN = 'unknown'
-    MINIMUM_DATE = datetime(2000, 1, 1)
-    MAXIMUM_DATE = datetime(2050, 1, 1)
     DATA_PATH = None
     WORKING = True
 

@@ -307,7 +307,7 @@
             }
 
             // Constructing structural API Target url
-            const apiUrl = `http://127.0.0.1:5000/Diary/get_most_word_written?min_word_length=${minWordLength}&only_non_dict=${onlyNonDict}&only_dict=${onlyDict}&ignore_case=${ignoreCase}&include_hidden=${includeHidden}`;
+            const apiUrl = `/Diary/get_most_word_written?min_word_length=${minWordLength}&only_non_dict=${onlyNonDict}&only_dict=${onlyDict}&ignore_case=${ignoreCase}&include_hidden=${includeHidden}`;
 
             fetch(apiUrl)
                 .then(response => {

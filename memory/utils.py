@@ -1,7 +1,8 @@
 import asyncio
+import inspect
 import os
 from datetime import date, datetime, timezone
-from typing import List, Coroutine, Any
+from typing import Any, List, Coroutine
 
 import httpx
 from flask import Response, make_response
@@ -133,3 +134,12 @@ def parse_utc(value):
         raise ValueError("Timestamp must include a timezone")
 
     return dt.astimezone(timezone.utc)
+
+
+async def run_function(func, **kwargs) -> Any:
+    response = func(**kwargs)
+
+    if inspect.isawaitable(response):
+        response = await response
+
+    return response
