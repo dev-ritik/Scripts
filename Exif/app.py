@@ -5,7 +5,8 @@ import threading
 from flask import Flask, render_template, request, jsonify, send_file, abort
 
 from settings import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, HEIC_EXTENSIONS
-from utils import scan_files, get_metadata, apply_exif_updates, generate_video_thumbnail, generate_heic_thumbnail
+from utils import scan_files, apply_exif_updates, generate_video_thumbnail, generate_heic_thumbnail, \
+    get_all_metadata_batched
 
 app = Flask(__name__)
 
@@ -17,7 +18,6 @@ def index():
     return render_template("index.html")
 
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 
 
@@ -30,36 +30,10 @@ def load():
 
     files = list(scan_files(targets))
 
-    def process_file(f):
-        try:
-            # print(f.as_posix())
-            meta = get_metadata(f)
+    if not files:
+        return jsonify([])
 
-            file_data = {
-                "path": f.as_posix(),
-            }
-            file_data.update(meta)
-
-            return file_data
-
-        except Exception as e:
-            return {
-                "path": f.as_posix(),
-                "error": str(e)
-            }
-
-    # 👇 Tune this based on your system (8–32 is usually good)
-    max_workers = min(32, os.cpu_count() * 4)
-
-    all_files_data = []
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(process_file, f) for f in files]
-
-        for future in as_completed(futures):
-            result = future.result()
-            all_files_data.append(result)
-
+    all_files_data = get_all_metadata_batched(files)
     all_files_data.sort(key=lambda x: x.get("date", ""))
 
     if len(all_files_data) == 0:
@@ -85,11 +59,15 @@ def thumbnail():
     if ext in VIDEO_EXTENSIONS:
         if thumb := generate_video_thumbnail(path):
             return send_file(thumb, max_age=3600)
+        else:
+            raise ValueError(f"Failed to generate thumbnail for {path}")
 
     if ext in HEIC_EXTENSIONS:
         thumb = generate_heic_thumbnail(path)
         if thumb:
             return send_file(thumb, max_age=3600)
+        else:
+            raise ValueError(f"Failed to generate thumbnail for {path}")
 
     raise ValueError(f"Unsupported file type: {ext}")
 

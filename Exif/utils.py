@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -192,6 +193,72 @@ def get_metadata(path):
     }
 
 
+def clean_gps_position(gps_str):
+    if not gps_str:
+        return None
+
+    # Matches integers or decimals.
+    # It will find '32.000000' and '76.000000' regardless of 'N' or 'E'
+    coords = re.findall(r"[-+]?\d*\.\d+|\d+", gps_str)
+
+    if len(coords) >= 2:
+        lat = float(coords[0])
+        lon = float(coords[1])
+
+        # Logic for negative values:
+        # If the original string contains 'S' or 'W', the value should be negative
+        if 'S' in gps_str.upper() and lat > 0:
+            lat = -lat
+        if 'W' in gps_str.upper() and lon > 0:
+            lon = -lon
+
+        return f"{lat}, {lon}"
+    return None
+
+
+def get_all_metadata_batched(file_paths):
+    paths = [f.as_posix() for f in file_paths]
+
+    # -c "%.6f, %.6f" forces the lat/long into the exact decimal format you had
+    # -GPSPosition is the combined field you were likely getting before
+    cmd = [
+        "exiftool",
+        "-j",
+        "-c", "%.6f",
+        "-DateTimeOriginal",
+        "-GPSPosition",
+        "-UserComment",
+        *paths
+    ]
+
+    try:
+        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+        raw_data = json.loads(output)
+
+        results = []
+        for entry in raw_data:
+            user_comment = entry.get("UserComment", "")
+            raw_date = entry.get("DateTimeOriginal", "")
+
+            # This captures the "12.345678, 98.765432" string exactly as before
+            gps_position = entry.get("GPSPosition", "")
+            gps_position = clean_gps_position(gps_position)
+
+            # Clean date logic (matches your original)
+            clean_date = re.sub(r'(.*?)(\s?[+-]\d{2}:\d{2}|Z)$', r'\1', raw_date).strip()
+
+            results.append({
+                "path": entry.get("SourceFile"),
+                "date": clean_date,
+                "gps": gps_position,
+                "processed_date": DATE_FIELD in user_comment if user_comment else False,
+                "processed_gps": GPS_FIELD.lower() in user_comment.lower() if user_comment else False,
+            })
+        return results
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+
 def run(cmd):
     """Run a subprocess and return stdout as text."""
     try:
@@ -361,6 +428,7 @@ def apply_exif_updates(filepath,
         command.append("-overwrite_original")
     command.append(f"-UserComment={script_tag}")
     command.extend(args + [filepath])
+    print(f"Running: {' '.join(command)}")
     run(command)
     return changes
 

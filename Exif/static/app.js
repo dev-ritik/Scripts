@@ -264,14 +264,9 @@ function render() {
     const filters = getFilters();
 
     const filtered = FILES.filter(f => {
-        if (!f.processed_by_us) {
-            console.log("not processed by us");
-        }
-        // console.log(filters.noGps && f.gps);
-        // console.log(filters.notProcessed && f.processed_by_us);
         if (filters.noGps && f.gps) return false;
         if (filters.noDate && f.date) return false;
-        if (filters.notProcessed && f.processed_by_us) return false;
+        if (filters.notProcessed && (f.processed_date || f.processed_gps)) return false;
         return true;
     });
 
@@ -466,7 +461,7 @@ function trackProgress() {
             clearInterval(interval);
             alert("Done! May be refresh the page to see the changes");
         }
-    }, 800);
+    }, 1000);
 }
 
 function loadPageFromURL() {
