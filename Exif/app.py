@@ -1,5 +1,5 @@
 # app.py
-
+import os
 import threading
 
 from flask import Flask, render_template, request, jsonify, send_file, abort
@@ -16,9 +16,6 @@ PROGRESS = {"total": 0, "done": 0}
 @app.route("/")
 def index():
     return render_template("index.html")
-
-
-import os
 
 
 @app.route("/load", methods=["GET"])

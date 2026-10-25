@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shlex
 import subprocess
 from datetime import datetime, timezone
 from glob import glob
@@ -10,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pillow_heif
 from PIL import Image
 
+from constants import EXIF_DATE_TAGS, EXTENSION_TO_MIME, MIME_TO_EXTENSION
 from settings import SUPPORTED_EXTS, OVERWRITE_ORIGINAL, VIDEO_EXTENSIONS
 
 pillow_heif.register_heif_opener()
@@ -56,17 +58,88 @@ def get_time_variants(date_str: str, tz_name: str):
     return exif_local, offset, iso_local, utc_str
 
 
-def has_exif_date(filepath):
-    return run(["exiftool", "-s3", "-DateTimeOriginal", filepath])
+def is_valid_exif_date(value: str) -> bool:
+    """Return True if value contains a parseable date/time."""
+    if not value:
+        return False
+
+    value = value.strip()
+    if not value:
+        return False
+
+    # Normalize EXIF dates:
+    # 2025:04:06 14:42:05 -> 2025-04-06 14:42:05
+    value = re.sub(
+        r"^(\d{4}):(\d{2}):(\d{2})",
+        r"\1-\2-\3",
+        value,
+    )
+
+    # datetime.fromisoformat accepts +00:00, not Z on older Python versions.
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+
+    try:
+        datetime.fromisoformat(value)
+        return True
+    except ValueError:
+        return False
+
+
+def get_exif_date_raw(filepath):
+    """Return the first valid date tag in Immich's priority order."""
+    args = [
+        "exiftool",
+        "-json",
+        *[f"-{tag}" for tag in EXIF_DATE_TAGS],
+        filepath,
+    ]
+
+    output = run(args)
+    if not output:
+        return ""
+
+    try:
+        metadata = json.loads(output)
+    except (json.JSONDecodeError, TypeError):
+        return ""
+
+    if not metadata:
+        return ""
+
+    tags = metadata[0]
+
+    for tag in EXIF_DATE_TAGS:
+        value = tags.get(tag)
+
+        # Some metadata values may not be strings.
+        if not isinstance(value, str):
+            continue
+
+        value = value.strip()
+        if is_valid_exif_date(value):
+            return value
+
+    return ""
 
 
 def get_exif_date(filepath):
-    raw_date = run(["exiftool", "-s3", "-DateTimeOriginal", filepath])
+    """Return a clean date string for display in the UI."""
+    raw_date = get_exif_date_raw(filepath)
     if not raw_date:
         return ""
-    clean_date = re.sub(r'(.*?)(\s?[+-]\d{2}:\d{2}|Z)$', r'\1', raw_date)
 
-    return clean_date.strip()
+    # Preserve existing UI behavior: remove the timezone suffix.
+    return re.sub(
+        r"(?:\s*[+-]\d{2}:\d{2}|Z)$",
+        "",
+        raw_date,
+    ).strip()
+
+
+def has_exif_date(filepath):
+    """Check for a valid date in the supported date tags."""
+    return bool(get_exif_date_raw(filepath))
 
 def has_exif_gps(filepath):
     return run(["exiftool", "-s3", "-GPSLatitude", filepath])
@@ -216,19 +289,20 @@ def clean_gps_position(gps_str):
     return None
 
 
+
 def get_all_metadata_batched(file_paths):
     paths = [f.as_posix() for f in file_paths]
+    if not paths:
+        return []
 
-    # -c "%.6f, %.6f" forces the lat/long into the exact decimal format you had
-    # -GPSPosition is the combined field you were likely getting before
     cmd = [
         "exiftool",
         "-j",
         "-c", "%.6f",
-        "-DateTimeOriginal",
+        *[f"-{tag}" for tag in EXIF_DATE_TAGS],
         "-GPSPosition",
         "-UserComment",
-        *paths
+        *paths,
     ]
 
     try:
@@ -238,26 +312,59 @@ def get_all_metadata_batched(file_paths):
         results = []
         for entry in raw_data:
             user_comment = entry.get("UserComment", "")
-            raw_date = entry.get("DateTimeOriginal", "")
 
-            # This captures the "12.345678, 98.765432" string exactly as before
-            gps_position = entry.get("GPSPosition", "")
-            gps_position = clean_gps_position(gps_position)
+            # Reuse the shared date-priority and validation helpers.
+            raw_date = next(
+                (
+                    value.strip()
+                    for tag in EXIF_DATE_TAGS
+                    if isinstance(value := entry.get(tag), str)
+                       and is_valid_exif_date(value)
+                ),
+                "",
+            )
 
-            # Clean date logic (matches your original)
-            clean_date = re.sub(r'(.*?)(\s?[+-]\d{2}:\d{2}|Z)$', r'\1', raw_date).strip()
+            # Preserve the existing UI date format.
+            clean_date = re.sub(
+                r"(?:\s*[+-]\d{2}:\d{2}|Z)$",
+                "",
+                raw_date,
+            ).strip()
+
+            gps_position = clean_gps_position(
+                entry.get("GPSPosition", "")
+            )
 
             results.append({
                 "path": entry.get("SourceFile"),
                 "date": clean_date,
                 "gps": gps_position,
-                "processed_date": DATE_FIELD in user_comment if user_comment else False,
-                "processed_gps": GPS_FIELD.lower() in user_comment.lower() if user_comment else False,
+                "processed_date": (
+                    DATE_FIELD in user_comment if user_comment else False
+                ),
+                "processed_gps": (
+                    GPS_FIELD.lower() in user_comment.lower()
+                    if user_comment else False
+                ),
             })
+
         return results
+
     except Exception as e:
         print(f"Error: {e}")
         return []
+
+
+def log_command_failure(command, result, filepath=None):
+    print(f"[ERROR] Command failed for {filepath or 'unknown file'}")
+    print(f"[ERROR] Exit code: {result.returncode}")
+    print(f"[ERROR] Command: {shlex.join(command)}")
+
+    if result.stdout.strip():
+        print(f"[STDOUT]\n{result.stdout.strip()}")
+
+    if result.stderr.strip():
+        print(f"[STDERR]\n{result.stderr.strip()}")
 
 def run(cmd):
     """Run a subprocess and return stdout as text."""
@@ -268,9 +375,15 @@ def run(cmd):
             stderr=subprocess.PIPE,
             text=True
         )
+
+        if result.returncode != 0:
+            log_command_failure(cmd, result)
+            return result.stdout.strip() or None
+
         return result.stdout.strip()
     except Exception as e:
-        print(f"Error running {cmd}: {e.stderr}")
+        print(f"[ERROR] Exception running command: {shlex.join(cmd)}")
+        print(f"[ERROR] {type(e).__name__}: {e}")
         return None
 
 
@@ -318,6 +431,105 @@ def extract_date_from_filename(filename, expected_datetime: datetime):
     return None
 
 
+def get_file_type_mismatch(filepath):
+    """Return (actual_mime, expected_mimes) if the extension mismatches."""
+    actual_mime = get_real_mime_type(filepath)
+    ext = Path(filepath).suffix.lower()
+    expected_mimes = EXTENSION_TO_MIME.get(ext)
+
+    if actual_mime and expected_mimes and actual_mime not in expected_mimes:
+        return actual_mime, expected_mimes
+
+    return None
+
+
+def is_exiftool_file_type_error(stderr):
+    """Recognize ExifTool errors caused by an extension/content mismatch."""
+    error = (stderr or "").lower()
+    return "not a valid" in error and "looks more like" in error
+
+
+def run_exiftool_with_type_retry(command, filepath, force=False):
+    """
+    Run ExifTool normally. If forced and it reports a format mismatch,
+    retry with a temporary filename using the detected file type's extension.
+
+    The original filename is restored in all cases.
+    """
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    if result.returncode == 0:
+        return result
+
+    log_command_failure(command, result, filepath)
+
+    if not force or not is_exiftool_file_type_error(result.stderr):
+        print(f"ExifTool failed for {filepath}:\n{result.stderr.strip()}")
+        return result
+
+    actual_mime = get_real_mime_type(filepath)
+    correct_ext = MIME_TO_EXTENSION.get(actual_mime)
+
+    if not correct_ext:
+        print(
+            f"[WARN] Cannot retry {filepath}: "
+            f"no known extension for detected MIME type {actual_mime!r}"
+        )
+        print(result.stderr.strip())
+        return result
+
+    original = Path(filepath)
+    # Keep the original name as a prefix, but end with the correct extension.
+    temporary = original.with_name(
+        f"{original.name}.exiftool-temp{correct_ext}"
+    )
+
+    if temporary.exists():
+        print(f"[WARN] Temporary path already exists; refusing to overwrite: {temporary}")
+        return result
+
+    print(
+        f"[WARN] ExifTool reported a file-type mismatch for {filepath}. "
+        f"Retrying temporarily as {temporary.name}"
+    )
+
+    try:
+        os.replace(original, temporary)
+
+        retry_command = [
+            str(temporary) if arg == str(original) else arg
+            for arg in command
+        ]
+
+        retry_result = subprocess.run(
+            retry_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        if retry_result.returncode != 0:
+            log_command_failure(retry_command, retry_result, filepath)
+        else:
+            print(f"[INFO] Metadata update succeeded for {filepath}")
+
+        return retry_result
+
+    except Exception as exc:
+        print(f"[ERROR] Could not retry ExifTool for {filepath}: {exc}")
+        raise
+
+    finally:
+        # Restore the original filename regardless of retry success or failure.
+        if temporary.exists():
+            os.replace(temporary, original)
+
+
 def apply_exif_updates(filepath,
                        date: str = None,
                        gps: str = None,
@@ -354,6 +566,15 @@ def apply_exif_updates(filepath,
 
     mime = get_real_mime_type(filepath)
     ext = os.path.splitext(filepath)[1].lower()
+
+    mismatch = get_file_type_mismatch(filepath)
+    if mismatch:
+        actual_mime, expected_mimes = mismatch
+        print(
+            f"[WARN] File extension/type mismatch: {filepath} "
+            f"(extension={ext}, detected_mime={actual_mime}, "
+            f"expected_mime={', '.join(sorted(expected_mimes))})"
+        )
 
     is_heic = mime in ["image/heic", "image/heif"]
     # even with this, it may not work sometimes. Example:
@@ -400,6 +621,8 @@ def apply_exif_updates(filepath,
         lat, lon = gps
         if is_heic:
             args.extend([
+                f"-GPSLatitude={lat}",
+                f"-GPSLongitude={lon}",
                 f"-GPSCoordinates={lat},{lon}",
                 f"-Keys:GPSCoordinates={lat},{lon}",
             ])
@@ -428,8 +651,17 @@ def apply_exif_updates(filepath,
         command.append("-overwrite_original")
     command.append(f"-UserComment={script_tag}")
     command.extend(args + [filepath])
-    print(f"Running: {' '.join(command)}")
-    run(command)
+
+    result = run_exiftool_with_type_retry(
+        command,
+        filepath,
+        force=force,
+    )
+
+    if result.returncode != 0:
+        print(f"[ERROR] Metadata update failed for {filepath}")
+        return {}
+
     return changes
 
 
