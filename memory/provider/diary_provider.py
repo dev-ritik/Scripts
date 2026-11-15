@@ -4,7 +4,7 @@ import re
 import string
 from datetime import datetime, timedelta, date, timezone
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List
 
 import aiofiles
 from black.trans import defaultdict
@@ -37,19 +37,18 @@ class DiaryProvider(MemoryProvider):
         return self.is_working()
 
     async def _get_all_diary_words(self, pre_transform_fn, filter_fn, hide_personal_entry: bool = True):
-        all_memories = self.fetch_dates(configs.MINIMUM_DATE.date(),
-                                        configs.MAXIMUM_DATE.date(),
+        all_memories = self._fetch(start_date=configs.MINIMUM_DATE,
+                                   end_date=configs.MAXIMUM_DATE,
                                         hide_personal_entry=hide_personal_entry)
         word_count = defaultdict(int)
-        for memories in (await all_memories).values():
-            for memory in memories:
-                try:
-                    for word in memory.message.split():
-                        word = pre_transform_fn(word)
-                        if filter_fn(word):
-                            word_count[word] += 1
-                except Exception as e:
-                    print(f"Error processing memory: {e}")
+        for memory in await all_memories:
+            try:
+                for word in memory.message.split():
+                    word = pre_transform_fn(word)
+                    if filter_fn(word):
+                        word_count[word] += 1
+            except Exception as e:
+                print(f"Error processing memory: {e}")
         return word_count
 
     async def get_most_word_written(self, min_word_length=1,
@@ -158,72 +157,16 @@ class DiaryProvider(MemoryProvider):
             # TODO: The date is not available. This would just be a guess
             return None, memory
 
-    async def fetch_on_date(self,
-                            on_date: Optional[date],
-                            exclude_system_messages: bool = True,
-                            senders: List[str] = None,
-                            search_regex: str = None,
-                            **kwargs) -> List[Message]:
-        results = []
-        if not self.is_working():
-            return results
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None,
+                     hide_personal_entry: bool = False) -> List[Message]:
 
-        if senders:
-            if len(senders) != 1:
-                return results
-            if senders[0].lower() != configs.USER.lower():
-                return results
-
-        print("Starting to fetch from Diary")
-
-        if not on_date:
-            raise ValueError("Diary provider requires a date")
-
-        if senders:
-            return []
-
-        year = on_date.year
-        diary_filepath = self._get_diary_filepath_for_year(year)
-
-        if diary_filepath is None:
-            print("Diary folder not found")
-            return results
-
-        pattern = re.compile(search_regex) if search_regex else None
-
-        async with aiofiles.open(diary_filepath, "r", encoding="utf-8") as f:
-            async for line in f:
-                _dt, text = DiaryProvider._get_date_and_memory_from_text(line.strip())
-                if not _dt:
-                    continue
-
-                if pattern and pattern.search(text) is None:
-                    continue
-
-                if _dt.date() == on_date:
-                    results.append(Message(_datetime=_dt,
-                                           message=text,
-                                           message_type=MessageType.SENT,
-                                           provider=self.NAME,
-                                           sender=configs.USER
-                                           ))
-
-        print("Done fetching from Diary")
-        return results
-
-    async def fetch_dates(self,
-                          start_date: date,
-                          end_date: date,
-                          senders: List[str] = None,
-                          search_regex: str = None,
-                          hide_personal_entry: bool = False,
-                          **kwargs
-                          ) -> Dict[date, List[Message]]:
-        results: Dict[date, List[Message]] = defaultdict(list)
-        if not self.is_working():
-            return results
-
-        print(f"Fetching diary entries from {start_date} to {end_date}")
+        results: List[Message] = []
 
         if senders:
             if len(senders) != 1:
@@ -263,7 +206,7 @@ class DiaryProvider(MemoryProvider):
                     if pattern and pattern.search(text) is None:
                         continue
 
-                    results[curr_date].append(
+                    results.append(
                         Message(
                             _datetime=dt.astimezone(timezone.utc).replace(tzinfo=None),
                             message=text,
@@ -273,7 +216,6 @@ class DiaryProvider(MemoryProvider):
                         )
                     )
 
-        print(f"Done fetching diary entries from {start_date=} to {end_date=}")
         return results
 
     @staticmethod
@@ -289,25 +231,8 @@ class DiaryProvider(MemoryProvider):
                 end_date = max(end_date, _dt) if end_date else _dt
         return start_date, end_date
 
-    async def get_start_end_date(self):
-        start_date = None
-        end_date = None
-
-        if not self.is_working():
-            return start_date, end_date
-
-        print("Starting to fetch from Diary")
-
-        if not (diary_folder := os.getenv("DIARY_PATH")):
-            self.WORKING = False
-            print("Diary folder not found")
-            return start_date, end_date
-
-        diary_folder = Path(diary_folder)
-        if not diary_folder.exists():
-            self.WORKING = False
-            print("Diary folder not found")
-            return start_date, end_date
+    async def _get_start_end_date(self):
+        diary_folder = Path(os.getenv("DIARY_PATH"))
 
         tasks = []
         for filename in os.listdir(diary_folder):

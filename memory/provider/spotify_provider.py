@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone, date, time
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from flask import jsonify
 
@@ -586,15 +586,13 @@ class SpotifyProvider(MemoryProvider):
 
         return description
 
-    async def fetch(self,
-                    on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
-                    exclude_system_messages: bool = False,
-                    senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
-        print(f"Starting to fetch from Spotify {on_date=} {start_date=} {end_date=}")
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         memories = []
 
         if senders:
@@ -669,13 +667,9 @@ class SpotifyProvider(MemoryProvider):
                         message=description,
                     )
                 )
-
-        memories.sort(key=lambda memory: memory.datetime)
-
-        print("Done fetching from Spotify")
         return memories
 
-    async def get_start_end_date(self):
+    async def _get_start_end_date(self):
         min_dt = None
         max_dt = None
 

@@ -4,7 +4,7 @@ import os
 import re
 import sqlite3
 from datetime import datetime, date
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 import aiofiles
 
@@ -16,7 +16,7 @@ from provider.base_provider import MemoryProvider, Message, MediaType, MessageTy
 
 class IMessageProvider(MemoryProvider):
     NAME = "iMessage"
-    USER = 'Ritik'
+    PLATFORM_USERNAME = 'Ritik'
 
     DATA_PATH = os.path.join(DATA_DIR, 'imessage')
     APPLE_EPOCH = datetime(2001, 1, 1)
@@ -105,20 +105,20 @@ class IMessageProvider(MemoryProvider):
     def query_manifest_db(query, params):
         return IMessageProvider.query_db_db(query, params, 'Manifest.db')
 
-    async def fetch(self, on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
-                    exclude_system_messages: bool = True,
-                    senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
-        print("Starting to fetch from iMessage")
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         messages = []
+
         start_ns = self.to_apple_time(datetime.combine(start_date, datetime.min.time()))
         end_ns = self.to_apple_time(datetime.combine(end_date, datetime.max.time()))
 
         sender_chat_identifiers = await get_all_imessage_chat_ids_from_senders()
-        if senders and not USER in senders:
+        if senders and not self.PLATFORM_USERNAME in senders:
             # Get messages from only the requested senders
             # Since this is admin's own messages, we should get all messages from all senders if admin is in requested senders
 
@@ -236,7 +236,7 @@ ORDER BY
 
             for participant in participants:
                 name = chat_identifier_sender.get(participant["identifier"]) or participant["identifier"]
-                if name != self.USER:
+                if name != self.PLATFORM_USERNAME:
                     names.append(name)
 
             return " and ".join(names)
@@ -256,7 +256,7 @@ ORDER BY
             chat_name = sender_name if row['is_group_chat'] == 0 else row["room_name"] or _get_group_chat_name_from_participants(json.loads(row["participants"]))
             if row["is_from_me"] == 1:
                 message_type = MessageType.SENT
-                sender_name = self.USER
+                sender_name = USER
             else:
                 message_type = MessageType.RECEIVED
                 sender_name = sender_name
@@ -308,8 +308,6 @@ ORDER BY
                     )
                 )
 
-        messages.sort(key=lambda memory: memory.datetime)
-        print("Done fetching from iMessage")
         return messages
 
     @staticmethod
@@ -329,7 +327,7 @@ ORDER BY
             print(row['ROWID'], row['chat_identifier'])
         return chat_identifiers
 
-    async def get_start_end_date(self) -> Tuple[date | None, date | None]:
+    async def _get_start_end_date(self) -> Tuple[date | None, date | None]:
         sender_chat_identifiers = await get_all_imessage_chat_ids_from_senders()
 
         # Create a reverse mapping of chat_identifier to sender

@@ -5,7 +5,7 @@ import pickle
 import webbrowser
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Dict, Optional
+from typing import List
 
 import aiofiles
 import httpx
@@ -256,18 +256,14 @@ class GooglePhotosProvider(MemoryProvider):
                 "mediaItems": self.metadata_context_by_id
             }, f)
 
-    async def fetch_dates(self,
-                          start_date: date,
-                          end_date: date,
-                          senders: List[str] = None,
-                          search_regex: str = None,
-                          **kwargs) -> Dict[
-        datetime.date, List[Message]]:
-        results = defaultdict(list)
-        if not self.WORKING:
-            return results
-
-        print("Starting to fetch from Google Photos")
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
+        results: List[Message] = []
 
         if senders:
             return results
@@ -283,7 +279,7 @@ class GooglePhotosProvider(MemoryProvider):
                 if not item:
                     continue
                 _date = item.get('createTime')
-                results[current_date].append(Message(_datetime=_date.astimezone(timezone.utc).replace(tzinfo=None),
+                results.append(Message(_datetime=_date.astimezone(timezone.utc).replace(tzinfo=None),
                                                      media_type=MediaType.NON_TEXT,
                                                      provider=self.NAME,
                                                      context={
@@ -295,25 +291,7 @@ class GooglePhotosProvider(MemoryProvider):
                                              )
             current_date += timedelta(days=1)
 
-        print("Done fetching from Google Photos")
         return results
-
-    async def fetch_on_date(self,
-                            on_date: Optional[date],
-                            senders: List[str] = None,
-                            search_regex: str = None,
-                            **kwargs) -> List[Message]:
-        if not on_date:
-            raise ValueError("Google Photos provider requires a date")
-
-        if senders:
-            return []
-
-        if search_regex:
-            return []
-
-        date_assets = await self.fetch_dates(start_date=on_date, end_date=on_date)
-        return date_assets.get(on_date, []) if date_assets else []
 
     @staticmethod
     async def fetch_asset(token: str,
@@ -359,7 +337,7 @@ class GooglePhotosProvider(MemoryProvider):
             f.write(response.content)
             return True
 
-    async def get_start_end_date(self):
+    async def _get_start_end_date(self):
         all_available_dates = list(self.metadata_context_by_dates.keys())
         return min(all_available_dates), max(all_available_dates)
 

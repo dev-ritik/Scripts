@@ -1,7 +1,7 @@
 import csv
 import os
 from datetime import date, datetime, timezone
-from typing import List, Optional, Iterable
+from typing import List, Iterable
 
 from init import DATA_DIR
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
@@ -123,23 +123,16 @@ class UberProvider(MemoryProvider):
 
         return dt, text, coords
 
-    async def fetch(
-            self,
-            on_date: Optional[date] = None,
-            start_date: Optional[date] = None,
-            end_date: Optional[date] = None,
-            senders: List[str] = None,
-            search_regex: str = None,
-            **kwargs
-    ):
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         messages = []
-        if not self.is_working():
-            return messages
-
         if senders or search_regex:
             return messages
-
-        print("Starting to fetch from Uber")
 
         for entry in self.iter_csv(self.TRIPS_HISTORY_PATH):
             parsed = UberProvider.parse_timeline_entry(entry)
@@ -149,8 +142,6 @@ class UberProvider(MemoryProvider):
             dt, text, coords = parsed
             curr_date = dt.date()
 
-            if on_date and curr_date != on_date:
-                continue
             if start_date and curr_date < start_date:
                 continue
             if end_date and curr_date > end_date:
@@ -169,14 +160,9 @@ class UberProvider(MemoryProvider):
                 )
             )
 
-        messages.sort(key=lambda memory: memory.datetime)
-        print("Done fetching from Uber")
         return messages
 
-    async def get_start_end_date(self):
-        if not self.is_working():
-            return None, None
-
+    async def _get_start_end_date(self):
         start_dt = None
         end_dt = None
 

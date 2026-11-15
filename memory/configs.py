@@ -5,8 +5,8 @@ from zoneinfo import ZoneInfo
 
 USER = "Ritik"
 LOCAL_TZ = ZoneInfo("Asia/Kolkata")
-MINIMUM_DATE = datetime(2000, 1, 1)
-MAXIMUM_DATE = datetime(2050, 1, 1)
+MINIMUM_DATE = datetime(2000, 1, 1).date()
+MAXIMUM_DATE = datetime(2050, 1, 1).date()
 
 def get_available_providers() -> list:
     from provider.diary_provider import DiaryProvider

@@ -17,8 +17,8 @@ class GoogleMapsProvider(MemoryProvider):
         return self.is_working()
 
     async def get_location_clustering(self, **kwargs):
-        all_memories = await self.fetch(start_date=MINIMUM_DATE.date(),
-                                        end_date=MAXIMUM_DATE.date(),
+        all_memories = await self.fetch(start_date=MINIMUM_DATE,
+                                        end_date=MAXIMUM_DATE,
                                         )
 
         import numpy as np
@@ -133,23 +133,17 @@ class GoogleMapsProvider(MemoryProvider):
 
             return start, text, entry.get_coords_list()
 
-    async def fetch(
-            self,
-            on_date: Optional[date] = None,
-            start_date: Optional[date] = None,
-            end_date: Optional[date] = None,
-            senders: List[str] = None,
-            search_regex: str = None,
-            **kwargs
-    ):
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         messages = []
-        if not self.is_working():
-            return messages
-
         if senders or search_regex:
             return messages
 
-        print("Starting to fetch from Google Maps")
         data_parser = GoogleMapsParser()
         data: List[LocationItem] = await data_parser.get_old_data(validate=False)
         for entry in data:
@@ -160,8 +154,6 @@ class GoogleMapsProvider(MemoryProvider):
             dt, text, coords = parsed
             curr_date = dt.date()
 
-            if on_date and curr_date != on_date:
-                continue
             if start_date and curr_date < start_date:
                 continue
             if end_date and curr_date > end_date:
@@ -180,14 +172,9 @@ class GoogleMapsProvider(MemoryProvider):
                 )
             )
 
-        messages.sort(key=lambda memory: memory.datetime)
-        print("Done fetching from Google Maps")
         return messages
 
-    async def get_start_end_date(self):
-        if not self.is_working():
-            return None, None
-
+    async def _get_start_end_date(self):
         data_parser = GoogleMapsParser()
         data: List[LocationItem] = await data_parser.get_old_data(validate=False)
 

@@ -11,7 +11,7 @@ from provider.base_provider import MemoryProvider, Message, MessageType, MediaTy
 
 class GitHubProvider(MemoryProvider):
     NAME = "GitHub"
-    GITHUB_USERNAME = "dev-ritik"
+    PLATFORM_USERNAME = "dev-ritik"
     GITHUB_SEARCH_COMMITS_URL = "https://api.github.com/search/commits"
 
     def __init__(self):
@@ -22,16 +22,13 @@ class GitHubProvider(MemoryProvider):
             return
         self.token = os.getenv("GITHUB_TOKEN")
 
-    async def fetch(self,
-                    on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
-                    exclude_system_messages: bool = False,
-                    senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
-        print(f"Starting to fetch from GitHub {on_date=} {start_date=} {end_date=}")
-
+    async def _fetch(self,
+                     start_date: Optional[date] = None,
+                     end_date: Optional[date] = None,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         """
         Fetches all individual commit messages and timestamps from 1 year ago today
         up to the present moment, handling API pagination.
@@ -50,7 +47,7 @@ class GitHubProvider(MemoryProvider):
         start_date_str = start_date.strftime("%Y-%m-%d") if start_date else None
         end_date_str = end_date.strftime("%Y-%m-%d") if end_date else None
 
-        query_string = f"author:{self.GITHUB_USERNAME} author-date:{start_date_str}..{end_date_str}"
+        query_string = f"author:{self.PLATFORM_USERNAME} author-date:{start_date_str}..{end_date_str}"
 
         headers = {
             "Authorization": f"Bearer {self.token}",
@@ -133,12 +130,9 @@ class GitHubProvider(MemoryProvider):
                 )
             )
 
-        memories.sort(key=lambda memory: memory.datetime)
-
-        print("Done fetching from GitHub")
         return memories
 
-    async def get_start_end_date(self):
+    async def _get_start_end_date(self):
         base_url = self.GITHUB_SEARCH_COMMITS_URL
         headers = {
             "Authorization": f"Bearer {self.token}",
@@ -147,7 +141,7 @@ class GitHubProvider(MemoryProvider):
 
         # Query for the absolute first commit (oldest)
         first_params = {
-            "q": f"author:{self.GITHUB_USERNAME}",
+            "q": f"author:{self.PLATFORM_USERNAME}",
             "sort": "author-date",
             "order": "asc",
             "per_page": 1
@@ -155,7 +149,7 @@ class GitHubProvider(MemoryProvider):
 
         # Query for the absolute latest commit (newest)
         latest_params = {
-            "q": f"author:{self.GITHUB_USERNAME}",
+            "q": f"author:{self.PLATFORM_USERNAME}",
             "sort": "author-date",
             "order": "desc",
             "per_page": 1

@@ -17,7 +17,7 @@ from provider.base_provider import MemoryProvider, MessageType, MediaType, Messa
 class InstagramProvider(MemoryProvider):
     NAME = "Instagram"
 
-    USER = 'Ritik Kumar'
+    PLATFORM_USERNAME = 'Ritik Kumar'
     DELETED_USER = 'deleted_user'
     DATA_PATH = os.path.join(DATA_DIR, 'instagram')
     INSTAGRAM_MESSAGE_PATH = os.path.join(DATA_PATH, 'messages')
@@ -103,7 +103,6 @@ class InstagramProvider(MemoryProvider):
     @staticmethod
     def parse_json(data,
                    name_from_file,
-                   on_date=None,
                    start_date: date = None,
                    end_date: date = None,
                    ignore_groups: bool = False,
@@ -115,7 +114,8 @@ class InstagramProvider(MemoryProvider):
         is_group = len(data['participants']) > 2
         if not is_group:
             chat_name = next(
-                (key.get('name') for key in data['participants'] if key.get('name') != InstagramProvider.USER),
+                (key.get('name') for key in data['participants'] if
+                 key.get('name') != InstagramProvider.PLATFORM_USERNAME),
                 name_from_file
             )
             chat_name = InstagramProvider.clean_message(chat_name)
@@ -136,8 +136,6 @@ class InstagramProvider(MemoryProvider):
 
         for message in data['messages']:
             _dt = datetime.fromtimestamp(message.get('timestamp_ms') / 1000.0)
-            if on_date and _dt.date() != on_date:
-                continue
 
             # Messages are sorted by time descending in Instagram export
             if start_date and _dt.date() < start_date:
@@ -198,7 +196,7 @@ class InstagramProvider(MemoryProvider):
                     'voice_call_status': 'Missed'
                 })
 
-            message_type = MessageType.SENT if sender_name == InstagramProvider.USER else MessageType.RECEIVED
+            message_type = MessageType.SENT if sender_name == InstagramProvider.PLATFORM_USERNAME else MessageType.RECEIVED
 
             if pattern and pattern.search(text) is None:
                 continue
@@ -218,15 +216,14 @@ class InstagramProvider(MemoryProvider):
         messages.reverse()
         return messages
 
-    async def fetch(self,
-                    on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
-                    exclude_system_messages: bool = True,
-                    senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
-        print(f"Starting to fetch from Instagram {on_date=} {start_date=} {end_date=}")
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
+
         sender_regexes = [await get_regex_from_name(sender) for sender in senders] if senders else None
 
         pattern = re.compile(search_regex) if search_regex else None
@@ -245,7 +242,6 @@ class InstagramProvider(MemoryProvider):
             tasks.append(
                 self._read_and_parse(filepath=friend_path,
                                      name_from_file=friend,
-                                     on_date=on_date,
                                      start_date=start_date,
                                      end_date=end_date,
                                      ignore_groups=ignore_groups,
@@ -254,8 +250,6 @@ class InstagramProvider(MemoryProvider):
 
         memories_nested = await asyncio.gather(*tasks)
         memories = [item for sublist in memories_nested for item in sublist]
-        memories.sort(key=lambda m: m.datetime)
-        print("Done fetching from Instagram")
         return memories
 
     async def _read_and_parse(self, filepath: Path, **kwargs):

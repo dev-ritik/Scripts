@@ -1,5 +1,4 @@
 import os
-from collections import defaultdict
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Tuple, Any
 
@@ -42,24 +41,17 @@ class ImmichProvider(MemoryProvider):
         self.bearer_token = response.json()["accessToken"]
         return self.bearer_token
 
-    async def fetch_on_date(self, on_date: date, senders: List[str] = None, **kwargs) -> List[
-        Message]:
-        raise NotImplementedError
-
-    async def fetch_dates(self,
-                          start_date: date,
-                          end_date: date,
-                          senders: List[str] = None,
-                          search_regex: str = None,
-                          **kwargs) -> Dict[datetime.date, List[Message]]:
-        results = defaultdict(list)
-        if not self.WORKING:
-            return results
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
+        results: List[Message] = []
 
         if search_regex:
             return results
-
-        print("Starting to fetch from Immich")
 
         url = f"{self.IMMICH_BASE_URL}/api/search/metadata"
         page = 1
@@ -112,7 +104,7 @@ class ImmichProvider(MemoryProvider):
                     #     "duration": asset["duration"],
                     # })
                     _date = datetime.fromisoformat(asset["localDateTime"]).replace(tzinfo=None)
-                    results[_date.date()].append(Message(_datetime=_date,
+                    results.append(Message(_datetime=_date,
                                                          media_type=MediaType.NON_TEXT,
                                                          provider=self.NAME,
                                                          context={
@@ -127,7 +119,6 @@ class ImmichProvider(MemoryProvider):
 
                 page = data["assets"]['nextPage']
 
-        print("Done fetching from Immich")
         return results
 
     async def get_timeline_bucket(self, size: str = 'DAY') -> Dict:
@@ -148,11 +139,12 @@ class ImmichProvider(MemoryProvider):
 
         return response.json()
 
-    async def get_start_end_date(self) -> Tuple[date | None, date | None]:
+    async def _get_start_end_date(self) -> Tuple[date | None, date | None]:
         timeline_bucket = await self.get_timeline_bucket()
         if not timeline_bucket:
             return None, None
 
+        # This is an approximation
         start_date = datetime.fromisoformat(timeline_bucket[-1]['timeBucket']).replace(tzinfo=None)
         end_date = datetime.fromisoformat(timeline_bucket[0]['timeBucket']).replace(tzinfo=None)
         return start_date.date(), end_date.date()

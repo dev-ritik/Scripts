@@ -3,12 +3,13 @@ import os
 import re
 import tempfile
 from abc import ABC
-from datetime import datetime, timedelta, date, time
+from datetime import datetime, date, time
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
 
 import aiofiles
 
+from configs import MAXIMUM_DATE, MINIMUM_DATE
 from privacy import get_current_privacy_rules
 
 
@@ -39,9 +40,17 @@ class Compressions(Enum):
 
 
 class Message:
-    def __init__(self, _datetime: datetime, message_type: MessageType = None, message: Optional[str] = '', sender='',
-                 provider=None, context: dict = None, chat_name=None, is_group: bool = False,
-                 media_type: MediaType = MediaType.TEXT, formatting: List[dict] = None
+    def __init__(self,
+                 _datetime: datetime,
+                 message_type: MessageType = None,
+                 message: Optional[str] = '',
+                 sender='',
+                 provider=None,
+                 context: dict = None,
+                 chat_name=None,
+                 is_group: bool = False,
+                 media_type: MediaType = MediaType.TEXT,
+                 formatting: List[dict] = None
                  ):
 
         self.datetime = _datetime
@@ -108,10 +117,14 @@ class Message:
 
 class MemoryProvider(ABC):
     NAME = None
+    PLATFORM_USERNAME = None
     SYSTEM = 'system'
     UNKNOWN = 'unknown'
     DATA_PATH = None
     WORKING = True
+
+    def __init__(self):
+        self._start_end_date_cache = None
 
     def is_working(self):
         return self.WORKING
@@ -138,24 +151,8 @@ class MemoryProvider(ABC):
         """
         return NotImplementedError
 
-    async def fetch_on_date(self, on_date: Optional[date],
-                            ignore_groups: bool = False,
-                            exclude_system_messages: bool = True,
-                            senders: List[str] = None,
-                            search_regex: str = None) -> List[Message]:
-        """
-        Get all messages on the on_date. This is deprecated. Use fetch() instead.
-        :param on_date: Larger date (inclusive)
-        :param ignore_groups: Ignore group chats
-        :param exclude_system_messages: Exclude system messages
-        :param senders: Only fetch messages from these senders
-        :param search_regex: Search for this string in message content
-        :return: List of messages on the date
-        """
-        return await self.fetch(on_date=on_date, ignore_groups=ignore_groups, senders=senders, search_regex=search_regex)
-
-    # @abstractmethod
-    async def fetch(self, on_date: Optional[date] = None,
+    async def fetch(self,
+                    on_date: Optional[date] = None,
                     start_date: Optional[date] = None,
                     end_date: Optional[date] = None,
                     ignore_groups: bool = False,
@@ -166,62 +163,64 @@ class MemoryProvider(ABC):
         Get all messages from the date filter, time sorted.
         :param start_date: Smaller date (inclusive)
         :param end_date: Larger date (inclusive)
-        :param on_date: Larger date (inclusive)
+        :param on_date: the date (inclusive)
         :param ignore_groups: Ignore group chats
         :param exclude_system_messages: Exclude system messages
         :param senders: Only fetch messages from these senders
         :param search_regex: Search for this string in message content
         :return: List of messages on the date
         """
+        print(f"Starting to fetch from {self.NAME} {on_date=} {start_date=} {end_date=}")
+        memories: List[Message] = []
+        if not self.is_working():
+            return memories
+        if not on_date and not (start_date or end_date):
+            raise ValueError(f"{self.NAME} Either {on_date=} or {start_date=} and {end_date=} must be provided")
+        if on_date and start_date and end_date:
+            raise ValueError(f"{self.NAME} Either {on_date=} or {start_date=} and {end_date=} must be provided")
         if on_date:
-            return await self.fetch_on_date(on_date, ignore_groups=ignore_groups,
-                                            exclude_system_messages=exclude_system_messages,
-                                            senders=senders, search_regex=search_regex)
-        else:
-            all_messages = await self.fetch_dates(
-                start_date=start_date,
-                end_date=end_date,
-                ignore_groups=ignore_groups,
-                exclude_system_messages=exclude_system_messages,
-                senders=senders,
-                search_regex=search_regex,
-            )
+            start_date = on_date
+            end_date = on_date
+        if not start_date or not end_date:
+            raise ValueError(f"{self.NAME} Both {start_date=} and {end_date=} must be provided")
 
-            merged_list = []
-            for value_list in all_messages.values():
-                merged_list.extend(value_list)
-
-            return sorted(merged_list, key=lambda m: m.datetime)
-
-    async def fetch_dates(self, start_date: date,
-                          end_date: date,
-                          ignore_groups: bool = False,
-                          exclude_system_messages: bool = True,
-                          senders: List[str] = None,
-                          search_regex: str = None) -> Dict[datetime.date, List[Message]]:
-        """
-        Get all messages for each day between start_date and end_date. This is deprecated. Use fetch() instead.
-        :param start_date: Smaller date (inclusive)
-        :param end_date: Larger date (inclusive)
-        :param ignore_groups: Ignore group chats
-        :param exclude_system_messages: Exclude system messages
-        :param senders: Only fetch messages from these senders
-        :param search_regex: search_regex for this string in message content
-        :return: Dict of dates and messages for each date
-        """
-        tasks = []
-        dates = []
-
-        current = start_date
-        while current <= end_date:
-            tasks.append(self.fetch(current, ignore_groups=ignore_groups,
+        _provider_start_date, _provider_end_date = await self.get_start_end_date()
+        if not self.is_working():
+            return memories
+        if on_date and (on_date < _provider_start_date or on_date > _provider_end_date):
+            return memories
+        if start_date and end_date and (end_date < _provider_start_date or start_date > _provider_end_date):
+            return memories
+        results = await self._fetch(start_date=start_date,
+                                    end_date=end_date,
+                                    ignore_groups=ignore_groups,
                                     exclude_system_messages=exclude_system_messages,
-                                    senders=senders, search_regex=search_regex))
-            dates.append(current)
-            current += timedelta(days=1)
+                                    senders=senders,
+                                    search_regex=search_regex)
+        print(f"Done fetching from {self.NAME}")
+        memories.sort(key=lambda memory: memory.datetime)
 
-        results = await asyncio.gather(*tasks)
-        return dict(zip(dates, results))
+        return results
+
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
+        """
+        This method should be overridden by subclasses.
+        :param start_date:
+        :param end_date:
+        :param ignore_groups:
+        :param exclude_system_messages:
+        :param senders:
+        :param search_regex:
+        :return:
+        """
+        raise NotImplementedError
+
 
     async def get_asset(self, image_id: str) -> Tuple[bytes, str]:
         pass
@@ -235,12 +234,24 @@ class MemoryProvider(ABC):
 
     async def get_start_end_date(self) -> Tuple[date | None, date | None]:
         # This is not the most efficient way to do this, but it's the easiest for now.
-        all_memories = await self.fetch(on_date=None, ignore_groups=False)
+        if hasattr(self, "_start_end_date_cache") and self._start_end_date_cache:
+            return self._start_end_date_cache
+
+        if not self.is_working():
+            return None, None
+
+        _result = await self._get_start_end_date()
+        self._start_end_date_cache = _result
+        return _result
+
+    async def _get_start_end_date(self) -> Tuple[date | None, date | None]:
+        # This is not the most efficient way to do this, but it's the easiest for now.
+        all_memories = await self._fetch(start_date=MINIMUM_DATE, end_date=MAXIMUM_DATE, ignore_groups=False)
         start_date = min(all_memories, key=lambda m: m.datetime).datetime.date()
         end_date = max(all_memories, key=lambda m: m.datetime).datetime.date()
         return start_date, end_date
 
-    def get_logo(self):
+    def get_logo(self) -> str:
         return f'/asset/{self.NAME}/logo.png'
 
     @staticmethod

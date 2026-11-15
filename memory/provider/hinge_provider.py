@@ -1,7 +1,7 @@
 import re
 import statistics
 from datetime import date, timezone
-from typing import List, Optional
+from typing import List
 
 from dateutil import parser
 
@@ -116,14 +116,13 @@ class HingeProvider(MemoryProvider):
             "matched_like_times": matched_like_times, # This is local to show correctly on the UI
         }
 
-
-    async def fetch(self, on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    senders: List[str] = None,
-                    search_regex: str = None,
-                    **kwargs) -> List[Message]:
-        print("Starting to fetch from Hinge")
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         messages = []
 
         if senders:
@@ -169,9 +168,6 @@ class HingeProvider(MemoryProvider):
             for row in match_messages:
                 _dt, text = row
 
-                if on_date and _dt.date() != on_date:
-                    continue
-
                 # Messages are sorted by time descending in Instagram export
                 if start_date and _dt.date() < start_date:
                     continue
@@ -199,6 +195,4 @@ class HingeProvider(MemoryProvider):
                     )
                 )
 
-        messages.sort(key=lambda memory: memory.datetime)
-        print("Done fetching from Hinge")
         return messages

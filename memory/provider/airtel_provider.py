@@ -1,5 +1,5 @@
 from datetime import date, timezone
-from typing import List, Optional
+from typing import List
 
 from dateutil import parser
 
@@ -39,16 +39,13 @@ class AirtelProvider(MemoryProvider):
 
         return user_calls_stats
 
-    async def fetch(self,
-                    on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
-                    exclude_system_messages: bool = False,
-                    senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
-        print(f"Starting to fetch from Airtel {on_date=} {start_date=} {end_date=}")
-
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = False,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         """
         Fetches all individual commit messages and timestamps from 1 year ago today
         up to the present moment, handling API pagination.
@@ -93,12 +90,9 @@ class AirtelProvider(MemoryProvider):
                 )
             )
 
-        memories.sort(key=lambda memory: memory.datetime)
-
-        print("Done fetching from Airtel")
         return memories
 
-    async def get_start_end_date(self):
+    async def _get_start_end_date(self):
         data_parser = AirtelParser()
         data: List[CallLog] = await data_parser.get_old_data(validate=False)
         dates = []

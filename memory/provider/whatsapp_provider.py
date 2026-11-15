@@ -14,7 +14,7 @@ from provider.base_provider import MemoryProvider, MessageType, MediaType, Messa
 
 class WhatsAppProvider(MemoryProvider):
     NAME = "Whatsapp"
-    USER = 'Ritik'
+    PLATFORM_USERNAME = 'Ritik'
 
     DATA_PATH = os.path.join(DATA_DIR, 'whatsapp')
     WHATSAPP_ANDROID_FILE_NAME_PREFIX = 'WhatsApp Chat with '
@@ -235,7 +235,6 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     async def parse_android_chat(file_path: str,
-                                 on_date: Optional[date] = None,
                                  start_date: Optional[date] = None,
                                  end_date: Optional[date] = None,
                                  ignore_groups: bool = False,
@@ -289,14 +288,12 @@ class WhatsAppProvider(MemoryProvider):
         if not is_group and sender_regexes:
             # Skip chat if none of the participants match the provided sender regex patterns in case of DM
             if not MemoryProvider._sender_matched(chat_name, sender_regexes) and not MemoryProvider._sender_matched(
-                    WhatsAppProvider.USER, sender_regexes):
+                    WhatsAppProvider.PLATFORM_USERNAME, sender_regexes):
                 return []
 
         # Early exit if the date is out of range
         first_date, last_date = index_datetime_pairs[0][1], index_datetime_pairs[-1][1]
-        if on_date and (on_date < first_date or on_date > last_date):
-            return []
-        elif start_date and start_date > last_date:
+        if start_date and start_date > last_date:
             return []
         elif end_date and end_date < first_date:
             return []
@@ -330,9 +327,7 @@ class WhatsAppProvider(MemoryProvider):
                     high = mid - 1
             return result_index
 
-        if on_date:
-            first_index = binary_search_on_date(on_date)
-        elif start_date:
+        if start_date:
             first_index = binary_search_start_date(start_date)
         else:
             first_index = 0
@@ -395,7 +390,7 @@ class WhatsAppProvider(MemoryProvider):
             chat_entries.append(
                 Message(
                     current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
-                    message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                    message_type=MessageType.SENT if current_sender == WhatsAppProvider.PLATFORM_USERNAME else MessageType.RECEIVED,
                     media_type=media_type,
                     message=text.strip(),
                     sender=sender,
@@ -418,8 +413,6 @@ class WhatsAppProvider(MemoryProvider):
             match = WhatsAppProvider.ANDROID_MSG_START_RE.match(line)
             if match:
                 dt = WhatsAppProvider.try_parse_date(match.group(1), _os)
-                if on_date and dt.date() != on_date:
-                    break
                 if start_date and dt.date() < start_date:
                     continue
                 elif end_date and dt.date() > end_date:
@@ -444,7 +437,6 @@ class WhatsAppProvider(MemoryProvider):
 
     @staticmethod
     async def parse_ios_chat(folder_path: str,
-                             on_date: Optional[date] = None,
                              start_date: Optional[date] = None,
                              end_date: Optional[date] = None,
                              ignore_groups: bool = False,
@@ -483,14 +475,12 @@ class WhatsAppProvider(MemoryProvider):
         if not is_group and sender_regexes:
             # Skip chat if none of the participants match the provided sender regex patterns in case of DM
             if not MemoryProvider._sender_matched(chat_name, sender_regexes) and not MemoryProvider._sender_matched(
-                    WhatsAppProvider.USER, sender_regexes):
+                    WhatsAppProvider.PLATFORM_USERNAME, sender_regexes):
                 return []
 
         # Early exit if the date is out of range
         first_date, last_date = index_datetime_pairs[0][1], index_datetime_pairs[-1][1]
-        if on_date and (on_date < first_date or on_date > last_date):
-            return []
-        elif start_date and start_date > last_date:
+        if start_date and start_date > last_date:
             return []
         elif end_date and end_date < first_date:
             return []
@@ -524,9 +514,7 @@ class WhatsAppProvider(MemoryProvider):
                     high = mid - 1
             return result_index
 
-        if on_date:
-            first_index = binary_search_on_date(on_date)
-        elif start_date:
+        if start_date:
             first_index = binary_search_start_date(start_date)
         else:
             first_index = 0
@@ -596,7 +584,7 @@ class WhatsAppProvider(MemoryProvider):
             chat_entries.append(
                 Message(
                     current_datetime.astimezone(timezone.utc).replace(tzinfo=None),
-                    message_type=MessageType.SENT if current_sender == WhatsAppProvider.USER else MessageType.RECEIVED,
+                    message_type=MessageType.SENT if current_sender == WhatsAppProvider.PLATFORM_USERNAME else MessageType.RECEIVED,
                     media_type=media_type,
                     message=text.strip(),
                     sender=sender,
@@ -619,8 +607,6 @@ class WhatsAppProvider(MemoryProvider):
             match = WhatsAppProvider.IOS_MSG_START_RE.match(line)
             if match:
                 dt = WhatsAppProvider.try_parse_date(match.group(1), _os)
-                if on_date and dt.date() != on_date:
-                    break
                 if start_date and dt.date() < start_date:
                     continue
                 elif end_date and dt.date() > end_date:
@@ -643,15 +629,13 @@ class WhatsAppProvider(MemoryProvider):
 
         return chat_entries
 
-    async def fetch(self,
-                    on_date: Optional[date] = None,
-                    start_date: Optional[date] = None,
-                    end_date: Optional[date] = None,
-                    ignore_groups: bool = False,
-                    exclude_system_messages: bool = False,
-                    senders: List[str] = None,
-                    search_regex: str = None) -> List[Message]:
-        print(f"Starting to fetch from WhatsApp {on_date=} {start_date=} {end_date=}")
+    async def _fetch(self,
+                     start_date: date,
+                     end_date: date,
+                     ignore_groups: bool = False,
+                     exclude_system_messages: bool = True,
+                     senders: List[str] = None,
+                     search_regex: str = None) -> List[Message]:
         sender_regexes = [await get_regex_from_name(sender) for sender in senders] if senders else None
 
         memories = []
@@ -668,7 +652,6 @@ class WhatsAppProvider(MemoryProvider):
                         continue
 
                     tasks.append(self.parse_android_chat(os.path.join(base_path, found),
-                                                         on_date=on_date,
                                                          start_date=start_date,
                                                          end_date=end_date,
                                                          ignore_groups=ignore_groups,
@@ -680,7 +663,6 @@ class WhatsAppProvider(MemoryProvider):
                         continue
 
                     tasks.append(self.parse_ios_chat(os.path.join(base_path, found),
-                                                     on_date=on_date,
                                                      start_date=start_date,
                                                      end_date=end_date,
                                                      ignore_groups=ignore_groups,
@@ -694,9 +676,6 @@ class WhatsAppProvider(MemoryProvider):
         for chat_list in results:
             memories.extend(chat_list)
 
-        memories.sort(key=lambda memory: memory.datetime)
-
-        print("Done fetching from Whatsapp")
         return memories
 
     @staticmethod
