@@ -3,15 +3,20 @@ import json
 import mimetypes
 import os
 import re
+from collections import defaultdict
 from datetime import datetime, date, timezone
 from pathlib import Path
 from typing import List, Tuple, Optional
 
 import aiofiles
+from dateutil import parser
+from flask import jsonify
 
+from configs import MINIMUM_DATE, MAXIMUM_DATE, USER
 from init import DATA_DIR
 from profile import get_regex_from_name
 from provider.base_provider import MemoryProvider, MessageType, MediaType, Message
+from utils import get_aggregate_message_by_user
 
 
 class InstagramProvider(MemoryProvider):
@@ -37,7 +42,7 @@ class InstagramProvider(MemoryProvider):
             return
 
     def get_allowed_exposed_functions(self) -> List[str]:
-        return ['get_followers', 'get_following', 'get_close_friends']
+        return ['get_followers', 'get_following', 'get_close_friends', 'get_share_data']
 
     def supports_home(self) -> bool:
         return self.is_working() and self.supports_followers() and self.supports_following() and self.supports_close_friends()
@@ -64,14 +69,15 @@ class InstagramProvider(MemoryProvider):
             return {}
         follower_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/followers_1.json')
         with open(follower_path, 'r', encoding='utf-8') as f:
-            return [follower['string_list_data'] for follower in json.load(f)]
+            return [follower['string_list_data'] for follower in
+                    json.load(f, object_hook=InstagramProvider.fix_meta_encoding)]
 
     async def get_following(self, **kwargs):
         if not self.supports_following():
             return {}
         following_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/following.json')
         with open(following_path, 'r', encoding='utf-8') as f:
-            return json.load(f)['relationships_following']
+            return json.load(f, object_hook=InstagramProvider.fix_meta_encoding)['relationships_following']
 
     async def get_close_friends(self, **kwargs):
         if not self.supports_close_friends():
@@ -79,7 +85,29 @@ class InstagramProvider(MemoryProvider):
 
         close_friends_path = Path(f'{self.INSTAGRAM_FOLLOWER_FOLLOWING_PATH}/close_friends.json')
         with open(close_friends_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            return json.load(f, object_hook=InstagramProvider.fix_meta_encoding)
+
+    async def get_share_data(self, start_date=None, end_date=None, **kwargs):
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date).date()
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date).date()
+        if not start_date:
+            start_date = MINIMUM_DATE
+        if not end_date:
+            end_date = MAXIMUM_DATE
+        all_messages = await self.fetch(start_date=start_date, end_date=end_date)
+        all_messages = [message for message in all_messages if
+                        message.context and message.context.get(
+                            'content_type') == 'share' and message.sender != MemoryProvider.UNKNOWN]
+        # sent = [message for message in all_messages if message.sender == USER]
+        received = [message for message in all_messages if message.sender != USER]
+        messages_by_people = defaultdict(list)
+        for message in received:
+            messages_by_people[message.sender].append(message)
+        _people_data = get_aggregate_message_by_user(messages_by_people, max_people=7)
+        return jsonify({"people": _people_data})
+
 
     @staticmethod
     def fix_mojibake(text: str) -> str:
@@ -90,8 +118,17 @@ class InstagramProvider(MemoryProvider):
             return text  # fallback if it fails
 
     @staticmethod
-    def clean_message(message):
-        return InstagramProvider.fix_mojibake(message).strip()
+    def fix_meta_encoding(obj):
+        if isinstance(obj, str):
+            try:
+                return obj.encode("latin-1").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                return obj
+        if isinstance(obj, list):
+            return [InstagramProvider.fix_meta_encoding(item) for item in obj]
+        if isinstance(obj, dict):
+            return {k: InstagramProvider.fix_meta_encoding(v) for k, v in obj.items()}
+        return obj
 
     @staticmethod
     def _add_to_contexts(existing_contexts: Optional[list], new_context: dict):
@@ -118,7 +155,6 @@ class InstagramProvider(MemoryProvider):
                  key.get('name') != InstagramProvider.PLATFORM_USERNAME),
                 name_from_file
             )
-            chat_name = InstagramProvider.clean_message(chat_name)
 
         if ignore_groups and is_group:
             return []
@@ -143,8 +179,9 @@ class InstagramProvider(MemoryProvider):
             elif end_date and _dt.date() > end_date:
                 continue
 
-            sender_name = InstagramProvider.clean_message(message.get('sender_name'))
-            sender_name = MemoryProvider.UNKNOWN if sender_name == 'Instagram User' else sender_name
+            sender_name = message.get('sender_name')
+            sender_name = USER if sender_name == InstagramProvider.PLATFORM_USERNAME else sender_name
+            sender_name = MemoryProvider.UNKNOWN if not sender_name or sender_name.lower() == 'instagram user' else sender_name
 
             if sender_regexes and not InstagramProvider._sender_matched(sender_name, sender_regexes):
                 continue
@@ -178,7 +215,6 @@ class InstagramProvider(MemoryProvider):
             if not text and not contexts:
                 continue
 
-            text = InstagramProvider.clean_message(text) if text else ''
             if text in InstagramProvider.REGIONAL_LANGUAGE_LIKED_MESSAGE:
                 text = 'Liked the message'
             if text.endswith('(edited)'):
@@ -203,6 +239,10 @@ class InstagramProvider(MemoryProvider):
 
             contexts = contexts if contexts else [None]
             for context in contexts:
+                if share_link:
+                    if not context:
+                        context = {}
+                    context['content_type'] = 'share'
                 messages.append(Message(_dt.astimezone(timezone.utc).replace(tzinfo=None),
                                         message_type,
                                         text,
@@ -256,7 +296,7 @@ class InstagramProvider(MemoryProvider):
         try:
             async with aiofiles.open(filepath, mode='r', encoding='utf-8') as f:
                 raw = await f.read()
-                data = json.loads(raw)
+                data = json.loads(raw, object_hook=InstagramProvider.fix_meta_encoding)
                 return self.parse_json(data, **kwargs)
         except (FileNotFoundError, json.JSONDecodeError):
             return []

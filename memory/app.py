@@ -5,19 +5,18 @@ import string
 from collections import defaultdict, Counter
 from urllib.parse import unquote
 
-import pandas as pd
+# This should be the first line in the file. It initializes the app.
+import init
+
+init.init()
 
 import configs
-import init
 from privacy import load_privacy_config, get_current_privacy_rules, validate_rules, resolve_mode_rules, \
     save_privacy_config, PRIVACY_LOCK
 
-# This should be the first line in the file. It initializes the app.
-init.init()
-
 from configs import COMMON_WORDS_FOR_USER_STATS, USER
 from provider.base_provider import MediaType, MemoryProvider
-from utils import add_caching_to_response, json_safe, run_function
+from utils import add_caching_to_response, json_safe, run_function, get_aggregate_message_by_user
 
 import mimetypes
 
@@ -172,62 +171,14 @@ async def circle_data():
     messages_by_sender = await MemoryAggregator.get_instance().get_messages_by_sender(
         start_date,
         end_date,
+        ignore_media_type=MediaType.NON_TEXT,
         ignore_groups=True)
 
     messages_by_sender.pop(configs.USER, None)
     messages_by_sender.pop(MemoryProvider.UNKNOWN, None)
 
-    message_count_by_sender = {}
-    sender_weekly_counts = {}
-
-    for sender, messages in messages_by_sender.items():
-        message_count_by_sender[sender] = len(messages)
-        words_counter = defaultdict(int)
-
-        # bucket messages by ISO week
-        weekly_counts = defaultdict(int)
-        for message in messages:
-            if message.message and message.media_type != MediaType.NON_TEXT:
-                words = message.message.split()
-                for word in words:
-                    if len(word) == 1 and (word.isdigit() or word in string.punctuation):
-                        continue
-                    words_counter[word] += 1
-
-                if message.datetime:
-                    year_week = message.datetime.strftime("%Y-%W")
-                    weekly_counts[year_week] += 1
-
-        sender_weekly_counts[sender] = dict(weekly_counts)
-
-    # Get the top 15 most active people
-    top_15_people = sorted(message_count_by_sender.items(), key=lambda x: x[1], reverse=True)[:15]
-
-    people = []
-    for name, chat_count in top_15_people:
-        weekly_series = (
-            pd.Series(sender_weekly_counts.get(name, {}))
-            .sort_index()
-            .astype(int)
-        )
-        moving_avg_series = (
-            weekly_series.rolling(window=3, min_periods=1).mean().round(2)
-        )
-
-        weekly_counts_dict = {k: int(v) for k, v in weekly_series.to_dict().items()}
-        moving_avg_dict = {k: float(v) for k, v in moving_avg_series.to_dict().items()}
-
-        people.append({
-            "name": name,
-            "dp": f"/user/dp/{name}",
-            "chats": chat_count,
-            "chat_times": {
-                "weekly_counts": weekly_counts_dict,
-                "weekly_moving_avg": moving_avg_dict
-            }
-        })
-
-    return add_caching_to_response(jsonify({"people": people}), 3600, 30)
+    _people_data = get_aggregate_message_by_user(messages_by_sender)
+    return add_caching_to_response(jsonify({"people": _people_data}), 3600, 30)
 
 
 @app.route("/user/stats/<name>")

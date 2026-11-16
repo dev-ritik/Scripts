@@ -224,7 +224,103 @@
     .metric-val {
         font-weight: 600;
     }
+
+    /* Received Attachments Section */
+    .attachments-section {
+        margin-top: 40px;
+        padding: 24px;
+        background: white;
+        border: 1px solid #dbdbdb;
+        border-radius: 12px;
+    }
+
+    .attachments-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .attachments-header h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .attachments-chart-container {
+        position: relative;
+        height: 420px;
+        width: 100%;
+    }
+
+    .attachments-dropdown {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .attachments-dropdown label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #555;
+    }
+
+    #attachmentRange {
+        padding: 9px 12px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        background: white;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .attachments-custom-dates {
+        display: none;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .attachments-custom-dates input {
+        padding: 7px;
+        border: 1px solid #ccc;
+        border-radius: 7px;
+    }
+
+    #applyAttachmentRange {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 7px;
+        background: #0095f6;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .attachments-status {
+        text-align: center;
+        color: #8e8e8e;
+        padding: 15px;
+        font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+        .attachments-section {
+            padding: 15px;
+        }
+
+        .attachments-chart-container {
+            height: 350px;
+        }
+    }
 </style>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -269,6 +365,58 @@
                                                                              id="m-not-back">-</span></div>
         </div>
     </div>
+</div>
+
+<!-- Received Attachments Analytics -->
+<div class="attachments-section">
+
+    <div class="attachments-header">
+        <h3>
+            <i class="fas fa-paperclip"></i>
+            Received Attachments per Friend
+        </h3>
+
+        <div class="attachments-dropdown">
+            <label for="attachmentRange">📅 Select Range</label>
+
+            <select id="attachmentRange">
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+
+                <option value="custom">Custom Range</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="attachments-custom-dates" id="attachmentCustomDates">
+
+        <label for="attachmentFromDate">From:</label>
+        <input type="date" id="attachmentFromDate">
+
+        <label for="attachmentToDate">To:</label>
+        <input type="date" id="attachmentToDate">
+
+        <button id="applyAttachmentRange">
+            Apply
+        </button>
+
+    </div>
+
+    <div id="attachmentsStatus" class="attachments-status"></div>
+
+    <div class="attachments-chart-container">
+        <canvas id="attachmentsWeeklyChart"></canvas>
+    </div>
+
 </div>
 
 <script>
@@ -509,5 +657,359 @@
 
     // Initialize UI Component loops
     loadInstagramData();
+
+    // ==========================================
+    // RECEIVED ATTACHMENTS ANALYTICS
+    // ==========================================
+
+    let attachmentsChart = null;
+
+
+    // Format date as YYYY-MM-DD using local time
+    function formatAttachmentDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    }
+
+
+    // Get date range based on selected preset
+    function getAttachmentDateRange(range) {
+
+        const today = new Date();
+
+        let start, end;
+
+        switch (range) {
+
+            case "week":
+                end = new Date(today);
+                start = new Date(today);
+                start.setDate(start.getDate() - 7);
+                break;
+
+            case "month":
+                end = new Date(today);
+                start = new Date(
+                    today.getFullYear(),
+                    today.getMonth() - 1,
+                    today.getDate()
+                );
+                break;
+
+            case "quarter":
+                end = new Date(today);
+                start = new Date(
+                    today.getFullYear(),
+                    today.getMonth() - 3,
+                    today.getDate()
+                );
+                break;
+
+            default:
+
+                if (/^\d{4}$/.test(range)) {
+
+                    const year = parseInt(range);
+
+                    start = new Date(year, 0, 1);
+
+                    end = year === today.getFullYear()
+                        ? new Date(today)
+                        : new Date(year, 11, 31);
+
+                    break;
+                }
+
+                return null;
+        }
+
+        return {
+            start_date: formatAttachmentDate(start),
+            end_date: formatAttachmentDate(end)
+        };
+    }
+
+
+    // Fetch attachment data
+    async function loadAttachmentsData(startDate, endDate) {
+
+        const status = document.getElementById('attachmentsStatus');
+
+        status.innerText = 'Loading attachment analytics...';
+
+        try {
+
+            const url = `/Instagram/get_share_data?start_date=${startDate}&end_date=${endDate}`;
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            renderAttachmentsChart(data.people || []);
+
+            status.innerText = '';
+
+        } catch (error) {
+
+            console.error('Error loading attachment data:', error);
+
+            status.innerText = 'Unable to load attachment analytics.';
+
+        }
+    }
+
+
+    // Render weekly attachment chart
+    function renderAttachmentsChart(people) {
+
+        const ctx = document
+            .getElementById('attachmentsWeeklyChart')
+            .getContext('2d');
+
+        // Collect all available week labels
+        const weekSet = new Set();
+
+        people.forEach(person => {
+
+            const weeklyCounts =
+                person.chat_times?.weekly_counts || {};
+
+            Object.keys(weeklyCounts).forEach(week => {
+                weekSet.add(week);
+            });
+
+        });
+
+        // Sort weeks chronologically (YYYY-WW)
+        const weeks = Array.from(weekSet).sort();
+
+        if (attachmentsChart) {
+            attachmentsChart.destroy();
+            attachmentsChart = null;
+        }
+
+        if (weeks.length === 0 || people.length === 0) {
+
+            document.getElementById('attachmentsStatus').innerText =
+                'No attachment data available for this date range.';
+
+            return;
+        }
+
+        // Sort friends by total attachments received
+        const sortedPeople = [...people].sort((a, b) => {
+
+            const totalA = Object.values(
+                a.chat_times?.weekly_counts || {}
+            ).reduce((sum, count) => sum + Number(count || 0), 0);
+
+            const totalB = Object.values(
+                b.chat_times?.weekly_counts || {}
+            ).reduce((sum, count) => sum + Number(count || 0), 0);
+
+            return totalB - totalA;
+
+        });
+
+        // Generate one dataset per friend
+        const datasets = sortedPeople.map((person, index) => {
+
+            const weeklyCounts =
+                person.chat_times?.weekly_counts || {};
+
+            const hue = (index * 137.508) % 360;
+
+            return {
+
+                label: person.name,
+
+                data: weeks.map(week =>
+                    Number(weeklyCounts[week] || 0)
+                ),
+
+                borderColor: `hsl(${hue}, 65%, 48%)`,
+
+                backgroundColor: `hsla(${hue}, 65%, 48%, 0.12)`,
+
+                borderWidth: 2,
+
+                pointRadius: 3,
+
+                pointHoverRadius: 6,
+
+                tension: 0.3,
+
+                fill: false
+
+            };
+
+        });
+
+
+        attachmentsChart = new Chart(ctx, {
+
+            type: 'line',
+
+            data: {
+                labels: weeks,
+                datasets: datasets
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+
+                plugins: {
+
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            boxWidth: 8
+                        }
+                    },
+
+                    tooltip: {
+
+                        callbacks: {
+
+                            title: function (items) {
+                                return `Week ${items[0].label}`;
+                            },
+
+                            label: function (context) {
+                                return `${context.dataset.label}: ${context.parsed.y} attachments`;
+                            }
+
+                        }
+
+                    }
+
+                },
+
+                scales: {
+
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Week'
+                        },
+
+                        grid: {
+                            display: false
+                        }
+                    },
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        title: {
+                            display: true,
+                            text: 'Received Attachments'
+                        },
+
+                        ticks: {
+                            precision: 0
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    }
+
+
+    // ==========================================
+    // DATE RANGE EVENTS
+    // ==========================================
+
+    document.getElementById('attachmentRange')
+        .addEventListener('change', function () {
+
+            const range = this.value;
+
+            const customDates = document.getElementById(
+                'attachmentCustomDates'
+            );
+
+            if (range === 'custom') {
+
+                customDates.style.display = 'flex';
+
+                return;
+            }
+
+            customDates.style.display = 'none';
+
+            const dates = getAttachmentDateRange(range);
+
+            if (dates) {
+                loadAttachmentsData(
+                    dates.start_date,
+                    dates.end_date
+                );
+            }
+
+        });
+
+
+    // Apply custom date range
+    document.getElementById('applyAttachmentRange')
+        .addEventListener('click', function () {
+
+            const startDate = document.getElementById(
+                'attachmentFromDate'
+            ).value;
+
+            const endDate = document.getElementById(
+                'attachmentToDate'
+            ).value;
+
+            if (!startDate || !endDate) {
+                alert('Please select both dates.');
+                return;
+            }
+
+            if (startDate > endDate) {
+                alert('From date cannot be after To date.');
+                return;
+            }
+
+            loadAttachmentsData(startDate, endDate);
+
+        });
+
+
+    // Initial chart load
+    (function initializeAttachmentsChart() {
+
+        const dates = getAttachmentDateRange('week');
+
+        loadAttachmentsData(
+            dates.start_date,
+            dates.end_date
+        );
+
+    })();
 </script>
 {% endblock %}

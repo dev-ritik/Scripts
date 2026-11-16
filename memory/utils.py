@@ -1,10 +1,14 @@
 import asyncio
 import inspect
 import os
+import string
+import unicodedata
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, List, Coroutine
 
 import httpx
+import pandas as pd
 from flask import Response, make_response
 
 import init
@@ -81,19 +85,27 @@ def human_duration(seconds: int | float = None, minutes: int | float = None) -> 
     return " ".join(parts) if parts else "0 s"
 
 
-def load_dictionary():
-    if os.path.exists('/usr/share/dict/words'):
-        file_path = '/usr/share/dict/words'
-    else:
-        raise FileNotFoundError("Dictionary file not found")
+def strip_accents(text: str) -> str:
+    # Decomposes characters (e.g., 'é' -> 'e' + '´') and drops non-spacing marks
+    return ''.join(
+        char for char in unicodedata.normalize('NFKD', text)
+        if not unicodedata.combining(char)
+    )
 
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            # strip() removes newlines; lower() ensures case-insensitivity
-            return {line.strip().lower() for line in f}
-    except FileNotFoundError:
-        print(f"Error: Dictionary file not found at {file_path}")
-        return set()
+
+def load_dictionary() -> set[str]:
+    file_path = '/usr/share/dict/words'
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Dictionary file not found at {file_path}")
+
+    words = set()
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            word = line.strip().lower()
+            words.add(word)
+            words.add(strip_accents(word))  # Adds 'cafe' alongside 'café'
+
+    return words
 
 
 def is_valid_word(dictionary=None, word: str = None) -> bool:
@@ -143,3 +155,57 @@ async def run_function(func, **kwargs) -> Any:
         response = await response
 
     return response
+
+
+def get_aggregate_message_by_user(messages_by_sender: dict, max_people: int = 15):
+    message_count_by_sender = {}
+    sender_weekly_counts = {}
+
+    for sender, messages in messages_by_sender.items():
+        message_count_by_sender[sender] = len(messages)
+        words_counter = defaultdict(int)
+
+        # bucket messages by ISO week
+        weekly_counts = defaultdict(int)
+        for message in messages:
+            if message.message:
+                words = message.message.split()
+                for word in words:
+                    if len(word) == 1 and (word.isdigit() or word in string.punctuation):
+                        continue
+                    words_counter[word] += 1
+
+                if message.datetime:
+                    year_week = message.datetime.strftime("%Y-%W")
+                    weekly_counts[year_week] += 1
+
+        sender_weekly_counts[sender] = dict(weekly_counts)
+
+    # Get the top 15 most active people
+    top_people = sorted(message_count_by_sender.items(), key=lambda x: x[1], reverse=True)[:max_people]
+
+    people = []
+    for name, chat_count in top_people:
+        weekly_series = (
+            pd.Series(sender_weekly_counts.get(name, {}))
+            .sort_index()
+            .astype(int)
+        )
+        moving_avg_series = (
+            weekly_series.rolling(window=3, min_periods=1).mean().round(2)
+        )
+
+        weekly_counts_dict = {k: int(v) for k, v in weekly_series.to_dict().items()}
+        moving_avg_dict = {k: float(v) for k, v in moving_avg_series.to_dict().items()}
+
+        people.append({
+            "name": name,
+            "dp": f"/user/dp/{name}",
+            "chats": chat_count,
+            "chat_times": {
+                "weekly_counts": weekly_counts_dict,
+                "weekly_moving_avg": moving_avg_dict
+            }
+        })
+
+    return people
