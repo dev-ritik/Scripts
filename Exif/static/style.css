@@ -99,15 +99,48 @@ body {
 }
 
 .input-wrapper {
-    position: relative;
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     margin: 4px 0;
 }
 
-.input-wrapper input {
+.input-with-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.input-with-badge input {
     padding-right: 28px;
     transition: border 0.2s, background 0.2s;
+}
+
+.input-with-badge .badge {
+    position: absolute;
+    right: 8px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #34c759;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+    pointer-events: none;
+}
+
+.input-wrapper button {
+    padding: 3px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.input-wrapper button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* subtle processed state (less loud than before) */

@@ -130,6 +130,7 @@ async function load(auto = false) {
         fill.style.width = "0%";
     }, 300);
 
+    clearSelection();
     render();
 }
 
@@ -232,18 +233,36 @@ function createRow(f, idx) {
                         
             Date:
             <div class="input-wrapper">
-                <input type="datetime-local"
-                       value="${formattedDate}"
-                       class="date ${f.processed_date ? 'processed' : ''}"
-                       step="1">
-                ${f.processed_date ? '<span class="badge">✓</span>' : ''}
+                <div class="input-with-badge">
+                    <input type="datetime-local"
+                           value="${formattedDate}"
+                           min="2000-01-01T00:00:00"
+                           max="2029-12-31T23:59:59"
+                           class="date ${f.processed_date ? 'processed' : ''}"
+                           step="1">
+                    ${f.processed_date ? '<span class="badge">✓</span>' : ''}
+                </div>
+                <button type="button"
+                        class="use-date"
+                        title="Copy to bulk date"
+                        ${formattedDate ? '' : 'disabled'}>
+                    ↑ Use
+                </button>
             </div>
             
             GPS:
             <div class="input-wrapper">
-                <input value="${f.gps || ''}"
-                       class="gps ${f.processed_gps ? 'processed' : ''}">
-                ${f.processed_gps ? '<span class="badge">✓</span>' : ''}
+                <div class="input-with-badge">
+                    <input value="${f.gps || ''}"
+                           class="gps ${f.processed_gps ? 'processed' : ''}">
+                    ${f.processed_gps ? '<span class="badge">✓</span>' : ''}
+                </div>
+                <button type="button"
+                        class="use-gps"
+                        title="Copy to bulk GPS"
+                        ${f.gps ? '' : 'disabled'}>
+                    ↑ Use
+                </button>
             </div>
             
             <button onclick="openMapEditor('${f.path}')">📍 Edit Map</button>
@@ -259,7 +278,30 @@ function createRow(f, idx) {
         toggleSelection(f.path, row);
     };
 
+    const dateInput = row.querySelector(".date");
+    const gpsInput = row.querySelector(".gps");
+
+    row.querySelector(".use-date")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fillBulkField("date", dateInput.value);
+    });
+
+    row.querySelector(".use-gps")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fillBulkField("gps", gpsInput.value);
+    });
+
     return row;
+}
+
+function fillBulkField(type, value) {
+    if (!value) return;
+
+    const bulkInput = document.getElementById(
+        type === "date" ? "bulk-date" : "bulk-gps"
+    );
+
+    bulkInput.value = value;
 }
 
 function render() {

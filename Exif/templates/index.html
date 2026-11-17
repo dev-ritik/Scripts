@@ -40,7 +40,11 @@
 
     <div id="bulk-controls">
         Date:
-        <input type="datetime-local" step="1" id="bulk-date">
+        <input type="datetime-local"
+               step="1"
+               min="2000-01-01T00:00:00"
+               max="2029-12-31T23:59:59"
+               id="bulk-date">
 
         GPS:
         <input id="bulk-gps" placeholder="lat,lon">
