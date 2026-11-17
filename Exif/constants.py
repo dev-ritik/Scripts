@@ -1,3 +1,32 @@
+import os
+from zoneinfo import ZoneInfo
+
+THUMB_DIR = "/tmp/thumbnails"
+os.makedirs(THUMB_DIR, exist_ok=True)
+
+DATE_FIELD = "Date"
+GPS_FIELD = "Gps"
+TIMEZONE = "+05:30"
+UI_TIMEZONE = ZoneInfo("Asia/Kolkata")
+
+# These tags represent UTC when read from QuickTime/MP4 video metadata.
+QUICKTIME_UTC_DATE_TAGS = {
+    "CreateDate",
+    "ModifyDate",
+    "TrackCreateDate",
+    "TrackModifyDate",
+    "MediaCreateDate",
+    "MediaModifyDate",
+}
+
+QUICKTIME_VIDEO_FILE_TYPES = {
+    "MOV",
+    "MP4",
+    "M4V",
+    "3GP",
+    "3G2",
+}
+
 # Src: Immich order: https://github.com/immich-app/immich/blob/main/server/src/services/metadata.service.ts
 EXIF_DATE_TAGS = [
     "SubSecDateTimeOriginal",

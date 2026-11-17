@@ -84,6 +84,12 @@ function getFilters() {
     };
 }
 
+async function clearCache() {
+     await fetch(`/clear_cache`, {
+        method: "POST"
+    });
+}
+
 async function load(auto = false) {
     const folderInput = document.getElementById("folder");
     const folder = folderInput.value;

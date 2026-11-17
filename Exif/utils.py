@@ -3,26 +3,32 @@ import os
 import re
 import shlex
 import subprocess
+import threading
 from datetime import datetime, timezone
 from glob import glob
 from pathlib import Path
+from typing import Dict
 from zoneinfo import ZoneInfo
 
 import pillow_heif
 from PIL import Image
 
-from constants import EXIF_DATE_TAGS, EXTENSION_TO_MIME, MIME_TO_EXTENSION
+from constants import EXIF_DATE_TAGS, EXTENSION_TO_MIME, MIME_TO_EXTENSION, QUICKTIME_UTC_DATE_TAGS, UI_TIMEZONE, \
+    QUICKTIME_VIDEO_FILE_TYPES, DATE_FIELD, GPS_FIELD, THUMB_DIR
 from settings import SUPPORTED_EXTS, OVERWRITE_ORIGINAL, VIDEO_EXTENSIONS
 
 pillow_heif.register_heif_opener()
 
-THUMB_DIR = "/tmp/thumbnails"
-os.makedirs(THUMB_DIR, exist_ok=True)
+METADATA_CACHE: Dict[str, Dict[str, str]] = {}
+CACHE_LOCK = threading.RLock()
 
-DATE_FIELD = "Date"
-GPS_FIELD = "Gps"
-TIMEZONE = "+05:30"
 
+def invalidate_metadata_cache(path: str = "", _all=False):
+    with CACHE_LOCK:
+        if path:
+            del METADATA_CACHE[path]
+        if _all:
+            METADATA_CACHE.clear()
 
 def get_real_mime_type(path):
     try:
@@ -58,6 +64,100 @@ def get_time_variants(date_str: str, tz_name: str):
     return exif_local, offset, iso_local, utc_str
 
 
+def normalize_exif_date(value: str, tag: str, is_video: bool = False) -> str:
+    """
+    Normalize a metadata date to Asia/Kolkata.
+
+    - Explicit timezone offsets and Z are respected.
+    - QuickTime video timestamps without offsets are treated as UTC.
+    - Other naive timestamps are assumed to be Asia/Kolkata.
+
+    Returns: YYYY:MM:DD HH:MM:SS
+    """
+    if not is_valid_exif_date(value):
+        return ""
+
+    value = value.strip()
+
+    # Normalize EXIF date format.
+    value = re.sub(
+        r"^(\d{4}):(\d{2}):(\d{2})",
+        r"\1-\2-\3",
+        value,
+    )
+
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+
+    dt = datetime.fromisoformat(value)
+
+    if dt.tzinfo is None:
+        if is_video and tag in QUICKTIME_UTC_DATE_TAGS:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.replace(tzinfo=UI_TIMEZONE)
+
+    dt = dt.astimezone(UI_TIMEZONE)
+
+    return dt.strftime("%Y:%m:%d %H:%M:%S")
+
+
+def get_exif_date_entry(filepath):
+    """Return (tag, value, is_video) for the first valid date tag."""
+    args = [
+        "exiftool",
+        "-json",
+        "-FileType",
+        *[f"-{tag}" for tag in EXIF_DATE_TAGS],
+        filepath,
+    ]
+
+    output = run(args)
+    if not output:
+        return None, "", False
+
+    try:
+        metadata = json.loads(output)
+    except (json.JSONDecodeError, TypeError):
+        return None, "", False
+
+    if not metadata:
+        return None, "", False
+
+    tags = metadata[0]
+    file_type = str(tags.get("FileType") or "").upper()
+    is_video = file_type in QUICKTIME_VIDEO_FILE_TYPES
+
+    for tag in EXIF_DATE_TAGS:
+        value = tags.get(tag)
+
+        if isinstance(value, str) and is_valid_exif_date(value):
+            return tag, value.strip(), is_video
+
+    return None, "", is_video
+
+
+def get_exif_date_raw(filepath):
+    """Return the first valid raw date value in priority order."""
+    _, value, _ = get_exif_date_entry(filepath)
+    return value
+
+
+def get_exif_date(filepath):
+    """Return a normalized Asia/Kolkata date string for the UI."""
+    tag, value, is_video = get_exif_date_entry(filepath)
+
+    if not value:
+        return ""
+
+    return normalize_exif_date(value, tag, is_video)
+
+
+def has_exif_date(filepath):
+    """Check for a valid date in the supported date tags."""
+    return bool(get_exif_date_raw(filepath))
+
+
 def is_valid_exif_date(value: str) -> bool:
     """Return True if value contains a parseable date/time."""
     if not value:
@@ -85,61 +185,6 @@ def is_valid_exif_date(value: str) -> bool:
     except ValueError:
         return False
 
-
-def get_exif_date_raw(filepath):
-    """Return the first valid date tag in Immich's priority order."""
-    args = [
-        "exiftool",
-        "-json",
-        *[f"-{tag}" for tag in EXIF_DATE_TAGS],
-        filepath,
-    ]
-
-    output = run(args)
-    if not output:
-        return ""
-
-    try:
-        metadata = json.loads(output)
-    except (json.JSONDecodeError, TypeError):
-        return ""
-
-    if not metadata:
-        return ""
-
-    tags = metadata[0]
-
-    for tag in EXIF_DATE_TAGS:
-        value = tags.get(tag)
-
-        # Some metadata values may not be strings.
-        if not isinstance(value, str):
-            continue
-
-        value = value.strip()
-        if is_valid_exif_date(value):
-            return value
-
-    return ""
-
-
-def get_exif_date(filepath):
-    """Return a clean date string for display in the UI."""
-    raw_date = get_exif_date_raw(filepath)
-    if not raw_date:
-        return ""
-
-    # Preserve existing UI behavior: remove the timezone suffix.
-    return re.sub(
-        r"(?:\s*[+-]\d{2}:\d{2}|Z)$",
-        "",
-        raw_date,
-    ).strip()
-
-
-def has_exif_date(filepath):
-    """Check for a valid date in the supported date tags."""
-    return bool(get_exif_date_raw(filepath))
 
 def has_exif_gps(filepath):
     return run(["exiftool", "-s3", "-GPSLatitude", filepath])
@@ -295,65 +340,82 @@ def get_all_metadata_batched(file_paths):
     if not paths:
         return []
 
-    cmd = [
-        "exiftool",
-        "-j",
-        "-c", "%.6f",
-        *[f"-{tag}" for tag in EXIF_DATE_TAGS],
-        "-GPSPosition",
-        "-UserComment",
-        *paths,
-    ]
+    with CACHE_LOCK:
+        missing_paths = [
+            path for path in paths
+            if path not in METADATA_CACHE
+        ]
 
-    try:
-        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
-        raw_data = json.loads(output)
+    if missing_paths:
+        cmd = [
+            "exiftool",
+            "-j",
+            "-c", "%.6f",
+            "-FileType",
+            *[f"-{tag}" for tag in EXIF_DATE_TAGS],
+            "-GPSPosition",
+            "-UserComment",
+            *missing_paths,
+        ]
 
-        results = []
-        for entry in raw_data:
-            user_comment = entry.get("UserComment", "")
-
-            # Reuse the shared date-priority and validation helpers.
-            raw_date = next(
-                (
-                    value.strip()
-                    for tag in EXIF_DATE_TAGS
-                    if isinstance(value := entry.get(tag), str)
-                       and is_valid_exif_date(value)
-                ),
-                "",
+        try:
+            output = subprocess.check_output(
+                cmd,
+                stderr=subprocess.DEVNULL,
+                text=True,
             )
+            raw_data = json.loads(output)
 
-            # Preserve the existing UI date format.
-            clean_date = re.sub(
-                r"(?:\s*[+-]\d{2}:\d{2}|Z)$",
-                "",
-                raw_date,
-            ).strip()
+            updated_entries = {}
 
-            gps_position = clean_gps_position(
-                entry.get("GPSPosition", "")
-            )
+            for entry in raw_data:
+                path = Path(entry["SourceFile"]).resolve().as_posix()
+                user_comment = entry.get("UserComment", "")
+                file_type = str(entry.get("FileType") or "").upper()
+                is_video = file_type in QUICKTIME_VIDEO_FILE_TYPES
 
-            results.append({
-                "path": entry.get("SourceFile"),
-                "date": clean_date,
-                "gps": gps_position,
-                "processed_date": (
-                    DATE_FIELD in user_comment if user_comment else False
-                ),
-                "processed_gps": (
-                    GPS_FIELD.lower() in user_comment.lower()
-                    if user_comment else False
-                ),
-            })
+                selected_tag = None
+                raw_date = ""
 
-        return results
+                for tag in EXIF_DATE_TAGS:
+                    value = entry.get(tag)
 
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
+                    if isinstance(value, str) and is_valid_exif_date(value):
+                        selected_tag = tag
+                        raw_date = value.strip()
+                        break
 
+                clean_date = (
+                    normalize_exif_date(raw_date, selected_tag, is_video)
+                    if selected_tag else ""
+                )
+
+                updated_entries[path] = {
+                    "path": path,
+                    "date": clean_date,
+                    "gps": clean_gps_position(entry.get("GPSPosition", "")),
+                    "processed_date": (
+                        DATE_FIELD in user_comment if user_comment else False
+                    ),
+                    "processed_gps": (
+                        GPS_FIELD.lower() in user_comment.lower()
+                        if user_comment else False
+                    ),
+                }
+
+            with CACHE_LOCK:
+                METADATA_CACHE.update(updated_entries)
+
+        except Exception as e:
+            print(f"Error getting batched metadata: {e}")
+            return []
+
+    with CACHE_LOCK:
+        return [
+            METADATA_CACHE[path]
+            for path in paths
+            if path in METADATA_CACHE
+        ]
 
 def log_command_failure(command, result, filepath=None):
     print(f"[ERROR] Command failed for {filepath or 'unknown file'}")
@@ -651,6 +713,8 @@ def apply_exif_updates(filepath,
         command.append("-overwrite_original")
     command.append(f"-UserComment={script_tag}")
     command.extend(args + [filepath])
+
+    invalidate_metadata_cache(filepath)
 
     result = run_exiftool_with_type_retry(
         command,

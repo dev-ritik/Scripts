@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify, send_file, abort
 
 from settings import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, HEIC_EXTENSIONS
 from utils import scan_files, apply_exif_updates, generate_video_thumbnail, generate_heic_thumbnail, \
-    get_all_metadata_batched
+    get_all_metadata_batched, invalidate_metadata_cache
 
 app = Flask(__name__)
 
@@ -17,6 +17,10 @@ PROGRESS = {"total": 0, "done": 0}
 def index():
     return render_template("index.html")
 
+@app.route("/clear_cache", methods=["POST"])
+def clear_cache():
+    invalidate_metadata_cache(_all=True)
+    return "Operation successful"
 
 @app.route("/load", methods=["GET"])
 def load():
