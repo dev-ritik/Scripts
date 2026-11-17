@@ -25,7 +25,7 @@ CACHE_LOCK = threading.RLock()
 
 def invalidate_metadata_cache(path: str = "", _all=False):
     with CACHE_LOCK:
-        if path:
+        if path and path in METADATA_CACHE:
             del METADATA_CACHE[path]
         if _all:
             METADATA_CACHE.clear()
@@ -511,7 +511,7 @@ def is_exiftool_file_type_error(stderr):
     return "not a valid" in error and "looks more like" in error
 
 
-def run_exiftool_with_type_retry(command, filepath, force=False):
+def run_exiftool_with_type_retry(command, filepath):
     """
     Run ExifTool normally. If forced and it reports a format mismatch,
     retry with a temporary filename using the detected file type's extension.
@@ -530,7 +530,7 @@ def run_exiftool_with_type_retry(command, filepath, force=False):
 
     log_command_failure(command, result, filepath)
 
-    if not force or not is_exiftool_file_type_error(result.stderr):
+    if not is_exiftool_file_type_error(result.stderr):
         print(f"ExifTool failed for {filepath}:\n{result.stderr.strip()}")
         return result
 
@@ -719,7 +719,6 @@ def apply_exif_updates(filepath,
     result = run_exiftool_with_type_retry(
         command,
         filepath,
-        force=force,
     )
 
     if result.returncode != 0:

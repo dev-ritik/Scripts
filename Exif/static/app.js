@@ -110,7 +110,7 @@ async function load(auto = false) {
     const interval = setInterval(() => {
         progress = Math.min(progress + Math.random() * 10, 90);
         fill.style.width = progress + "%";
-    }, 200);
+    }, 100);
 
     const params = new URLSearchParams({
         targets: JSON.stringify([folder])
@@ -494,6 +494,13 @@ function closeMapEditor() {
 }
 
 function trackProgress() {
+    // 🔥 show progress bar
+    const bar = document.getElementById("load-progress-bar");
+    const fill = document.getElementById("load-progress-fill");
+
+    bar.style.display = "block";
+    fill.style.width = "0%";
+
     const interval = setInterval(async () => {
         const res = await fetch("/progress");
         const p = await res.json();
@@ -501,11 +508,12 @@ function trackProgress() {
         if (p.total === 0) return;
 
         const percent = (p.done / p.total) * 100;
-        document.getElementById("load-progress-fill").style.width = percent + "%";
+        fill.style.width = percent + "%";
 
-        console.log(`Progress: ${percent.toFixed(2)}%`);
         console.log(`Done ${p.done} files out of ${p.total} total`)
         if (p.done >= p.total) {
+            bar.style.display = "none";
+            fill.style.width = "0%";
             clearInterval(interval);
             alert("Done! May be refresh the page to see the changes");
         }
