@@ -64,7 +64,7 @@ class LocationItem(MergeItem):
         # Assuming start_time and end_time are unique enough for a location item, but if visit is present, we can use its hierarchy_level to further differentiate.
         return f"{self.start_time}_{self.end_time}_{self.visit.hierarchy_level if self.visit else 'unique'}"
 
-    def get_coords_list(self):
+    def get_coords_list(self) -> list[Tuple[float, float]]:
         coords = []
         if self.visit:
             coords.append((self.visit.lat, self.visit.lng))

@@ -191,7 +191,7 @@ class MemoryProvider(ABC):
             return memories
         if start_date and end_date and (end_date < _provider_start_date or start_date > _provider_end_date):
             return memories
-        results = await self._fetch(start_date=start_date,
+        memories = await self._fetch(start_date=start_date,
                                     end_date=end_date,
                                     ignore_groups=ignore_groups,
                                     exclude_system_messages=exclude_system_messages,
@@ -200,7 +200,7 @@ class MemoryProvider(ABC):
         print(f"Done fetching from {self.NAME}")
         memories.sort(key=lambda memory: memory.datetime)
 
-        return results
+        return memories
 
     async def _fetch(self,
                      start_date: date,

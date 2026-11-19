@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
+from lakhua import geocode
+
 from configs import MINIMUM_DATE, MAXIMUM_DATE
 from provider.base_provider import MemoryProvider, MessageType, Message, MediaType
 from provider.google_maps_merge_helper import GoogleMapsParser, LocationItem
@@ -11,10 +13,30 @@ class GoogleMapsProvider(MemoryProvider):
     NAME = "Google Maps"
 
     def get_allowed_exposed_functions(self) -> List[str]:
-        return ['get_location_clustering']
+        return ['get_location_clustering', 'get_city_timeline']
 
     def supports_home(self) -> bool:
         return self.is_working()
+
+    async def get_city_timeline(self, **kwargs):
+        all_memories = await self.fetch(start_date=MINIMUM_DATE,
+                                        end_date=MAXIMUM_DATE,
+                                        )
+
+        coordinates = []
+        last_city = None
+
+        for memory in all_memories:
+            if not memory.context or not memory.context.get('coordinates') or len(memory.context['coordinates']) != 1:
+                continue
+            for coordinate in memory.context['coordinates']:
+                city = self.get_city(coordinate[0], coordinate[1])
+                if city != last_city:
+                    coordinates.append((memory.datetime, city))
+                    last_city = city
+
+        return coordinates
+
 
     async def get_location_clustering(self, **kwargs):
         all_memories = await self.fetch(start_date=MINIMUM_DATE,
@@ -64,15 +86,40 @@ class GoogleMapsProvider(MemoryProvider):
             # rep_lng = sum(c[1] for c in coords) / len(coords)
 
             output_data.append({
-                "name": f"Location {index + 1}",
+                "name": self.get_location_name(rep_lat, rep_lng) or f"Location {index + 1}",
                 "visits": len(coords),
                 "latitude": round(rep_lat, 4),
-                "longitude": round(rep_lng, 4)
+                "longitude": round(rep_lng, 4),
             })
 
         # 7. Return or print the formatted list
         return output_data[:20]
 
+    @staticmethod
+    def get_location_name(lat: float, lon: float) -> str | None:
+        """Return the Indian city corresponding to the given coordinates."""
+        if lat is None or lon is None:
+            return None
+
+        try:
+            result = geocode(float(lat), float(lon))
+            if not result:
+                return None
+            return f'{result.city}, {result.state}'
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def get_city(lat: float, lon: float) -> str | None:
+        """Return the Indian city corresponding to the given coordinates."""
+        if lat is None or lon is None:
+            return None
+
+        try:
+            result = geocode(float(lat), float(lon))
+            return result.city if result else None
+        except (ValueError, TypeError):
+            return None
 
     @staticmethod
     def lat_lng_to_dms(lat: float, lng: float):
