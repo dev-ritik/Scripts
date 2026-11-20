@@ -1,21 +1,17 @@
 import re
-import statistics
 from datetime import date, timezone
 from typing import List
 
 from dateutil import parser
 
 import configs
-from profile import get_all_hinge_match_times
+from profile import get_all_hinge_like_times, get_all_hinge_match_ids
 from provider.base_provider import MemoryProvider, Message, MediaType, MessageType
-from provider.hinge_merge_helper import HingeParser, Conversation
+from provider.hinge_merge_helper import HingeParser, Conversation, LikeItem
 
 
 class HingeProvider(MemoryProvider):
     NAME = "Hinge"
-
-    def __init__(self):
-        pass
 
     def get_allowed_exposed_functions(self) -> List[str]:
         return ['get_stats']
@@ -25,91 +21,40 @@ class HingeProvider(MemoryProvider):
 
     async def get_stats(self, **kwargs) -> dict:
         old_data_parser = HingeParser()
-        older_data: List[Conversation] = await old_data_parser.get_data(validate_raw_data=False)
+        conversations: List[Conversation] = []
+        likes: List[LikeItem] = []
+        conversations, likes = await old_data_parser.get_data(validate_raw_data=False)
 
-        match_count = 0
-        likes_with_message_sent_count = 0
-        likes_without_message_sent_count = 0
-        match_without_like_count = 0
-        likes_with_comment_that_matched = 0
-        likes_with_no_comment_that_matched = 0
-        total_chats = 0
-        match_times = []
-        match_messages = []
-        highest_conversation_length = 0
+        match_count = len(conversations)
+        likes_with_message_sent_count = sum(1 for like in likes if like.comment)
+        likes_without_message_sent_count = len(likes) - likes_with_message_sent_count
+        total_chats = sum(len(conversation.messages) for conversation in conversations)
+        highest_conversation_length = max(len(conversation.messages) for conversation in conversations)
         likes_by_weekday_hour = [[0 for _ in range(24)] for _ in range(7)]
         matched_like_times = [[0 for _ in range(24)] for _ in range(7)]
         year_today = date.today().year
         likes_by_month_year = [[0 for _ in range(12)] for _ in range(year_today + 1 - 2013)]
 
-        # Generally, if like exists before match, it means I initiated the match. If that also has a message, it means I added a like prompt.
-        # If the match is at the top (possibly without any like, it means she initiated the match)
-        for data in older_data:
-            for like_data in data.likes:
-                _dt = parser.parse(like_data.timestamp)
-                if _dt:
-                    _dt_local = _dt.replace(tzinfo=timezone.utc).astimezone()
-                    weekday = _dt_local.weekday()  # Monday = 0
-                    hour = _dt_local.hour  # 0-23
-                    likes_by_weekday_hour[weekday][hour] += 1
-                    month = _dt_local.month - 1  # 0-11
-                    year_index = _dt_local.year - 2013
-                    if 0 <= year_index < len(likes_by_month_year):
-                        likes_by_month_year[year_index][month] += 1
-                    else:
-                        raise ValueError(f"Year {year_index} is out of range for likes_by_month_year {len(likes_by_month_year)}")
-
-                if like_data.comment:
-                    likes_with_message_sent_count += 1
-                else:
-                    likes_without_message_sent_count += 1
-
-
-            match_count += len(data.matches)
-
-            if data.has_messages() and data.has_likes():
-                match_dt = min([parser.parse(match_time) for match_time in data.matches])
-                like_dt = max([parser.parse(like_time.timestamp) for like_time in data.likes])
-
-                _dt_local = like_dt.replace(tzinfo=timezone.utc).astimezone()
+        for like_data in likes:
+            _dt = parser.parse(like_data.timestamp)
+            if _dt:
+                _dt_local = _dt.replace(tzinfo=timezone.utc).astimezone()
                 weekday = _dt_local.weekday()  # Monday = 0
                 hour = _dt_local.hour  # 0-23
                 likes_by_weekday_hour[weekday][hour] += 1
-                matched_like_times[weekday][hour] += 1
-
-                # Calculate all positive differences in seconds
-                diff = (match_dt - like_dt).total_seconds()
-                if diff < 0:
-                    raise ValueError("Match time is before like time")
-
-                match_times.append(diff)
-                first_comment = next((like.comment for like in data.likes), None)
-                if first_comment:
-                    match_messages.append(first_comment)  # Get the like which got a match if exists
-
-            if data.has_matches():
-                if data.has_likes():
-                    if any(like.comment for like in data.likes):
-                        likes_with_comment_that_matched += 1
-                    else:
-                        likes_with_no_comment_that_matched += 1
+                month = _dt_local.month - 1  # 0-11
+                year_index = _dt_local.year - 2013
+                if 0 <= year_index < len(likes_by_month_year):
+                    likes_by_month_year[year_index][month] += 1
                 else:
-                    match_without_like_count += 1
-
-            total_chats += len(data.messages)
-            highest_conversation_length = max(highest_conversation_length, len(data.messages))
+                    raise ValueError(
+                        f"Year {year_index} is out of range for likes_by_month_year {len(likes_by_month_year)}")
 
         return {
             "total_likes_sent": likes_with_message_sent_count + likes_without_message_sent_count,
             "likes_with_message_sent": likes_with_message_sent_count,
-            "likes_with_comment_that_matched": likes_with_comment_that_matched,
-            "likes_with_no_comment_that_matched": likes_with_no_comment_that_matched,
-            "match_without_like": match_without_like_count,
-            "median_match_time": int(statistics.median(match_times) if match_times else 0),
-            "fastest_match_time": int(min(match_times) if match_times else 0),
             "average_chat_message_sent": 0 if match_count == 0 else int(total_chats / match_count),
             "total_matches": match_count,
-            "like_message_that_matched": match_messages,
             "highest_conversation_length": highest_conversation_length,
             "likes_by_weekday_hour": likes_by_weekday_hour,
             "likes_by_month_year": likes_by_month_year,
@@ -134,65 +79,79 @@ class HingeProvider(MemoryProvider):
         pattern = re.compile(search_regex) if search_regex else None
 
         old_data_parser = HingeParser()
-        older_data: List[Conversation] = await old_data_parser.get_data(validate_raw_data=False)
+        conversations, likes = await old_data_parser.get_data(validate_raw_data=False)
 
-        chat_name_match_time = await get_all_hinge_match_times()
-        match_time_chat_name = {v: k for k, v in chat_name_match_time.items()}
-        match_count = 0
-        like_count = 0
+        chat_name_like_time = await get_all_hinge_like_times()
+        like_time_chat_name = {v: k for k, v in chat_name_like_time.items()}
 
-        for conversation in older_data:
-            match_messages = []
-            chat_name = None
+        chat_name_match_ids = await get_all_hinge_match_ids()
+        match_id_chat_name = {v: k for k, v in chat_name_match_ids.items()}
 
-            for like_data in conversation.likes:
-                _dt = parser.parse(like_data.timestamp)
-                match_messages.append((_dt, like_data.comment or 'Liked'))
-
-            if conversation.has_likes():
-                like_count += 1
-
-            for match_time in conversation.matches:
-                if match_time in match_time_chat_name:
-                    chat_name = match_time_chat_name[match_time]
-                _dt = parser.parse(match_time)
-                match_messages.append((_dt, 'Matched'))
-
-            if conversation.has_messages():
-                match_count += 1
+        for conversation in conversations:
+            chat_name = match_id_chat_name.get(conversation.match_id, conversation.match_id)
 
             for chat_data in conversation.messages:
+                text = chat_data.body
+                if not text:
+                    continue
+
                 _dt = parser.parse(chat_data.timestamp)
-                match_messages.append((_dt, chat_data.body))
-
-            for row in match_messages:
-                _dt, text = row
-
-                # Messages are sorted by time descending in Instagram export
                 if start_date and _dt.date() < start_date:
                     continue
                 elif end_date and _dt.date() > end_date:
                     continue
 
-                if not text:
-                    continue
-
                 if pattern and pattern.search(text) is None:
                     continue
 
-                # Hinge just provides user's own messages
                 messages.append(
                     Message(
                         _dt,
-                        MessageType.SENT,
+                        chat_data.message_type,
                         text,
-                        sender=configs.USER,
+                        sender=configs.USER if chat_data.message_type == MessageType.SENT else chat_name,
                         provider=HingeProvider.NAME,
-                        chat_name=chat_name or f'Match #{match_count}' if conversation.has_matches() else f'Like #{like_count}',
+                        chat_name=chat_name,
                         media_type=MediaType.TEXT,
                         context={},
-                        is_group=False  # TODO: Fix
+                        is_group=False
                     )
                 )
+
+        for like_data in likes:
+            chat_name = ''
+            like_time = like_data.timestamp
+            if like_time in like_time_chat_name:
+                chat_name = like_time_chat_name[like_time]
+            _dt = parser.parse(like_time)
+            if start_date and _dt.date() < start_date:
+                continue
+            elif end_date and _dt.date() > end_date:
+                continue
+
+            text = 'Liked a profile'
+            if like_data.is_rose or like_data.comment:
+                text += ' with'
+            if like_data.is_rose:
+                text += ' rose'
+                if like_data.comment:
+                    text += ' and'
+            if like_data.comment:
+                text += f' comment: {like_data.comment}'
+            text += '.'
+
+            messages.append(
+                Message(
+                    _dt,
+                    MessageType.SENT,
+                    text,
+                    sender=configs.USER,  # Hinge just gives own likes
+                    provider=HingeProvider.NAME,
+                    chat_name=chat_name,
+                    media_type=MediaType.TEXT,
+                    context={},
+                    is_group=False
+                )
+            )
 
         return messages

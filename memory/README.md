@@ -126,19 +126,16 @@ async def merge(new_path='new_data/google_maps'):
 Hinge has limited support even through backups. It only support getting user's own messages.
 - Open Hinge app and go to settings > Download my data > Download my data button
 - Once you receive the downloaded zip, copy the `matches.json` file to `data/hinge`
-- Hinge doesn't provide the name of the chat. You can use `provider_details.hinge.match_time` to add a name to the chats (as in the example below). Any match time for the user from matches.json will work fine.
+- Hinge doesn't provide the name of the chat. You can use
+  - `provider_details.hinge.like_time` to add a like message timestamp from the dump
+  - and `provider_details.hinge.match_id` to map chat messages match_id from the dump
 
-> Rather than manually replacing an old matches.json file, you can use the following script to merge the new matches.json with the old one. This will ensure that you don't lose any old messages.
+to the chats (as in the example below).
 
-- Put the new matches.json file in the `new_data/hinge` folder
-- Run the following script
-```py
-async def merge(new_path='new_data/hinge'):
-    from provider.hinge_merge_helper import HingeMerge
-    hinge_merger = HingeMerge(new_path)
-    data = await hinge_merger.merge()
-    await hinge_merger.dump(data, dry_run=True)
-```
+- Put the folders there
+  - `chat_message`
+  - `match_likes`
+  - `match_roses`
 
 #### Uber
 We use Personal data copy to get the ride history.
@@ -202,7 +199,9 @@ Wanna make the UI for the web app more elegant? Add `profile.json` to the data f
         ]
       },
       "hinge": {
-        "match_time": "2025-08-01 01:01:01"
+        "like_time": "2025-08-01 01:01:01",
+        "match_id": "match_12",
+        "sample_message": "" // Not used right now. This is for future keeping if match_id is not consistently across backups
       }
     }
   }

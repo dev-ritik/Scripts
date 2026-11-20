@@ -105,20 +105,6 @@
 
     }
 
-    .message {
-
-        background: #FFF4F3;
-
-        border-radius: 16px;
-
-        padding: 16px;
-
-        margin-bottom: 12px;
-
-        font-size: 1rem;
-
-    }
-
     .loading {
 
         opacity: .6;
@@ -174,58 +160,6 @@
 
     .heat-cell:hover{
         transform:scale(1.15);
-    }
-
-    .match-breakdown {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 40px;
-        padding: 24px;
-    }
-
-    .match-breakdown-chart {
-        width: 260px;
-        height: 260px;
-    }
-
-    .match-breakdown-text {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-        max-width: 300px;
-    }
-
-    .breakdown-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .breakdown-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .breakdown-item strong {
-        display: block;
-        font-size: 14px;
-    }
-
-    .breakdown-item small {
-        display: block;
-        margin-top: 3px;
-        color: #888;
-        font-size: 12px;
-    }
-
-    @media (max-width: 600px) {
-        .match-breakdown {
-            flex-direction: column;
-            gap: 20px;
-        }
     }
 
     .like-style-card {
@@ -358,33 +292,6 @@
         font-size: 14px;
     }
 
-    .match-timing-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 28px;
-    }
-
-    .timing-card {
-        background: white;
-        border-radius: 24px;
-        padding: 28px;
-    }
-
-    .timing-chart {
-        height: 380px;
-    }
-
-    .timing-card h3 {
-        margin: 0 0 20px;
-        font-size: 17px;
-    }
-
-    @media (max-width: 800px) {
-        .timing-chart {
-            height: 300px;
-        }
-    }
-
 </style>
 {% endblock %}
 
@@ -412,24 +319,6 @@
             <div class="emoji">💕</div>
             <div class="label">Matches</div>
             <div class="value accent" id="totalMatches">--</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="emoji">🎯</div>
-            <div class="label">Match Rate</div>
-            <div class="value" id="matchRate">--</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="emoji">⚡</div>
-            <div class="label">Fastest Match</div>
-            <div class="value" id="fastestMatchTime">--</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="emoji">⏳</div>
-            <div class="label">Median Match Time</div>
-            <div class="value" id="medianMatchTime">--</div>
         </div>
 
         <div class="stat-card">
@@ -482,57 +371,6 @@
 
     <div class="section">
 
-        <h2>💕 How your matches happened</h2>
-
-        <div class="match-breakdown">
-            <div class="match-breakdown-chart">
-                <canvas id="matchBreakdownChart"></canvas>
-            </div>
-
-            <div class="match-breakdown-text">
-                <div class="breakdown-item">
-                    <span class="breakdown-dot comment"></span>
-                    <div>
-                        <strong>Commented likes</strong>
-                        <small>Likes with a comment that matched</small>
-                    </div>
-                </div>
-
-                <div class="breakdown-item">
-                    <span class="breakdown-dot like"></span>
-                    <div>
-                        <strong>Silent likes</strong>
-                        <small>Likes without a comment that matched</small>
-                    </div>
-                </div>
-
-                <div class="breakdown-item">
-                    <span class="breakdown-dot incoming"></span>
-                    <div>
-                        <strong>They liked first</strong>
-                        <small>Matches without you sending a like</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section">
-
-    <h2>💌 Messages that got you matches</h2>
-
-        <div id="successfulMessages">
-
-            <div class="message">
-                Loading...
-            </div>
-
-        </div>
-
-    </div>
-
-    <div class="section">
-
         <h2>💘 Your liking era</h2>
 
         <p class="section-subtitle">
@@ -571,32 +409,6 @@
 
         </div>
 
-    </div>
-
-    <div class="section"><h2>✨ When your likes work</h2>
-        <p class="section-subtitle"> When are your likes most likely to turn into matches? </p>
-        <div class="match-timing-grid">
-            <div class="timing-card"><h3>🕐 Matches by time of day</h3>
-                <div class="timing-chart">
-                    <canvas id="matchedByHourChart"></canvas>
-                </div>
-            </div>
-            <div class="timing-card"><h3>💘 Match rate by time</h3>
-                <div class="timing-chart">
-                    <canvas id="matchRateByHourChart"></canvas>
-                </div>
-            </div>
-            <div class="timing-card"><h3>📅 Matches by weekday</h3>
-                <div class="timing-chart">
-                    <canvas id="matchedByWeekdayChart"></canvas>
-                </div>
-            </div>
-            <div class="timing-card"><h3>✨ Match rate by weekday</h3>
-                <div class="timing-chart">
-                    <canvas id="matchRateByWeekdayChart"></canvas>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -735,84 +547,15 @@
 
         totalMatches.textContent = s.total_matches;
 
-        medianMatchTime.textContent = formatDuration(s.median_match_time);
-        fastestMatchTime.textContent = formatDuration(s.fastest_match_time);
         avgMessages.textContent = s.average_chat_message_sent;
 
         highestConversationLength.textContent = s.highest_conversation_length;
 
-        matchRate.textContent =
-            (((s.likes_with_comment_that_matched + s.likes_with_no_comment_that_matched) / s.total_likes_sent) * 100).toFixed(1) + "%";
-
-        new Chart(document.getElementById("matchBreakdownChart"), {
-            type: "doughnut",
-            data: {
-                labels: [
-                    "Commented likes",
-                    "Silent likes",
-                    "They liked first"
-                ],
-                datasets: [{
-                    data: [
-                        s.likes_with_comment_that_matched,
-                        s.likes_with_no_comment_that_matched,
-                        s.match_without_like
-                    ],
-                    backgroundColor: [
-                        "#ff6b81",
-                        "#ffb3c1",
-                        "#c9b6ff"
-                    ],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: "62%",
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                const values = context.dataset.data;
-                                const total = values.reduce((a, b) => a + b, 0);
-                                const value = context.raw;
-                                const percentage = total
-                                    ? ((value / total) * 100).toFixed(1)
-                                    : 0;
-
-                                return ` ${value} (${percentage}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
         renderLikesActivityChart(s.likes_by_month_year);
-        renderMatchedLikeTiming(s);
-
-        const container = document.getElementById("successfulMessages");
-
-        container.innerHTML = "";
-
-        s.like_message_that_matched.forEach(msg => {
-
-            container.innerHTML += `
-            <div class="message">
-                ❤️ ${msg}
-            </div>
-        `;
-
-        });
 
         renderHeatmap(s.likes_by_weekday_hour);
 
         dashboard.classList.remove("loading");
-
     }
 
     window.onload = loadStats;
@@ -894,195 +637,6 @@
 
         });
 
-    }
-
-    function renderMatchedLikeTiming(s) {
-        const likes = s.likes_by_weekday_hour;
-        const matched = s.matched_like_times;
-        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-        // --------------------------------
-        // Aggregate by hour
-        // --------------------------------
-        const hourlyLikes = Array(24).fill(0);
-        const hourlyMatches = Array(24).fill(0);
-        for (let day = 0; day < 7; day++) {
-            for (let hour = 0; hour < 24; hour++) {
-                hourlyLikes[hour] += likes[day]?.[hour];
-                hourlyMatches[hour] += matched[day]?.[hour];
-            }
-        }
-        console.log(hourlyLikes, hourlyMatches);
-        const hourlyMatchRate = hourlyLikes.map((count, hour) => {
-            return count > 0 ? (hourlyMatches[hour] / count) * 100 : 0;
-        });
-        // --------------------------------
-        // Aggregate by weekday
-        // --------------------------------
-        const dailyLikes = Array(7).fill(0);
-        const dailyMatches = Array(7).fill(0);
-        for (let day = 0; day < 7; day++) {
-            dailyLikes[day] = likes[day]?.reduce((sum, value) => sum + value, 0) || 0;
-            dailyMatches[day] = matched[day]?.reduce((sum, value) => sum + value, 0) || 0;
-        }
-        const dailyMatchRate = dailyLikes.map((count, day) => {
-            return count > 0 ? (dailyMatches[day] / count) * 100 : 0;
-        });
-        // --------------------------------
-        // Common chart options
-        // --------------------------------
-        const commonLineOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {intersect: false, mode: "index"},
-            plugins: {legend: {display: false}},
-            scales: {
-                x: {grid: {display: false}},
-                y: {beginAtZero: true, ticks: {precision: 0}, grid: {color: "rgba(0, 0, 0, 0.05)"}}
-            }
-        };
-        // --------------------------------
-        // 1. Matches by hour
-        // --------------------------------
-        new Chart(document.getElementById("matchedByHourChart"), {
-            type: "line",
-            data: {
-                labels: Array.from({length: 24}, (_, hour) => `${hour}:00`),
-                datasets: [{
-                    label: "Matches",
-                    data: hourlyMatches,
-                    borderColor: "#ff6b81",
-                    backgroundColor: "rgba(255, 107, 129, 0.10)",
-                    borderWidth: 3,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                ...commonLineOptions,
-                plugins: {
-                    ...commonLineOptions.plugins, tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return ` ${context.raw} matches`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...commonLineOptions.scales,
-                    x: {...commonLineOptions.scales.x, ticks: {maxTicksLimit: 12, maxRotation: 0}}
-                }
-            }
-        });
-        // --------------------------------
-        // 2. Match rate by hour
-        // --------------------------------
-        new Chart(document.getElementById("matchRateByHourChart"), {
-            type: "line",
-            data: {
-                labels: Array.from({length: 24}, (_, hour) => `${hour}:00`),
-                datasets: [{
-                    label: "Match rate",
-                    data: hourlyMatchRate,
-                    borderColor: "#c9a7ff",
-                    backgroundColor: "rgba(201, 167, 255, 0.12)",
-                    borderWidth: 3,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                ...commonLineOptions,
-                plugins: {
-                    ...commonLineOptions.plugins, tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return ` ${context.raw.toFixed(1)}% match rate`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...commonLineOptions.scales,
-                    y: {...commonLineOptions.scales.y, ticks: {precision: 1, callback: value => `${value}%`}},
-                    x: {...commonLineOptions.scales.x, ticks: {maxTicksLimit: 12, maxRotation: 0}}
-                }
-            }
-        });
-        // --------------------------------
-        // 3. Matches by weekday
-        // --------------------------------
-        new Chart(document.getElementById("matchedByWeekdayChart"), {
-            type: "bar",
-            data: {
-                labels: days,
-                datasets: [{
-                    label: "Matches",
-                    data: dailyMatches,
-                    backgroundColor: "#ffb3c1",
-                    borderRadius: 12,
-                    borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {display: false}, tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return ` ${context.raw} matches`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {grid: {display: false}},
-                    y: {beginAtZero: true, ticks: {precision: 0}, grid: {color: "rgba(0, 0, 0, 0.05)"}}
-                }
-            }
-        });
-        // --------------------------------
-        // 4. Match rate by weekday
-        // --------------------------------
-        new Chart(document.getElementById("matchRateByWeekdayChart"), {
-            type: "bar",
-            data: {
-                labels: days,
-                datasets: [{
-                    label: "Match rate",
-                    data: dailyMatchRate,
-                    backgroundColor: "#c9a7ff",
-                    borderRadius: 12,
-                    borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {display: false}, tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return ` ${context.raw.toFixed(1)}% match rate`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {grid: {display: false}},
-                    y: {
-                        beginAtZero: true,
-                        ticks: {callback: value => `${value}%`},
-                        grid: {color: "rgba(0, 0, 0, 0.05)"}
-                    }
-                }
-            }
-        });
     }
 
 </script>

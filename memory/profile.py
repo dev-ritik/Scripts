@@ -125,11 +125,22 @@ async def get_all_imessage_chat_ids_from_senders() -> Dict[str, list]:
             chat_identifiers[sender] = chat_identifier
     return chat_identifiers
 
-async def get_all_hinge_match_times() -> Dict[str, str]:
+
+async def get_all_hinge_like_times() -> Dict[str, str]:
     profile_json = await get_profile_json()
-    hinge_match_times = {}
+    hinge_like_times = {}
     for sender, user_profile in profile_json.items():
-        hinge_match_time: str = user_profile.get('provider_details', {}).get('hinge', {}).get('match_time', '')
-        if hinge_match_time:
-            hinge_match_times[sender] = hinge_match_time
-    return hinge_match_times
+        hinge_like_time: str = user_profile.get('provider_details', {}).get('hinge', {}).get('like_time', '')
+        if hinge_like_time:
+            hinge_like_times[sender] = hinge_like_time
+    return hinge_like_times
+
+
+async def get_all_hinge_match_ids() -> Dict[str, str]:
+    profile_json = await get_profile_json()
+    hinge_match_ids = {}
+    for sender, user_profile in profile_json.items():
+        hinge_match_id: str = user_profile.get('provider_details', {}).get('hinge', {}).get('match_id', '')
+        if hinge_match_id:
+            hinge_match_ids[sender] = hinge_match_id
+    return hinge_match_ids
